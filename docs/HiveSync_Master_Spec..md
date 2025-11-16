@@ -370,6 +370,88 @@ Settings integrate with entitlement logic:
 **End of VS Code Plugin Requirements**
 
 ---
+## 1.4 Build Route & Implementation Guarantees
+
+To ensure consistent implementation across all components, the build agent must
+strictly follow the technology choices and routes defined below.
+
+No substitutions may be made unless explicitly modified later in this
+specification by the project owner.
+
+---
+
+### 1.4.1 Backend
+- MUST use Python 3.12+
+- MUST use FastAPI (async)
+- MUST use PostgreSQL with SQLAlchemy + Alembic
+- MUST use Celery for background tasks
+- All AI responses must be metadata-only; backend must never apply AI changes
+  directly to stored code.
+
+No alternate languages, frameworks, databases, or workers may be substituted.
+
+---
+
+### 1.4.2 Mobile App
+- MUST be built using **React Native with JavaScript (no TypeScript)**.
+- iOS output MUST be an Xcode project.
+- Android output MUST be a Gradle project.
+- All preview functionality MUST use WebView sandboxing.
+- No Swift-only, Objective-C, Kotlin-only, or Flutter rewrites may be used.
+
+---
+
+### 1.4.3 Desktop Client
+- MUST be built using **Electron with JavaScript**, no TypeScript.
+- MUST generate build scripts for:
+  - macOS `.dmg`
+  - Windows `.exe`
+  - Linux `.AppImage`
+- UI framework inside Electron may be React or plain JS/HTML, but MUST NOT use
+  TypeScript unless explicitly allowed later.
+
+---
+
+### 1.4.4 IDE Plugins
+
+#### VS Code Extension
+- MUST use the official VS Code Extension API.
+- MUST be implemented in **JavaScript, not TypeScript**.
+- MUST include all commands and entitlement checks defined in the plugin spec.
+
+#### JetBrains Plugin
+- MUST use Kotlin (JetBrains requires it; JS is not applicable here).
+
+#### Sublime Text
+- MUST use Python, following Sublime's plugin API.
+
+#### Vim / Neovim
+- MUST use the Python CLI wrapper (no embedded TypeScript or Node plugin).
+
+---
+
+### 1.4.5 CLI Tool
+- MUST be built in Python and use the same entitlement logic as all clients.
+
+---
+
+### 1.4.6 Cross-Platform Parity
+All clients must enforce the same:
+- Free/Trial/Pro gates
+- AI metadata-only rules
+- sync semantics
+- offline behavior
+- diff approval mechanism
+
+No client may bypass entitlement validation or provide alternate billing flows.
+
+---
+
+This section is authoritative and overrides all implicit decisions by the build
+agent.
+
+
+---
 
 ## 2. Data & Logging
 Authoritative JSON schema and CSV headers identical to original spec.  

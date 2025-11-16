@@ -750,6 +750,9 @@ DO NOT overwrite any existing file unless I specifically tell you to overwrite i
 DO NOT create any top-level `main.py`, `server.py`, or unrelated boilerplate.
 DO NOT generate package boilerplate outside the designated structure.
 DO NOT move the project root.**
+All implementation choices must follow the Build Route & Implementation
+Guarantees section in the Master Spec.
+
 
 ### **ALLOWED LOCATIONS**
 
@@ -990,6 +993,7 @@ Follow each phase exactly, in order.
 Do **not** combine phases.
 Do **not** skip phases.
 Pause after each phase for confirmation before moving to the next.
+Follow all Build Route constraints defined in the Master Spec.
 
 ---
 
