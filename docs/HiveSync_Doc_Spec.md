@@ -311,10 +311,14 @@ Rounded corners and soft shadows create a friendly but professional aesthetic. A
 
 ## Administration and Developer Notes
 
-The HiveSync backend can be implemented in Node.js, Go, or Python.  
-Data storage is handled through PostgreSQL or MongoDB with encryption.  
-Logs and exported files use S3-compatible storage.  
-WebSocket connections include heartbeat checks to detect dropped sessions.
+The HiveSync backend is implemented in Python 3.12+ using FastAPI, with all
+persistent data stored in PostgreSQL. AI-related metadata, file versions, and
+snapshot indexes are stored relationally, with JSONB used only for structured
+metadata where appropriate.
+
+All service components communicate over authenticated REST and WebSocket
+endpoints, with connection heartbeats to detect dropped sessions and support
+real-time sync.
 
 Admins have an interface to:
 - Configure AI providers and test connections.  
@@ -322,7 +326,10 @@ Admins have an interface to:
 - Manage team members and permissions.  
 - Control accessibility and theme presets.  
 
-Default retention is to keep all logs indefinitely unless manually purged.
+Default retention is to keep all logs and version history according to the
+server’s configured retention policy. No external blob store is assumed for v1;
+all core data is managed through the primary backend stack.
+
 
 ---
 

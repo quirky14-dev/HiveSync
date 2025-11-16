@@ -11,7 +11,7 @@ It enables real-time **Live View**, lightweight **Tasks**, **AI-assisted documen
 
 **Expanded Scope (v1.0 merged)**
 - Adds a full **Admin Panel & Prompt Playground** for configuring and testing AI documentation models.  
-- Introduces an **AI Comment Generation Service** that automatically inserts inline documentation.  
+- Introduces an **AI Comment Generation Service** that proposes inline documentation as metadata and only inserts it after the user approves it via the diff viewer. 
 - Implements **Mobile Manual Preview** (safe on-device preview after save) and **Desktop Live Preview** (instant updates while coding).  
 - Defines a **WebSocket Event Schema** for real-time diff streaming and preview management.  
 - Adds **Safety & Performance systems** (rollback, throttling, cached preview, battery guard).
