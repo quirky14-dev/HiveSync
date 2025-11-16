@@ -238,6 +238,132 @@ This technology stack is binding for all backend components and MUST be respecte
 by all build phases, including scaffolding, code generation, plugin integration,
 and deployment scripts.
 
+---
+
+### 1.0.13 Global Rules & Behavioral Invariants
+
+The following rules define the core behavior, safety constraints, and
+cross-platform invariants for HiveSync. These rules override all implicit build
+agent assumptions and must be honored by all components, including backend,
+mobile, desktop, IDE plugins, and CLI clients.
+
+---
+
+#### AI Interaction Rules (Metadata-Only)
+- AI may NEVER rewrite, modify, or replace user code directly.
+- AI may ONLY return metadata:
+  - documentation blocks
+  - structured diffs
+  - symbolic refactor maps
+  - warnings, analysis, or contextual insights
+  - summaries of changes or explanations
+- All AI output MUST pass through a diff/approval process before becoming
+  persistent.
+- Backend MUST NOT accept “direct write” AI endpoints.
+- No client may bypass diff approval, even for Pro users.
+
+---
+
+#### Sync & Conflict Semantics
+- The backend is ALWAYS the single source of truth.
+- Offline edits MUST queue locally and replay on reconnect.
+- When queued edits collide with newer server versions:
+  - NO automatic overwrite is permitted.
+  - A conflict MUST be surfaced to the user.
+  - Conflict resolution MUST occur via the diff/merge UI.
+- “Last write wins” behavior is explicitly prohibited.
+
+---
+
+#### Versioning & Snapshots
+- All file versions MUST be stored relationally.
+- Snapshots MUST represent a true project-wide state.
+- Snapshots may NOT be silently mutated by any client.
+- Loading a snapshot MUST NOT destroy later versions; new versions are appended.
+
+---
+
+#### GitHub Integration Rules
+- GitHub is an optional external sync target, NOT the primary storage.
+- Sync operations MUST be explicit:
+  - “Pull from GitHub”
+  - “Push to GitHub”
+- No automatic background Git syncing is allowed.
+- If Git merge conflicts occur during pull, they MUST surface through the diff
+  UI.
+- Saving AI-generated docs to GitHub is PRO-only.
+- Free-tier users MAY push/pull, but may NOT save AI docs to GitHub.
+
+---
+
+#### Entitlement & Billing Enforcement
+- Subscription purchases MAY ONLY occur in the mobile app (App Store / Play).
+- Desktop clients and IDE plugins MUST:
+  - read entitlement state from the backend
+  - never offer alternative billing
+  - never unlock Pro-only features locally
+- Trial → Pro → Free transitions MUST be reflected within 15 minutes or on any
+  entitlement refresh trigger.
+- Pro-only features MUST trigger the Upgrade Intercept flow if attempted on
+  desktop or IDE clients.
+
+---
+
+#### Cross-Client Feature Parity
+- All clients MUST enforce identical Free/Trial/Pro gates.
+- No platform (mobile, desktop, plugin, CLI) may offer expanded or reduced
+  abilities beyond what is defined here.
+- Feature access MUST depend ONLY on backend entitlement state.
+
+---
+
+#### Preview Sandbox Rules
+- All preview execution MUST occur in an isolated environment.
+- No client may execute untrusted user code natively.
+- Mobile preview MUST use a WebView sandbox with NO native code execution.
+- Preview errors MUST NOT crash HiveSync.
+- Preview must support ephemeral sessions; no persistent state across sessions.
+
+---
+
+#### Security & Isolation Requirements
+- No client may store or process untrusted code outside its sandbox.
+- Backend may NOT log file contents or PII.
+- WebSockets MUST authenticate using issued tokens.
+- Clients MAY NOT embed raw OAuth secrets.
+
+---
+
+#### Plugin Consistency Rules
+- VS Code plugin MUST implement all entitlement gates.
+- JetBrains plugin MUST follow the same rules as VS Code.
+- Sublime plugin MUST follow reduced UI rules but identical logic.
+- CLI MUST enforce Pro gating for Pro operations.
+- Plugins MUST NOT include autopatching logic; all changes require explicit
+  confirmation through the diff process.
+
+---
+
+#### No Implicit Substitutions Rule
+The build agent MUST NOT:
+- replace frameworks
+- replace languages
+- change storage models
+- alter AI behavior
+- change sync semantics
+- add or remove tiers
+- introduce automation that bypasses user approval
+- introduce alternate mobile/desktop technologies
+
+Unless explicitly stated elsewhere in this document.
+
+---
+
+These Global Rules ensure consistent, predictable behavior across all clients,
+prevent architectural drift, and provide the guardrails required for a stable
+multi-platform ecosystem. All systems and generated code must adhere to these
+rules.
+
 
 ---
 
