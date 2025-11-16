@@ -55,6 +55,192 @@ It enables real-time **Live View**, lightweight **Tasks**, **AI-assisted documen
 
 ---
 
+## Backend Technology Stack (Locked Specification)
+
+The HiveSync backend MUST use the following technology stack. These selections
+are authoritative and may not be substituted, replaced, or reinterpreted by the
+build agent unless explicitly modified by the project owner.
+
+---
+
+### 1.0.1 Primary Language
+- **Python 3.12+**
+
+Rationale:
+- Mature async support
+- Excellent ecosystem for metadata processing
+- Ideal for AI orchestration
+- Compatible with admin/health scripts already defined (e.g. hivesync-health.py)
+
+---
+
+### 1.0.2 Web Framework
+- **FastAPI (async mode)**
+
+Requirements:
+- Native async request handling
+- Automatic OpenAPI schema
+- Pydantic validation
+- Built-in dependency injection pattern
+- Native WebSocket support
+- Standard CORS configuration
+
+No substitution with Flask, Django, Express, or Node-based frameworks.
+
+---
+
+### 1.0.3 Database
+- **PostgreSQL 14+**
+
+Requirements:
+- Fully relational schema (no document-store behavior)
+- All file versions, snapshots, diff metadata, and sync metadata stored as
+  normalized relational rows
+- JSONB may be used for AI metadata and structured analysis blocks
+- Connection pooling required
+
+No substitution with MySQL, MongoDB, DynamoDB, or SQLite.
+
+---
+
+### 1.0.4 ORM + Migrations
+- **SQLAlchemy 2.x (async)**
+- **Alembic for schema migrations**
+
+Requirements:
+- All models defined using SQLAlchemy Declarative Mapping
+- Migrations must be generated and applied using Alembic
+- Development: migrations auto-run on startup
+- Production: migrations run manually during deployment
+
+---
+
+### 1.0.5 Authentication / Authorization
+- OAuth 2.1 flow with mobile-login as the identity source
+- Backend issues secure JWT session tokens to desktop + plugins
+- No password-based auth anywhere in the system
+
+---
+
+### 1.0.6 Background Jobs & Workers
+- **Celery** (Python)  
+- Broker: Redis or RabbitMQ
+
+Used for:
+- AI documentation jobs
+- AI diff explanation jobs
+- AI symbolic refactor metadata jobs
+- Preview build tasks
+- Large diff processing
+- Heavy version-history operations
+- GitHub synchronization tasks
+
+No Node-based or external worker frameworks may be substituted.
+
+---
+
+### 1.0.7 File Storage & Versioning Strategy
+- File contents stored in Postgres (TEXT)
+- Version history stored relationally:
+  - file → file_version → diff metadata
+- Project snapshots stored as:
+  - compressed diff bundles OR
+  - full file version sets (implementation dependent)
+- Git-linked repositories:
+  - MUST reside on disk under:
+    `/opt/hivesync/repos/<project_id>/`
+  - All references indexed in Postgres
+
+No external blob stores (S3, etc.) unless explicitly approved later.
+
+---
+
+### 1.0.8 AI Execution (Metadata-Only)
+AI endpoints MUST return metadata only.
+
+Allowed AI output:
+- Documentation metadata (comment blocks, description paragraphs)
+- Symbolic refactor metadata (lists of rename locations)
+- Diff explanation metadata
+- Code analysis metadata (complexity, warnings, patterns)
+- Structured JSON payloads
+
+AI endpoints may NOT:
+- return full rewritten file contents
+- apply code changes directly
+- bypass the diff approval UI
+
+Backend must ALWAYS:
+- return proposed metadata only
+- require UI diff approval before storage
+- block any attempt to auto-write AI output
+
+All AI execution occurs via external APIs (OpenAI or approved inference provider),
+NOT inside backend containers.
+
+---
+
+### 1.0.9 WebSocket Sync Layer
+- Single FastAPI WebSocket endpoint
+- Channels:
+  - real-time file updates
+  - version-state changes
+  - entitlement updates
+  - preview status updates
+- Heartbeat interval: 30 seconds
+- Automatic rehydration on reconnect
+
+No alternative WebSocket frameworks may be used.
+
+---
+
+### 1.0.10 Dockerization & Deployment
+- Backend packaged as a single Docker image
+- Base image: Debian-slim or Alpine (Python-compatible)
+- Entrypoint: Gunicorn + Uvicorn workers
+- Must run as non-root user
+- Must include readiness and liveness probes:
+  - DB connectivity
+  - Celery worker health
+  - App startup
+
+---
+
+### 1.0.11 Logging & Observability
+- JSON-structured logs
+- Log fields:
+  - hashed user_id (no raw identifiers)
+  - endpoint
+  - request duration bucket
+  - status code
+  - worker or process ID
+- File contents and PII may NOT be logged
+- `/healthz` route must report DB + worker health
+
+---
+
+### 1.0.12 Testing Requirements
+Minimum requirements:
+- 70%+ line coverage
+- Tests MUST cover:
+  - file save/load
+  - sync semantics
+  - version creation
+  - AI metadata generation endpoints
+  - GitHub push/pull logic
+  - entitlement gates
+  - snapshot creation/restore
+- CI must run tests + type checks before deployment
+
+---
+
+This technology stack is binding for all backend components and MUST be respected
+by all build phases, including scaffolding, code generation, plugin integration,
+and deployment scripts.
+
+
+---
+
 ### 1.1 IDE Integration Targets
 
 HiveSync must provide official plugins/extensions for the following IDEs:
