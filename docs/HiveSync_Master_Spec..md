@@ -247,6 +247,9 @@ cross-platform invariants for HiveSync. These rules override all implicit build
 agent assumptions and must be honored by all components, including backend,
 mobile, desktop, IDE plugins, and CLI clients.
 
+All UI, visual elements, icons, splash screens, color usage, typography, and layouts MUST follow the rules defined in /docs/design_system.md. Do not auto-generate visuals or default icons; reference the design system for all branding.
+
+
 ---
 
 #### AI Interaction Rules (Metadata-Only)
