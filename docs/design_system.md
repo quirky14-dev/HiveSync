@@ -378,3 +378,7 @@ You may add:
 But changes must remain consistent with the geometry and palette defined here.
 
 ---
+
+---
+## Preview Pipeline Version Visual Indicators
+- Incompatible preview bundles trigger a red banner warning style.

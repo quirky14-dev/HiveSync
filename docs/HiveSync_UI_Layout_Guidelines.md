@@ -233,6 +233,126 @@ QR Code should always encode the deep link, with automatic fallback detection.
 
 ---
 
+### iPad Layout (React Native)
+
+The iPad app is implemented in React Native (shared codebase with the phone app) but uses iPad-specific layout rules.
+
+#### Persistent Left Sidebar (VS Code-style)
+
+- On iPad in landscape:
+  - A left sidebar is always visible by default.
+  - The sidebar contains:
+    - Project file tree
+    - Diff/patch overview
+    - Open editors list
+    - Search
+    - Project-level actions (Settings, Sync, etc.)
+- On iPad in portrait:
+  - The sidebar exists but may collapse to a slide-in drawer.
+  - User can manually pin/unpin the sidebar.
+
+#### Split-View Editor on the Right
+
+- The main content area (to the right of the sidebar) is a split-view editor.
+- Supported modes:
+  - **Diff mode:**
+    - Left pane: “before” or unified view.
+    - Right pane: “after” or inline comments / suggestions.
+  - **Compare mode:**
+    - Left pane: file A
+    - Right pane: file B or preview.
+  - **Preview mode:**
+    - Left pane: code
+    - Right pane: rendered preview (if applicable for mobile UI code).
+
+- Each pane scrolls independently, with optional synchronized scrolling for diffs.
+
+#### iPad Toolbar
+
+- iPad has a dedicated toolbar (top of the main content area).
+- Toolbar actions include (but are not limited to):
+  - Approve all visible blocks
+  - Deny all visible blocks
+  - Refresh suggestions (re-request worker patches)
+  - Toggle comments visibility
+  - Toggle diff view mode (unified / side-by-side if supported)
+  - Search in file
+  - “Send to Phone for Preview” (enabled only for mobile projects)
+  - Git actions (commit, discard, etc.), where supported
+  - Editor quick actions (indent, format, select scope, etc.)
+
+#### Drag-to-Reorder Comment Blocks
+
+- Suggested comment / patch blocks within a file are displayed as distinct UI cards.
+- Each card supports drag-and-drop:
+  - Reorder blocks within the same file.
+  - The new order is persisted and sent to the backend.
+  - The backend uses the updated order when applying or displaying suggestions.
+
+- Visual cues:
+  - Drag handle (e.g., ≡ or dotted grip) on each block.
+  - Drop targets indicated with highlight lines.
+
+#### Hover Tooltips (Pointer-Aware)
+
+- On iPad, when a pointer device (mouse/trackpad) is detected:
+  - Hover tooltips are enabled for:
+    - Diff/patch badges
+    - Inline error indicators
+    - Variable and function references (where symbol info is available)
+    - “Send to Phone for Preview” button (explains what it does and when it’s available)
+  - Tooltips show short, user-focused text (no internal dev jargon).
+
+- When only touch is available (no pointer):
+  - Tooltips are replaced by tap/long-press popovers where appropriate.
+
+#### Editing Capabilities (iPad)
+
+- Full code editor experience, tuned for touch + Apple Pencil:
+  - Syntax highlighting
+  - Auto-indentation
+  - Auto-closing braces/quotes
+  - Undo/redo gestures
+  - Quick-jump navigation (e.g., function list exposed via sidebar)
+  - Optional mini-map on the right edge (scrollable overview of file)
+
+- Intended scope of edits on iPad:
+  - Fix typos
+  - Adjust constant values (spacing, colors, dimensions, text labels)
+  - Make small logic changes
+  - Not meant to replace full desktop IDE, but must be safe and reliable for light edits.
+
+---
+
+
+### Phone App Role
+
+The phone app is also built in React Native and retains all existing functionality. The only addition is acting as a **preview target** for mobile React Native projects.
+
+#### Preview Receiver Mode
+
+- The phone app can register itself as a preview device for the current user.
+  - On launch (or via settings), the app calls the backend to register:
+    - user_id
+    - device_id
+    - platform (iOS / Android)
+    - capabilities (e.g., RN version)
+- When a preview bundle is available for that user:
+  - The backend notifies the phone app via:
+    - Push notification, WebSocket, or long-polling (implementation detail).
+  - The phone:
+    - Downloads the new bundle (or delta).
+    - Validates it (project type = mobile app).
+    - Enters / updates preview mode automatically.
+
+- The phone app **does not change its core UX or feature set** beyond:
+  - Showing a “Preview updating…” animation or toast.
+  - Refreshing the preview screen when a new bundle arrives.
+
+> The phone app is not where code review happens; it is where the **live UI/UX** of React Native mobile app projects is previewed.
+
+
+---
 
 
 ## 3. Desktop Client Layout Notes
@@ -353,3 +473,46 @@ QR Code should always encode the deep link, with automatic fallback detection.
 - All colors and layouts are **preferred**, final UI can adapt to branding and design changes.
 - Mobile and desktop layouts should **share core components** (diff view, comment panel, notifications) for familiarity.
 
+
+
+## 7 Block-Level UI Controls
+
+Every comment block or line must display a small action toolbar when rendered for review:
+
+Toolbar Buttons:
+- ❌ Remove: Immediately hides the block and marks state as removed.
+- 📋 Copy: Copies the block’s text directly to clipboard (no backend event required).
+- ↻ Restore: Only visible when a block is removed. Marks state back to pending.
+
+Placement Requirements:
+
+IDE Plugin:
+- Use inline decorations, gutter icons, or hover toolbars.
+- Buttons must appear adjacent to the comment block within the editor or diff view.
+
+Desktop App:
+- Buttons appear on each block inside the review screen.
+- Support mouse hover or always-visible mini-icons depending on layout.
+
+Mobile App:
+- Buttons appear inside a collapsible or always-visible mini-toolbar on each block.
+- Touch-friendly spacing required.
+
+Behavior Rules:
+- Removing a block updates backend state immediately.
+- Restoring a block likewise updates backend state.
+- Copy does not touch backend; it is strictly front-end functionality.
+- Block controls must not affect unrelated blocks.
+- Approval/denial applies to the entire patch after block-level adjustments.
+
+---
+
+---
+## iPad Conflict & Editing Rules
+- Display remote revision state upon file open.
+- Soft-lock banner when another device is editing.
+- Conflict modal shown when base_revision_id mismatch occurs.
+
+---
+## Admin Message UI
+Clients display modal for `admin.message` WebSocket events with an OK button.
