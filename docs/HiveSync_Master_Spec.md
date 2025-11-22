@@ -2068,3 +2068,26 @@ v1.0 — Consolidated developer spec (architecture, UI, tasks, live, logs, notif
 - Semantic anchoring for AI-generated comments.
 - Revision-based saves with conflict warnings.
 - iPad uses same conflict and revision model as desktop.
+
+## 1.0.22 Admin Analytics & Usage Dashboard
+
+HiveSync includes an Admin Analytics Dashboard for the single administrator. It provides:
+
+- Real‑time counts of online users and devices
+- AI usage metrics (requests/min, requests/hour, errors)
+- Queue depth and worker health (CPU/GPU)
+- DAU/MAU and plan distribution (paid/free/trial)
+- High‑level AI cost estimates based on usage
+
+Implementation details, endpoints, and UI layout are defined in `HiveSync_Admin_Analytics_Spec.md`. The dashboard is strictly read‑only and must never expose raw code or file contents.
+
+## 1.0.23 Internal Messaging & Email System
+
+HiveSync ships with an internal messaging system that lets the admin send:
+
+- In‑app banner messages
+- Email broadcasts
+
+to filtered subsets of users (paid, free, trial, expired, active, inactive, by device usage, by AI usage).
+
+Email sending is implemented via external providers (Postmark or Resend) using provider APIs. HiveSync must not run its own SMTP server. Data model, filters, UI behavior, and rate limiting rules are defined in `HiveSync_Messaging_System_Spec.md`.

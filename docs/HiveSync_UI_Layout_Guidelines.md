@@ -516,3 +516,31 @@ Behavior Rules:
 ---
 ## Admin Message UI
 Clients display modal for `admin.message` WebSocket events with an OK button.
+
+## Admin Panel — Analytics & Messaging
+
+The Admin Panel must surface two additional top‑level navigation items:
+
+- **Analytics**
+- **Messaging**
+
+### Analytics
+
+- Layout:
+  - Summary cards at top (online users, AI RPM, queue depth, paid vs free)
+  - Charts in middle (AI usage, DAU, latency)
+  - Tables at bottom (top users by AI usage, recent incidents)
+- Refresh:
+  - Auto‑refresh every 30 seconds (toggleable)
+
+### Messaging
+
+- Layout:
+  - Left column: Message list (history)
+  - Right column: Compose / details view
+- Compose view:
+  - Subject field
+  - Body editor (Markdown)
+  - Channel toggles (In‑App, Email, Both)
+  - Filter builder UI with dropdowns (plan, activity, device, trial status)
+  - Preview panels (email + in‑app banner)
