@@ -1,245 +1,186 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 """
-HiveSync System Health Diagnostic Tool
---------------------------------------
+HiveSync Health Script
+Run with:
+    python3 tools/hivesync-health.py
+or:
+    python3 tools/hivesync-health.py -json
 
-Runs deep health checks against the HiveSync backend stack:
-  - FastAPI health endpoint
-  - PostgreSQL connectivity & latency
-  - Redis (Celery broker) connectivity
-  - Celery worker availability (ping tasks)
-  - AI provider connectivity (OpenAI)
-  - Disk/CPU/RAM diagnostics
-  - Repo folder verification
-  - Docker container environment checks
-  - Optional JSON output with -json or --json flag
-
-
-    --json   flag: outputs json file format for dashboards etc...
-
+Outputs:
+- Postgres connectivity
+- Redis connectivity
+- Worker heartbeat summary (optional)
+- Queue depth summary
+- Status: OK / DEGRADED / FAIL
 """
 
-import os
-import json
-import time
 import argparse
-import subprocess
-import platform
-from datetime import datetime
-
-import requests
+import json
+import os
+import sys
+import time
 import psycopg2
 import redis
+from datetime import datetime
+from colorama import Fore, Style, init
 
-# Colors for CLI output
-class C:
-    OK = "\033[92m"
-    WARN = "\033[93m"
-    ERR = "\033[91m"
-    BLU = "\033[94m"
-    RST = "\033[0m"
-    BOLD = "\033[1m"
+init(autoreset=True)
 
-# -------------------------------------------------------------------------
-# Load configuration or defaults
-# -------------------------------------------------------------------------
+# Environment variables
+PG_HOST = os.getenv("POSTGRES_HOST", "postgres")
+PG_PORT = int(os.getenv("POSTGRES_PORT", 5432))
+PG_DB   = os.getenv("POSTGRES_DB", "hivesync")
+PG_USER = os.getenv("POSTGRES_USER", "hivesync")
+PG_PASS = os.getenv("POSTGRES_PASSWORD", "")
 
-DEFAULT_BACKEND_URL = os.getenv("HIVESYNC_BACKEND_URL", "http://localhost:8000")
-DEFAULT_POSTGRES = {
-    "host": os.getenv("POSTGRES_HOST", "localhost"),
-    "port": int(os.getenv("POSTGRES_PORT", "5432")),
-    "user": os.getenv("POSTGRES_USER", "hivesync"),
-    "password": os.getenv("POSTGRES_PASSWORD", "password"),
-    "database": os.getenv("POSTGRES_DB", "hivesync"),
-}
+REDIS_HOST = os.getenv("REDIS_HOST", "redis")
+REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-REPO_PATH = os.getenv("HIVESYNC_REPO_ROOT", "/opt/hivesync/repos")
-
-OPENAI_KEY = os.getenv("OPENAI_API_KEY", None)  # optional
+# For worker heartbeat keys
+WORKER_HEARTBEAT_PREFIX = "worker:"
 
 
-# -------------------------------------------------------------------------
-# Helper: JSON or CLI print
-# -------------------------------------------------------------------------
-
-def cli(msg, status="ok"):
-    if args.json_mode:
-        return
-
-    if status == "ok":
-        print(f"{C.OK}[OK]{C.RST} {msg}")
-    elif status == "warn":
-        print(f"{C.WARN}[WARN]{C.RST} {msg}")
-    else:
-        print(f"{C.ERR}[FAIL]{C.RST} {msg}")
-
-
-def record(result_dict, label, status, details=None):
-    """Add a record to JSON results."""
-    result_dict[label] = {
-        "status": status,
-        "details": details,
-        "timestamp": datetime.utcnow().isoformat()
-    }
-
-
-# -------------------------------------------------------------------------
-# Checks
-# -------------------------------------------------------------------------
-
-def check_fastapi(result):
-    url = f"{DEFAULT_BACKEND_URL}/healthz"
+def check_postgres():
     try:
-        start = time.time()
-        r = requests.get(url, timeout=2)
-        latency = round((time.time() - start) * 1000, 2)
-
-        if r.status_code == 200:
-            cli(f"FastAPI backend reachable ({latency}ms)", "ok")
-            record(result, "fastapi", "ok", {"latency_ms": latency})
-        else:
-            cli(f"Backend returned {r.status_code}", "fail")
-            record(result, "fastapi", "fail", {"http_code": r.status_code})
-    except Exception as e:
-        cli(f"FastAPI unreachable: {e}", "fail")
-        record(result, "fastapi", "fail", str(e))
-
-
-def check_postgres(result):
-    try:
-        start = time.time()
-        conn = psycopg2.connect(**DEFAULT_POSTGRES)
-        latency = round((time.time() - start) * 1000, 2)
+        conn = psycopg2.connect(
+            host=PG_HOST,
+            port=PG_PORT,
+            dbname=PG_DB,
+            user=PG_USER,
+            password=PG_PASS,
+            connect_timeout=3,
+        )
         conn.close()
-
-        cli(f"PostgreSQL connection OK ({latency}ms)", "ok")
-        record(result, "postgres", "ok", {"latency_ms": latency})
+        return True, None
     except Exception as e:
-        cli(f"PostgreSQL error: {e}", "fail")
-        record(result, "postgres", "fail", str(e))
+        return False, str(e)
 
 
-def check_redis(result):
+def check_redis():
     try:
-        r = redis.Redis.from_url(REDIS_URL)
-        start = time.time()
-        pong = r.ping()
-        latency = round((time.time() - start) * 1000, 2)
-
-        if pong:
-            cli(f"Redis broker reachable ({latency}ms)", "ok")
-            record(result, "redis", "ok", {"latency_ms": latency})
-        else:
-            cli("Redis ping failed", "fail")
-            record(result, "redis", "fail", "Ping failed")
-
+        r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0)
+        r.ping()
+        return True, None
     except Exception as e:
-        cli(f"Redis error: {e}", "fail")
-        record(result, "redis", "fail", str(e))
+        return False, str(e)
 
 
-def check_celery(result):
-    """Celery ping test using `celery inspect ping`."""
+def get_queue_depths():
+    """Depth summary for known queues."""
+    queues = ["ai_jobs", "preview_build", "cleanup"]
+    depths = {}
     try:
-        output = subprocess.check_output(
-            ["celery", "-A", "backend.worker", "inspect", "ping"],
-            stderr=subprocess.STDOUT,
-            timeout=4
-        ).decode()
-
-        if "pong" in output.lower():
-            cli("Celery worker responded to ping", "ok")
-            record(result, "celery", "ok", output)
-        else:
-            cli("Celery returned no pong", "fail")
-            record(result, "celery", "fail", output)
-
-    except Exception as e:
-        cli(f"Celery unreachable: {e}", "fail")
-        record(result, "celery", "fail", str(e))
+        r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0)
+        for q in queues:
+            depths[q] = r.llen(q)
+        return depths
+    except:
+        return None
 
 
-def check_repos_folder(result):
-    if os.path.exists(REPO_PATH):
-        cli(f"Repo folder exists: {REPO_PATH}", "ok")
-        record(result, "repo_folder", "ok", REPO_PATH)
-    else:
-        cli(f"Repo folder missing: {REPO_PATH}", "warn")
-        record(result, "repo_folder", "warn", REPO_PATH)
-
-
-def check_system_resources(result):
-    # CPU, RAM, disk
-    import psutil
-
-    cpu = psutil.cpu_percent(interval=0.5)
-    ram = psutil.virtual_memory().percent
-    disk = psutil.disk_usage("/").percent
-
-    cli(f"CPU load: {cpu}% | RAM: {ram}% | Disk: {disk}%", "ok")
-
-    record(result, "resources", "ok", {
-        "cpu_percent": cpu,
-        "ram_percent": ram,
-        "disk_percent": disk
-    })
-
-
-def check_ai_provider(result):
-    """Optional OpenAI connectivity test."""
-    if not OPENAI_KEY:
-        cli("AI: No OpenAI key configured (skipped)", "warn")
-        record(result, "ai_connectivity", "warn", "OpenAI key not set")
-        return
-
+def get_worker_heartbeats():
+    """Returns a dict of worker → age in seconds."""
+    results = {}
     try:
-        r = requests.get("https://api.openai.com/v1/models",
-                         headers={"Authorization": f"Bearer {OPENAI_KEY}"},
-                         timeout=3)
-
-        if r.status_code == 200:
-            cli("AI provider reachable", "ok")
-            record(result, "ai_connectivity", "ok")
-        else:
-            cli(f"AI provider returned HTTP {r.status_code}", "fail")
-            record(result, "ai_connectivity", "fail", r.status_code)
-
-    except Exception as e:
-        cli(f"AI provider unreachable: {e}", "fail")
-        record(result, "ai_connectivity", "fail", str(e))
+        r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0)
+        for key in r.scan_iter(f"{WORKER_HEARTBEAT_PREFIX}*"):
+            worker_id = key.decode()
+            ts = float(r.get(key) or 0)
+            if ts == 0:
+                continue
+            age = time.time() - ts
+            results[worker_id] = age
+        return results
+    except:
+        return None
 
 
-# -------------------------------------------------------------------------
-# Main
-# -------------------------------------------------------------------------
+def colorize_ok(msg):
+    return Fore.GREEN + msg + Style.RESET_ALL
 
-if __name__ == "__main__":
+
+def colorize_warn(msg):
+    return Fore.YELLOW + msg + Style.RESET_ALL
+
+
+def colorize_error(msg):
+    return Fore.RED + msg + Style.RESET_ALL
+
+
+def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-json", "--json", dest="json_mode", action="store_true",
-                        help="Output JSON instead of colored CLI text")
+    parser.add_argument("-json", action="store_true", help="Output JSON instead of colored text")
     args = parser.parse_args()
 
-    results = {}
+    pg_ok, pg_err = check_postgres()
+    rd_ok, rd_err = check_redis()
+    queues = get_queue_depths()
+    workers = get_worker_heartbeats()
 
-    cli(f"{C.BOLD}{C.BLU}HiveSync System Health Check{C.RST}", "ok")
-    cli(f"Timestamp: {datetime.utcnow().isoformat()}", "ok")
-    cli(f"Backend URL: {DEFAULT_BACKEND_URL}", "ok")
-    print()
-
-    check_fastapi(results)
-    check_postgres(results)
-    check_redis(results)
-    check_celery(results)
-    check_repos_folder(results)
-    check_system_resources(results)
-    check_ai_provider(results)
-
-    print()
-
-    if args.json_mode:
-        print(json.dumps(results, indent=4))
+    # Compute overall health
+    status = "ok"
+    if not pg_ok or not rd_ok:
+        status = "fail"
     else:
-        cli("Health check complete.", "ok")
+        # degraded if workers unresponsive
+        if workers:
+            for age in workers.values():
+                if age > 120:  # 2 minutes old
+                    status = "degraded"
+                    break
+
+    if args.json:
+        output = {
+            "postgres": pg_ok,
+            "postgres_error": pg_err,
+            "redis": rd_ok,
+            "redis_error": rd_err,
+            "queue_depths": queues,
+            "worker_heartbeats": workers,
+            "status": status,
+        }
+        print(json.dumps(output, indent=2))
+        return
+
+    # Human-readable colored output
+    print("\n=== HiveSync Health Check ===\n")
+
+    # Postgres
+    if pg_ok:
+        print(colorize_ok("✔ Postgres: OK"))
+    else:
+        print(colorize_error("✖ Postgres: FAIL"))
+        print(colorize_error(f"  Error: {pg_err}"))
+
+    # Redis
+    if rd_ok:
+        print(colorize_ok("✔ Redis: OK"))
+    else:
+        print(colorize_error("✖ Redis: FAIL"))
+        print(colorize_error(f"  Error: {rd_err}"))
+
+    # Queues
+    print("\nQueue Depths:")
+    if queues:
+        for q, depth in queues.items():
+            print(f"  • {q}: {depth}")
+    else:
+        print("  (Unable to fetch queue depths)")
+
+    # Workers
+    print("\nWorkers:")
+    if workers:
+        for worker_id, age in workers.items():
+            age_str = f"{age:.1f}s ago"
+            if age > 120:
+                print(colorize_warn(f"  • {worker_id}: Unresponsive ({age_str})"))
+            else:
+                print(colorize_ok(f"  • {worker_id}: Alive ({age_str})"))
+    else:
+        print("  (No worker heartbeat info)")
+
+    print(f"\nOverall Status: {status.upper()}\n")
+
+
+if __name__ == "__main__":
+    main()

@@ -325,6 +325,62 @@ def action_deploy(dry: bool = False):
     sh(["docker-compose", "-f", str(DOCKER_COMPOSE_FILE), "pull"], cwd=HIVESYNC_ROOT, dry=dry)
     sh(["docker-compose", "-f", str(DOCKER_COMPOSE_FILE), "up", "-d"], cwd=HIVESYNC_ROOT, dry=dry)
 
+# ---------------------------------------------------------------------------
+# New Admin Actions (Cleanup Worker, Notifications, Preview Jobs, Token Decoder)
+# ---------------------------------------------------------------------------
+
+def action_cleanup_now():
+    """Trigger cleanup worker immediately by pushing a job to the cleanup queue."""
+    import redis
+    try:
+        r = redis.Redis(host=REDIS_HOST, port=int(REDIS_PORT), db=0)
+        r.lpush("cleanup", "manual_trigger")
+        print(c("✔ Cleanup job enqueued.", "GRN"))
+    except Exception as e:
+        print(c(f"✖ Failed to enqueue cleanup job: {e}", "RED"))
+
+
+def action_clear_notifications():
+    """Delete all notifications from the database."""
+    import psycopg2
+    try:
+        conn = psycopg2.connect(
+            host=POSTGRES_HOST,
+            port=int(POSTGRES_PORT),
+            dbname=POSTGRES_DB,
+            user=POSTGRES_USER,
+        )
+        cur = conn.cursor()
+        cur.execute("DELETE FROM notifications;")
+        conn.commit()
+        conn.close()
+        print(c("✔ All notifications cleared.", "GRN"))
+    except Exception as e:
+        print(c(f"✖ Failed to clear notifications: {e}", "RED"))
+
+
+def action_preview_jobs():
+    """Show the length of the preview_build queue (simple visibility)."""
+    import redis
+    r = redis.Redis(host=REDIS_HOST, port=int(REDIS_PORT), db=0)
+    depth = r.llen("preview_build")
+    print(c("\n=== Preview Build Queue ===", "BLD"))
+    print(c(f"Queue depth: {depth}", "BLU"))
+
+
+def action_decode_token_payload(payload_b64: str):
+    """Decode ONLY the Base64 JSON payload of a stateless token (admin-safe)."""
+    import base64
+    import json
+    try:
+        # Add padding for safe decoding
+        padded = payload_b64 + "=="
+        data = base64.urlsafe_b64decode(padded)
+        obj = json.loads(data.decode("utf-8"))
+        print(json.dumps(obj, indent=2))
+    except Exception as e:
+        print(c(f"Failed to decode payload: {e}", "RED"))
+
 
 # ---------------------------------------------------------------------------
 # Menu / argument handling
@@ -341,6 +397,11 @@ def print_menu():
     print("5) Docker up")
     print("6) Docker down")
     print("7) Deploy (pull + up)")
+    print("8) Cleanup now")
+    print("9) Clear all notifications")
+    print("10) Preview jobs")
+    print("11) Decode token payload (admin-safe)")
+
     print("0) Exit")
     print()
 
@@ -364,6 +425,16 @@ def interactive_menu():
             action_docker_down()
         elif choice == "7":
             action_deploy()
+        elif choice == "8":
+            action_cleanup_now()
+        elif choice == "9":
+            action_clear_notifications()
+        elif choice == "10":
+            action_preview_jobs()
+        elif choice == "11":
+            payload = input(c("Enter BASE64 payload: ", "YEL")).strip()
+            action_decode_token_payload(payload)
+
         elif choice == "0":
             print(c("Goodbye.", "GRN"))
             break
@@ -396,6 +467,18 @@ def main(argv: List[str]):
         action_docker_up(dry=dry)
     elif cmd == "down":
         action_docker_down(dry=dry)
+    elif cmd == "cleanup-now":
+        action_cleanup_now()
+    elif cmd == "clear-notifications":
+        action_clear_notifications()
+    elif cmd == "preview-jobs":
+        action_preview_jobs()
+    elif cmd == "decode-payload":
+        if args:
+            action_decode_token_payload(args[0])
+        else:
+            print("Usage: hivesync-admin.py decode-payload <base64-payload>")
+
     else:
         print(c(f"Unknown command: {cmd}", "RED"))
         print("Usage:")
