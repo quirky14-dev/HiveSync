@@ -60,6 +60,178 @@ All generated code must be **fully functional**, production-ready, and valid.
 ## 1.6 Never Produce Snipped or Partial Code
 All code must be complete and syntactically valid.
 
+
+## 1.7 Overwrite-Prevention & File Mutation Safety Rules
+
+The assistant must follow these rules for **every phase**, **every file**, and **every change** made to the project:
+
+### 1. Absolutely No Full-File Overwrites
+- Never regenerate or rewrite an entire file if it already exists.
+- Only additive, patch-based edits are allowed.
+- Unrelated content must remain byte-for-byte identical.
+
+### 2. Modify Only Files Explicitly Requested by the User
+- Do not touch, generate, or update any file the user did not name.
+- When in doubt, ask for clarification.
+
+### 3. Modify Only the Section Specified by the User
+- Insert content strictly at the requested section, marker, or heading.
+- Do not reflow, rewrap, or restructure adjacent text.
+
+### 4. Never Remove Existing Content Unless Explicitly Told To
+- “Refactoring” does *not* include deletion.
+- All removals must be directly and explicitly requested.
+
+### 5. Patch-Based Editing Procedure
+All edits must follow this sequence:
+
+1. Identify the exact insertion point (heading, comment, or line).  
+2. Insert new content **above or below** that point only.  
+3. Do not alter, reorder, or replace other parts of the file.  
+4. Preserve all existing formatting, spacing, and commentary.
+
+### 6. No Multi-File Edits in One Step
+- If a change affects multiple files, list them first.
+- Apply edits one file at a time after user confirmation.
+- Never modify more than one file in a single update step.
+
+### 7. No Directory-Level Modifications
+- Do not rename, move, or delete folders unless the user instructs it.
+- Do not create new directories unless requested.
+
+### 8. No Hallucinated Files
+- If a file appears missing, report it instead of creating it automatically.
+- Only create files explicitly listed in the user's request.
+
+### 9. No Unrequested “Improvements”
+- Do not optimize, reorganize, or reformat anything unless asked.
+- Follow instructions literally and conservatively.
+
+### 10. When Uncertain, Ask
+If there is any ambiguity:
+- What file should be edited  
+- Where to insert  
+- Whether a section exists  
+- Whether
+
+## 1.8 Version-Awareness & Phase-Awareness Rules
+
+The assistant must always remain aware of:
+
+- which phase of the build is active  
+- which files have already been generated  
+- which sections already exist  
+- which content must NOT be regenerated
+
+These rules prevent duplication, drift, and regression of previously correct work.
+
+### 1. Track Prior Output
+- Before generating new content, check whether that file or section already exists.
+- If it exists, **do not regenerate it**.
+- If an instruction appears to repeat earlier steps, treat this as a **request for incremental continuation**, not full regeneration.
+
+### 2. Never Rebuild Older Phases
+- Phases must be executed **in order**, and each may run only once.
+- If a request resembles a prior-phase operation, respond with a warning:
+  > “That phase has already been completed. Please specify what incremental change you want."
+
+### 3. Section-Level Version Awareness
+Before writing a section:
+1. Check if the heading already exists.  
+2. If it exists:
+   - DO NOT recreate it  
+   - DO NOT generate a second copy  
+   - Instead ask whether the user wants:
+     - an update  
+     - an extension  
+     - or a patch within it
+
+### 4. File-Level Version Awareness
+- Never regenerate a file that already contains correct or partial content.
+- If the user wants to modify an existing file, request:
+  - the target section  
+  - the insertion point  
+  - or the diff they want applied
+
+### 5. Adaptive Continuation Mode
+If the assistant detects a mismatch between:
+- the current phase, and
+- the user’s request
+
+…then clarify what the user wants instead of rewriting earlier steps.
+
+### 6. Duplicate-Content Prevention
+The assistant must reject any action that would create:
+- duplicated sections  
+- repeated diagrams  
+- repeated endpoint definitions  
+- repeated UI components  
+- second copies of entire documents  
+
+Instead, respond:
+> “This section already exists. Should I modify it or extend it?”
+
+### 7. Never Infer a “Reset”
+- Do NOT assume the user wants to start a file or phase over.
+- A full reset requires explicit statements:
+  > “Delete this file and regenerate it from scratch.”
+
+
+## 1.9 Large-File Splitting & Token-Safety Rules
+
+To prevent truncation, corruption, or model overload, the assistant must apply the following rules when generating or updating large Markdown or code files.
+
+### 1. Apply A/B (or A/B/C) Splitting When Necessary
+A file must be split into multiple parts when:
+- token length exceeds the model’s safe generation threshold  
+- or the user explicitly requests a split  
+- or the assistant detects imminent truncation
+
+Split files must follow this structure:
+- `filename.partA.md`
+- `filename.partB.md`
+- `filename.partC.md` (only if required)
+
+### 2. Preserve Logical Continuity
+When splitting:
+- Part A contains the original top-level headings and intro section.
+- Part B continues directly where Part A ends.
+- Any cross-references must be explicitly written:
+  > “Continued in `filename.partB.md`”
+
+### 3. Never Split Arbitrarily
+- Only split on natural section boundaries (headings or major subsections).
+- Never break paragraphs, lists, tables, code blocks, or diagrams in half.
+
+### 4. Multi-File Awareness During Splitting
+If a file is split:
+- All future edits must target the correct part (A, B, or C).
+- Never recreate the original monolithic file.
+- Never merge split files unless the user requests it.
+
+### 5. No Truncation, No Snipping, No Partial Output
+If output appears too long to safely deliver:
+- Stop and announce:
+  > “This file exceeds the safe output threshold. I will split it into additional parts. Continue?”
+- Wait for confirmation before proceeding.
+
+### 6. Reference Integrity
+Split files must preserve:
+- Correct heading hierarchy  
+- Link validity  
+- Cross-part consistency  
+- No duplicated sections  
+- No drift between parts
+
+### 7. Replit Phase Compliance
+Each part (A/B/C) must be:
+- fully self-contained  
+- small enough to fit in a single Replit build iteration  
+- non-overlapping with other parts
+
+Each part must be generated only once unless the user explicitly requests updates.
+
+
 ---
 
 # 2. Documentation Rules

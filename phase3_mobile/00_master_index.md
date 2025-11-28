@@ -47,4 +47,38 @@ Describes polling-based notifications system, data flow, notification types, and
 - Phase 2 – Backend endpoints and error model used by the mobile client.
 - Phase 4+ – Desktop, plugin, and cross-system flows that originate previews and AI jobs.
 
+
+---
+
+## 3. Build-System Safety Notes for Phase 3
+
+Phase 3 defines the structure, navigation, API usage, and preview-client behavior of the
+mobile application. Because these documents coordinate with backend (Phase 2), desktop
+(Phase 4), cross-system preview flows (Phase 6), and global security rules (Phase 7), they
+must be generated and updated under strict build-system safety guarantees.
+
+The global safety rules that apply here are defined in:
+
+- `docs/kickoff_rules.md` — sections **1.7–1.9**  
+- `docs/project_manifest.md` — section **1.1 Build-System Safety Rules**  
+- `docs/master_index.md` — section **13. Build-System Safety & Model Behavior Rules**  
+- `docs/deployment_bible.md` — section **1.5 Build-System Safety & Generation Guardrails**  
+
+For Phase 3 specifically, the build process must:
+
+- Never regenerate mobile architecture files in full once they exist.  
+- Apply only **patch-style** edits at explicit insertion points.  
+- Avoid duplicating navigation definitions, API usage tables, preview-client lifecycle
+  descriptions, or error-handling sections.  
+- Preserve all mobile terminology, layout conventions, and preview-session semantics.  
+- Split large mobile documents into `filename.partA.md`, `filename.partB.md`, etc., rather
+  than risking truncation or corruption.
+
+Mobile architecture inconsistencies propagate into preview sessions, cross-device linking,
+and Phase-6 flows, so maintaining integrity here is critical for end-to-end preview
+correctness.
+
+
+
+
 *(End of file)*

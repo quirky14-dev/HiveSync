@@ -59,3 +59,39 @@ Covers the desktop notifications system, sources, UI representation, and potenti
 - Phase 5 – Plugin Architecture
 - Phase 6 – Cross-System Flows
 - Phase 7 – Security & Hardening
+
+---
+
+## 3. Build-System Safety Notes for Phase 4
+
+Phase 4 defines the desktop client, its navigation model, preview modal behavior,
+and plugin architecture. Because desktop components directly interface with backend APIs,
+mobile preview logic, plugin systems, and cross-device preview flows, Phase 4 documents must
+be generated and updated under strict build-system safety guarantees.
+
+The global safety rules that apply here are defined in:
+
+- `docs/kickoff_rules.md` — sections **1.7–1.9**  
+- `docs/project_manifest.md` — section **1.1 Build-System Safety Rules**  
+- `docs/master_index.md` — section **13. Build-System Safety & Model Behavior Rules**  
+- `docs/deployment_bible.md` — section **1.5 Build-System Safety & Generation Guardrails**  
+
+For Phase 4 specifically, the build process must:
+
+- Never regenerate desktop architecture documents in full once they exist.  
+- Apply only **patch-style** edits at explicit insertion points.  
+- Avoid duplicating navigation definitions, preview modal descriptions, plugin lifecycle
+  rules, or editor integration behaviors.  
+- Preserve terminology and architectural contracts that define how desktop interacts with
+  backend, mobile, and cross-system flows.  
+- Split large desktop documents into `filename.partA.md`, `filename.partB.md`, etc.,  
+  rather than generating oversized or truncated file outputs.
+
+Desktop architecture is tightly coupled with Phase 3 (mobile), Phase 6 (cross-system preview
+flows), and Phase 7 (security), so structural integrity at this phase is essential for
+consistent end-to-end preview and editor behavior.
+
+
+---
+
+*(End of file)*

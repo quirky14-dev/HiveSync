@@ -72,7 +72,8 @@ Serves as the entry point for Phase 1 documentation.
 
 ---
 
-## 2. Purpose and Usage of Phase 1
+## 2. Build-System Safety Notes for Phase 1
+
 
 Phase 1 provides the **foundation** for all other phases by defining:
 
@@ -85,6 +86,22 @@ Phase 1 provides the **foundation** for all other phases by defining:
 
 All backend, worker, mobile, desktop, and plugin specifications in later phases rely upon  
 the concepts introduced here.
+
+When Replit (or any automated build system) generates or updates the Phase 1 architecture documents, it must follow the global build-system safety rules defined in:
+
+- `docs/kickoff_rules.md` — sections **1.7–1.9**  
+- `docs/project_manifest.md` — section **1.1 Build-System Safety Rules**  
+- `docs/master_index.md` — section **13. Build-System Safety & Model Behavior Rules**  
+- `docs/deployment_bible.md` — section **1.5 Build-System Safety & Generation Guardrails**  
+
+For Phase 1 specifically, this means:
+
+- Do **not** rewrite any Phase 1 file in full once it exists.  
+- Apply only **patch-style** edits at explicit insertion points.  
+- Do not duplicate sections or create second copies of any Phase 1 document.  
+- If a document grows too large, split it into `filename.partA.md`, `filename.partB.md`, etc., instead of truncating.  
+
+Phase 1 is frequently referenced by later phases, so preserving its structure and avoiding accidental overwrites is mandatory.
 
 ---
 

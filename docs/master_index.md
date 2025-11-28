@@ -484,7 +484,41 @@ They can be archived outside the main repo or deleted once you feel comfortable 
 * `docs/deployment_bible.md`
 * `docs/master_index.md`
 
+
 ---
+
+## 13. Build-System Safety & Model Behavior Rules
+
+These rules govern how all documentation, code, and multi-file generation must be performed during the Replit build phases.
+
+### 13.1 Overwrite-Prevention Rules
+- No full-file rewrites of existing files.  
+- Only patch-based updates at explicit insertion points.  
+- Modify only files named by the user.  
+- Modify only the exact section requested.  
+- No unrequested deletions or restructures.  
+- No multi-file edits in a single operation.
+
+### 13.2 Version-Awareness Rules
+- Detect existing headings and sections before generating new ones.  
+- Prevent duplicate sections, diagrams, endpoints, and UI components.  
+- Never rebuild earlier phases unless explicitly ordered.  
+- Treat repeated instructions as incremental continuation.  
+- Require explicit phrasing for resets (“Delete this file and regenerate it from scratch.”)
+
+### 13.3 Large-File Splitting (A/B/C) Rules
+- Split files when output approaches safe token limits.  
+- Split only on natural section boundaries.  
+- Maintain continuity between parts (A → B → C).  
+- Target the correct file part for future edits.  
+- Reject oversized monolithic output and request user confirmation before splitting.
+
+### 13.4 Multi-File Update Discipline
+- List required per-file updates first.  
+- Apply changes one file at a time, with user confirmation.  
+- Never modify multiple files in one output.
+
+These rules are mandatory for the deterministic, safe, phase-driven generation of HiveSync.
 
 **End of Master Index**
 

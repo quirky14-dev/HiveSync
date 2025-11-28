@@ -44,4 +44,35 @@ Shallow and deep health check endpoints and usage notes.
 - Phase 3 and onward describe clients (desktop, mobile, plugins) that consume these APIs.
 - Phase 7 expands on security and hardening based on this backend design.
 
+---
+
+## 3. Build-System Safety Notes for Phase 2
+
+Phase 2 defines backend behavior, API guarantees, job pipeline structure, repo-mirror
+semantics, and worker-facing contracts. Because every client (desktop, mobile, plugins) and
+every worker relies on backend consistency, all Phase 2 documents must be generated and
+updated under strict build-system safety rules.
+
+The global safety rules that apply here are defined in:
+
+- `docs/kickoff_rules.md` — sections **1.7–1.9**  
+- `docs/project_manifest.md` — section **1.1 Build-System Safety Rules**  
+- `docs/master_index.md` — section **13. Build-System Safety & Model Behavior Rules**  
+- `docs/deployment_bible.md` — section **1.5 Build-System Safety & Generation Guardrails**  
+
+For Phase 2 specifically, the build process must:
+
+- Never regenerate backend documentation files in full once they exist.  
+- Apply only **patch-style** edits at explicit headings or markers.  
+- Avoid duplicating endpoint definitions, schemas, repo-mirror rules, queue diagrams,  
+  or error models.  
+- Preserve all established backend architecture conventions and terminology.  
+- Split large backend documents into `filename.partA.md`, `filename.partB.md`, etc.,  
+  rather than risking truncation or corruption.
+
+Backend correctness propagates into Phases 3–7, so accidental overwrites or duplicate
+definitions at this phase can break entire client or worker subsystems.
+
+---
+
 *(End of file)*

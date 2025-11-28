@@ -75,3 +75,37 @@ This phase should be referenced when building or debugging any multi-component b
 - Phase 4 — Desktop Architecture  
 - Phase 5 — Plugin Architecture  
 - Phase 7 — Deployment and Operations  
+
+---
+
+## 3. Build-System Safety Notes for Phase 6
+
+Phase 6 defines the cross-system preview flows, repo synchronization logic, device
+linking behavior, and notification propagation across backend, workers, desktop, and
+mobile clients. Because these documents coordinate multiple subsystems at once, they must
+be generated and updated under strict build-system safety guarantees.
+
+The global safety rules that apply here are defined in:
+
+- `docs/kickoff_rules.md` — sections **1.7–1.9**  
+- `docs/project_manifest.md` — section **1.1 Build-System Safety Rules**  
+- `docs/master_index.md` — section **13. Build-System Safety & Model Behavior Rules**  
+- `docs/deployment_bible.md` — section **1.5 Build-System Safety & Generation Guardrails**  
+
+For Phase 6 specifically, the build process must:
+
+- Never regenerate cross-system architecture files in full once they exist.  
+- Apply only **patch-style** edits at explicit insertion points.  
+- Avoid duplicating preview-flow diagrams, repo-sync sequences, or cross-device
+  linking semantics.  
+- Preserve shared terminology across backend, mobile, desktop, and worker systems.  
+- Split large cross-system documents into `filename.partA.md`, `filename.partB.md`,
+  etc., instead of producing oversized output.
+
+Cross-system flows depend on stable definitions from Phases 1–5, so structural integrity in
+Phase 6 ensures consistent preview, linking, notification, and sync behavior across all
+clients and runtime subsystems.
+
+---
+
+*(End of file)*

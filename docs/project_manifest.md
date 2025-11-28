@@ -63,6 +63,62 @@ HiveSync/
 
 ```
 
+
+## 1.1 Build-System Safety Rules
+
+To ensure deterministic, conflict-free generation across all phases, the HiveSync build system must enforce the following safety rules:
+
+### A. Overwrite-Prevention Requirements
+The build process must:
+- Reject any attempt to regenerate an entire file that already exists.
+- Apply **patch-style** updates only at explicit insertion points.
+- Preserve all unrelated content byte-for-byte.
+- Modify only the files the user directly names.
+- Modify only the section the user specifies (heading, marker, or line range).
+- Never delete existing sections unless explicitly instructed.
+
+### B. Version-Awareness Requirements
+The build system must:
+- Track which sections, files, and phases have already been generated.
+- Prevent duplication of headings, sections, diagrams, endpoints, or UI components.
+- Prevent reconstruction of earlier phases (Phase 1 cannot overwrite Phase 3 results).
+- Check for existing headings before generating new content; if found, request clarification.
+- Treat repeated instructions as incremental edits unless the user explicitly requests a reset.
+
+### C. Large-File Splitting (A/B/C) Requirements
+To prevent truncation or output corruption:
+- Files must be split when they exceed safe generation thresholds.
+- Splits must occur on complete section boundaries (never mid-paragraph or mid-block).
+- Split files must follow the naming scheme:
+  - `filename.partA.md`
+  - `filename.partB.md`
+  - `filename.partC.md` (only if required)
+- Future updates target the correct file part only (A, B, or C).
+- Split files must remain logically continuous and cross-referenced.
+- The system must refuse to generate oversized single-file outputs and instead request confirmation before splitting.
+
+### D. Multi-File Update Discipline
+When multiple files require updates:
+- The assistant must first list the required per-file actions.
+- Edits must be applied **one file at a time** after user confirmation.
+- The build system must reject attempts to modify multiple files in a single action.
+
+### E. Reset & Regeneration Restrictions
+The assistant must not infer resets or reinitialization commands.  
+Only perform a full regeneration of a file or phase when explicitly told:
+
+> “Delete this file and regenerate it from scratch.”
+
+---
+
+These rules are mandatory for all Replit-driven build phases and apply equally to:
+- documentation generation  
+- code generation  
+- worker/preview/autoscaler configuration  
+- client and plugin scaffolding  
+- cross-device linking systems  
+
+
 ---
 
 # 2. Worker Subsystems

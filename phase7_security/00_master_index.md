@@ -158,3 +158,32 @@ This phase is essential for long-term reliability and trust.
 - deployment bible  
 - health checks  
 - worker pipeline docs  
+
+---
+
+## Build-System Safety Notes for Phase 7
+
+Phase 7 defines security rules, hardening strategies, authentication models, audit trails,
+and CI/CD protections. Because these specifications interact with backend validation,
+client behavior, cross-system flows, and storage semantics, all Phase 7 documents must be
+generated and updated under strict build-system safety rules.
+
+The global safety rules that apply here are defined in:
+
+- `docs/kickoff_rules.md` — sections **1.7–1.9**
+- `docs/project_manifest.md` — section **1.1 Build-System Safety Rules**
+- `docs/master_index.md` — section **13. Build-System Safety & Model Behavior Rules**
+- `docs/deployment_bible.md` — section **1.5 Build-System Safety & Generation Guardrails**
+
+For Phase 7 specifically, the build system must:
+
+- Never regenerate security documents in full once they exist.
+- Apply only **patch-style** edits at explicit headings or markers.
+- Avoid duplicating threat-model entries, CI/CD checks, audit-log rules, or token semantics.
+- Preserve existing terminology and security guarantees established in earlier phases.
+- Split large security documents into `filename.partA.md`, `filename.partB.md`, etc., to
+  avoid truncation or corruption.
+
+Security documents are highly sensitive and interconnected with backend, clients, storage,
+and cross-system flows. Maintaining strict build-system safety in Phase 7 prevents accidental
+regressions that would compromise security integrity across the entire product.

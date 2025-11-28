@@ -40,6 +40,35 @@ The same `docker-compose.yml` is used for:
 
 Only `.env` and external DNS/reverse proxy configuration differ.
 
+### 1.5 Build-System Safety & Generation Guardrails
+
+While this document focuses on runtime deployment, HiveSync’s code and documentation are generated through phase-based Replit builds that must obey strict safety rules:
+
+- **Overwrite-Prevention**  
+  - Existing files are never regenerated in full.  
+  - All changes are patch-based and applied only at explicit insertion points.  
+  - Only files explicitly named by the user may be modified.  
+  - Only the specified section (heading / marker / line range) may be changed.
+
+- **Version-Awareness**  
+  - The build process must detect existing sections and avoid duplicates.  
+  - Earlier phases must not be regenerated or overwritten.  
+  - Repeated instructions are treated as incremental updates, not resets.  
+  - Full resets require explicit instructions to delete and regenerate a file.
+
+- **Large-File Splitting (A/B/C)**  
+  - Oversized Markdown/spec files are split at natural section boundaries.  
+  - Split parts use a clear naming scheme (`filename.partA.md`, `filename.partB.md`, etc.).  
+  - Future edits must target the correct part rather than recreating a monolithic file.  
+
+The **full canonical definition** of these rules lives in:
+
+- `docs/kickoff_rules.md` — Sections **1.7–1.9**  
+- `docs/project_manifest.md` — Section **1.1 Build-System Safety Rules**  
+- `docs/master_index.md` — Section **13. Build-System Safety & Model Behavior Rules**
+
+Deployment operators should treat those documents as authoritative when running or re-running any automated build of HiveSync.
+
 ---
 
 ## 2. Repository Layout (Deployment-Relevant)
