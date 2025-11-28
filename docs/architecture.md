@@ -1,5 +1,5 @@
 # HiveSync — Architecture Specification
-Version: 1.01  
+Version: 1.0  
 Status: Authoritative Architecture Reference
 
 This document defines the **system architecture** for HiveSync, expanding on the high-level design described in `master_spec.md`. It focuses on:
