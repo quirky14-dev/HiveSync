@@ -316,6 +316,61 @@ See the Deployment documentation for full instructions on running the backend wi
 
 ---
 
+### Q: Are projects or files in hivesync synced with github if you have that setup - per project or is everything automatically synced?
+
+* **Category:** Getting Started
+* **Applies To:** 
+* **Tier:** Free, Pro, Premium
+* **Last Updated:** 2025-12-01
+
+Each project in HiveSync maps to its own GitHub repository, and HiveSync treats every project independently:
+
+* Project A → GitHub Repo A
+* Project B → GitHub Repo B
+* Project C → GitHub Repo C
+* Editing Project A cannot access Project B
+* The Desktop & Plugin UI only show Git controls for that one project
+* Backend enforces scoping per project ID
+
+Nothing is global.
+Nothing syncs all projects at once.
+
+**Syncing is per-project, and Optional**
+
+For each project you linked to GitHub:
+
+* **Push** (Desktop → GitHub)
+* **Pull** (GitHub → Desktop)
+* **Branch switching**
+* **Status**
+* **Diff view**
+* **Commit history**
+* **Contextual AI docs**
+
+All operate **only inside that project’s repo**.
+
+If someone creates:
+
+* Project A → GitHub linked
+* Project B → local-only
+* Project C → GitLab or Bitbucket-style external
+
+HiveSync respects those differences.
+No cross-project sync.
+No global sync.
+No multi-repo operations.
+
+---
+
+
+
+
+
+
+
+
+
+
 ## 7. Adding More Entries
 
 To add more FAQ entries:
