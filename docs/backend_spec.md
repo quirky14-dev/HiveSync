@@ -1,563 +1,655 @@
-# HiveSync Backend Specification  
-Version: 1.0  
-Language: Python 3.11  
-Framework: FastAPI  
-Architecture: Modular Service Layer (app/api, app/services, app/models, app/workers)  
-Status: Ready for Production Build
+# HiveSync Backend Specification (Full, Updated, Authoritative)
+
+> **Important:** This file is a full replacement for your existing `docs/backend_spec.md`.
+> It merges the earlier backend spec **plus** the new **Plugin ↔ Desktop Flexible Proxy Mode** behavior, with corrected and consistent numbering.
 
 ---
 
-# 1. Overview
+## 1. Purpose of This Document
 
-The HiveSync backend is a FastAPI-based service providing:
+The Backend Specification defines the **complete, authoritative backend architecture, data models, endpoints, flows, and security rules** for HiveSync. It merges:
 
-- User authentication
-- Project metadata management
-- AI documentation orchestration
-- Preview bundle creation
-- Object storage integration for preview delivery
-- Background job queue processing
-- GPU/CPU worker autoscaling (optional)
-- Cross-client communication for desktop/mobile/iPad
-- Plugin API surface (VS Code, JetBrains, etc.)
+* All backend-relevant content from the old phase1 + phase2 backend docs (endpoint definitions, database schemas, services, workers, error models, rate limiting, health checks, repo sync logic, preview pipeline, AI pipeline, etc.).
+* All new backend decisions from the A–O restructured build system (stateless preview tokens, premium GPU queue, Linode object storage, new admin endpoints, updated rate limits, new worker callback schema, device-link UX, etc.).
+* The **Flexible Proxy Mode** between editor plugins and the Desktop client.
 
-The backend is fully Dockerized, designed for local development and scalable production environments.
+This file is final and supersedes all earlier backend specs.
 
 ---
 
-# 2. Architecture
+## 2. Backend Architecture Overview
 
-```
+HiveSync’s backend is a **FastAPI-based orchestration layer** that:
+
+* Handles all authenticated API calls
+* Issues JWTs and stateless preview tokens
+* Manages projects, teams, tasks, notifications, documentation threads, and settings
+* Submits jobs to CPU/GPU worker queues
+* Receives job-completion callbacks from workers
+* Generates presigned URLs for object storage
+* Enforces rate limits
+* Logs admin/audit events
+
+Backend directories (canonical):
+
+```text
 backend/
-├── app/
-│   ├── api/
-│   ├── core/
-│   ├── models/
-│   ├── schemas/
-│   ├── services/
-│   ├── utils/
-│   ├── workers/
-│   └── main.py
-├── tests/
-├── Dockerfile
-├── docker-compose.yml
-├── backend.env.example
-└── requirements.txt
+  app/
+    api/          # Routers
+    models/       # SQLAlchemy/Pydantic schemas
+    services/     # Core business logic
+    workers/      # Worker callback handlers
+    utils/        # Shared utilities
+    main.py
+  tests/
 ```
 
-## 2.1 Key Principles
-- Modular service layer (auth, preview_builder, ai_engine, etc.)
-- Stateless JWT authentication
-- Stateless preview tokens
-- Redis-backed queueing
-- Postgres persistence
-- S3/R2-compatible storage abstraction
-- Optional GPU workers for AI tasks
-- Full separation between API and worker logic
+---
+
+## 3. Core Backend Responsibilities
+
+The backend provides:
+
+* Authentication & Authorization
+* Project management (files, metadata, team roles)
+* Tasks & comments
+* AI Documentation job lifecycle
+* Preview bundle orchestration (stateless tokens)
+* Notification routing
+* Admin panel data
+* Secure object storage integration
+* Rate-limit rules and violation handling
+* Health checks
+* Optional repo sync (mirror model)
 
 ---
 
-# 3. Core Technologies
+## 4. API Conventions
 
-- **FastAPI** (API framework)
-- **Uvicorn / Gunicorn** (ASGI server)
-- **SQLModel / SQLAlchemy** (ORM)
-- **PostgreSQL** (database)
-- **Redis** (cache, rate limiting, queues)
-- **Celery or RQ** (queueing, worker orchestration)
-- **Pydantic** (schemas)
-- **Boto3 or Minio SDK** (object storage)
-- **Python-JOSE** (JWT)
-- **HTTPX** (upstream API calls—OpenAI, etc.)
+### 4.1 REST + JSON
 
----
+All endpoints follow:
 
-# 4. API Layout
+* REST-style
+* JSON request/response bodies
+* Consistent envelope:
 
-```
-app/api/v1/
-├── users.py
-├── projects.py
-├── preview.py
-└── __init__.py
-```
-
-Full endpoint details are contained in `api_endpoints.md`.
-
----
-
-# 5. Configuration System
-
-Located in:  
-`backend/app/core/config.py`
-
-## 5.1 ENV Variables
-Automatically loaded from:
-- Environment
-- `.env` file
-- Docker secrets (if applicable)
-
-### Primary Variables
-- PORT  
-- BASE_URL
-- JWT_SECRET  
-- POSTGRES_*  
-- REDIS_*  
-- EMAIL_PROVIDER  
-- RESEND_API_KEY  
-- OPENAI_API_KEY  
-- LOCAL_AI_MODEL_PATH  
-- LOCAL_AI_ENABLED  
-- PREVIEW_MAX_TIMEOUT_MS  
-- LOG_LEVEL  
-- R2_ENDPOINT  
-- R2_BUCKET  
-- R2_ACCESS_KEY  
-- R2_SECRET_KEY  
-
-All are defined in `backend.env.example`.
-
----
-
-# 6. Data Models
-
-All models use SQLModel.
-
-## 6.1 User Model (SQLModel)
-Fields:
-- id: int (PK)  
-- email: str, unique  
-- username: str, unique  
-- password_hash: str  
-- created_at: datetime  
-- last_login: datetime  
-- preferences: JSON  
-
-## 6.2 Project Model
-Fields:
-- id  
-- owner_id (FK → User.id)  
-- name  
-- created_at  
-- updated_at  
-- config (JSON)  
-
-## 6.3 AIRequest Model
-Used for logging worker jobs.
-
-Fields:
-- id  
-- project_id  
-- user_id  
-- file_path  
-- input_text  
-- output_text  
-- created_at  
-- completed_at  
-
-## 6.4 Preview Log Model
-Stores previews for analytics (not tokens).
-
-Fields:
-- id  
-- project_id  
-- user_id  
-- timestamp  
-- bundle_size  
-- storage_url  
-
----
-
-# 7. Schemas
-
-Located in `app/schemas/`.
-
-## 7.1 User Schemas
-- UserCreate  
-- UserLogin  
-- UserRead  
-- UserUpdate  
-
-## 7.2 Project Schemas
-- ProjectCreate  
-- ProjectRead  
-- ProjectUpdate  
-
-## 7.3 Preview Schemas
-- PreviewRequest  
-- PreviewResponse  
-- PreviewTokenSchema  
-
----
-
-# 8. Services Layer
-
-Located in `app/services/`.
-
-## 8.1 Authentication Service
-Handles:
-- password hashing  
-- JWT issuing  
-- JWT validation  
-- login rate limiting  
-
-## 8.2 User Service
-Handles:
-- registration  
-- login  
-- update profile  
-- preference saving  
-- searching users for share-preview flow  
-
-## 8.3 Project Service
-Responsible for:
-- create project  
-- update project  
-- list user projects  
-- metadata  
-- retrieving file structure (future)  
-
-## 8.4 Preview Builder Service
-**Core component of HiveSync.**
-
-Responsibilities:
-- Accept request from desktop/IDE to build preview  
-- Trigger bundling process  
-- Enforce timeout window  
-- Upload result to R2/S3  
-- Return signed URL + stateless token  
-
-Preview build steps:
-1. Receive request  
-2. Validate user permissions  
-3. Create temporary build directory  
-4. Run bundler (Metro/Expo CLI)  
-5. Minify + compress  
-6. Upload bundle + assets to storage  
-7. Generate signed URL (10-minute expiry)  
-8. Generate preview token  
-9. Return response to client  
-
-Failure handling:
-- Timeout  
-- Build error  
-- Upload failed  
-- Storage unreachable  
-
-## 8.5 AI Engine Service
-Provides unified interface for:
-- OpenAI  
-- Local model  
-- Failover logic  
-
-Handles:
-- file summaries  
-- inline comments  
-- rename suggestions  
-- docstring generation  
-- full-file documentation passes  
-
-## 8.6 Storage Service
-Abstracted API for:
-- R2  
-- S3  
-- MinIO  
-
-Functions:
-- upload_file  
-- get_signed_url  
-- delete_file  
-
-## 8.7 Autoscaler Service (Optional)
-Controls:
-- GPU worker spin-up  
-- worker scale-down  
-- queue pressure detection  
-- cooldown period  
-- health checks  
-
----
-
-# 9. Utils
-
-Utilities stored in:
-
-```
-app/utils/
-├── tokens.py
-├── crypto.py
-└── time.py
-```
-
-## 9.1 Token Utility
-Generates/validates:
-- JWTs  
-- preview tokens  
-
-## 9.2 Crypto Utility
-Wraps:
-- bcrypt hashing  
-- random hex generation  
-- secure compare  
-
-## 9.3 Time Utility
-Provides:
-- timestamp helpers  
-- expiration validation  
-- timezone normalization  
-
----
-
-# 10. Worker System
-
-Workers handle background jobs for previews and AI tasks.
-
-```
-app/workers/
-├── queues.py
-├── cpu_worker.py
-└── gpu_worker.py
-```
-
-## 10.1 Queues
-Two Redis queues:
-- `cpu_tasks`
-- `gpu_tasks`
-
-## 10.2 CPU Worker
-Handles:
-- lightweight AI tasks  
-- metadata operations  
-- file scanning  
-- notifications  
-
-## 10.3 GPU Worker
-Handles:
-- large AI inference  
-- local model inference  
-- summarization at scale  
-
-## 10.4 Autoscaler Logic
-Triggered when:
-- queue_length > threshold  
-- average wait time increases  
-- GPU idle < threshold  
-
-Scaling rules defined in Deployment Bible.
-
----
-
-# 11. Authentication
-
-## 11.1 Register
-- Validates unique email + username  
-- Hashes password  
-- Saves user  
-- Returns JWT  
-
-## 11.2 Login
-- Validates credentials  
-- Returns JWT  
-- Rate limited  
-
-## 11.3 JWT
-Payload:
-- user_id  
-- expires  
-- roles  
-
-Algorithm: HS256
-
----
-
-# 12. Project Management
-
-Basic CRUD:
-- create  
-- read  
-- update  
-
-Future:
-- import from GitHub  
-- multiple contributors  
-
----
-
-# 13. Preview System (Backend)
-
-The most important backend feature.
-
-## 13.1 Endpoint (`POST /preview/build`)
-Request:
-- project_id  
-- target_platform (ios/android)  
-- entry_file  
-- environment  
-
-Backend steps:
-1. Authenticate user  
-2. Verify project ownership  
-3. Create temp working directory  
-4. Write source files  
-5. Run bundler  
-6. Package bundle  
-7. Upload  
-8. Generate token  
-9. Build response JSON  
-
-## 13.2 Stateless Token
-Contains:
-- project_id  
-- expiration  
-- signature  
-
-## 13.3 Storage Upload
-Files uploaded:
-- bundle.js  
-- assets/  
-- metadata.json  
-
-## 13.4 Response
-```
+```json
 {
-  "url": "...signed_url...",
-  "token": "...",
-  "expires_in": 600
-}
-```
-
----
-
-# 14. AI Documentation System
-
-## 14.1 Workflow
-1. Client requests doc generation  
-2. Backend enqueues job  
-3. Worker processes job  
-4. Worker returns result  
-5. Backend stores result  
-6. Client receives notification  
-
-## 14.2 Job Types
-- inline_comment  
-- file_summary  
-- function_doc  
-- variable_rename  
-- full_file_pass  
-
-## 14.3 Local Model Integration
-Enabled via:
-```
-LOCAL_AI_ENABLED=true
-LOCAL_AI_MODEL_PATH=/models/deepseek
-```
-
-Backend loads:
-- tokenizer  
-- model weights  
-
-Fallbacks:
-- Local → OpenAI primary → OpenAI secondary
-
----
-
-# 15. Notifications
-
-Backend pushes:
-- Documentation completed  
-- Preview ready  
-- Error alerts  
-
-Transport:
-- Polling from clients  
-- WebSockets (future)  
-
----
-
-# 16. Error Handling
-
-## 16.1 Response Format
-```
-{
+  "ok": true/false,
+  "data": { },
   "error": {
-    "code": "PREVIEW_TIMEOUT",
-    "message": "Preview bundle timed out",
-    "details": {...}
+    "code": "...",
+    "message": "...",
+    "details": null
   }
 }
 ```
 
-## 16.2 Categories
-- AUTH_ERROR  
-- RATE_LIMIT  
-- PREVIEW_ERROR  
-- AI_ERROR  
-- STORAGE_ERROR  
-- INTERNAL_ERROR  
+### 4.2 Authentication
+
+* Primary tokens: **JWT access tokens**
+* Optional refresh tokens
+* Preview tokens: **stateless signed tokens** issued per preview request
+
+### 4.3 Pagination
+
+Standard query params:
+
+* `?limit=50`
+* `?offset=0`
+
+### 4.4 Error Envelope
+
+All errors return the standard envelope with codes like:
+
+* `AUTH_INVALID`
+* `AUTH_EXPIRED`
+* `RATE_LIMITED`
+* `VALIDATION_ERROR`
+* `NOT_FOUND`
+* `INTERNAL_ERROR`
+* `PREVIEW_BUILD_FAILED`
+* `AI_JOB_FAILED`
 
 ---
 
-# 17. Logging
+## 5. Database Schema
 
-Logs include:
-- timestamp  
-- level  
-- service  
-- request_id  
-- user_id (when applicable)  
-- message  
+This merges the old detailed DB schema with new system requirements.
 
-Stored locally and optionally forwarded.
+### 5.1 Users
+
+* `id`
+* `email` (unique)
+* `username` (unique)
+* `password_hash` (Argon2)
+* `created_at`
+* `last_login`
+* `tier` (Free, Pro, Premium, Admin)
+* `settings` (JSON)
+
+### 5.2 Teams
+
+* `id`
+* `owner_id`
+* `name`
+* `created_at`
+
+### 5.3 TeamMembers
+
+* `id`
+* `team_id`
+* `user_id`
+* `role` (Owner, Admin, Member)
+
+### 5.4 Projects
+
+* `id`
+* `team_id`
+* `name`
+* `created_at`
+* `updated_at`
+* `metadata` (JSON: files, tags, etc.)
+
+### 5.5 Tasks
+
+* `id`
+* `project_id`
+* `assigned_to`
+* `title`
+* `description`
+* `status`
+* `created_at`
+* `updated_at`
+
+### 5.6 Comments
+
+* `id`
+* `user_id`
+* `project_id`
+* `content`
+* `created_at`
+
+### 5.7 PreviewSessions
+
+(Stateless, but logged for analytics + metadata)
+
+* `id`
+* `project_id`
+* `token_hash`
+* `created_at`
+* `expires_at`
+* `bundle_url`
+
+### 5.8 AIJobs
+
+* `id`
+* `project_id`
+* `job_type`
+* `status` (QUEUED, RUNNING, COMPLETED, FAILED)
+* `created_at`
+* `completed_at`
+* `result_url`
+* `error_message`
+
+### 5.9 Notifications
+
+* `id`
+* `user_id`
+* `type`
+* `data` (JSON)
+* `created_at`
+* `read_at`
+
+### 5.10 Audit Logs
+
+* `id`
+* `event_type`
+* `user_id`
+* `project_id`
+* `metadata`
+* `created_at`
 
 ---
 
-# 18. Health Checks
+## 6. Authentication
 
-## 18.1 Built-In API
-- `/health`  
-- `/health/db`  
-- `/health/redis`  
+### 6.1 Login
 
-## 18.2 Python Health Script (detailed)
-- redis availability  
-- postgres availability  
-- queue sizes  
-- worker responsiveness  
-- autoscaler state  
+`POST /auth/login`
+Body:
 
----
+* email OR username
+* password
 
-# 19. Deployment Details
+### 6.2 Registration
 
-Full instructions in deployment_bible.md.
+`POST /auth/register`
 
-## 19.1 Containerized System
-Services:
-- backend  
-- workers  
-- redis  
-- postgres  
+### 6.3 Refresh
 
-## 19.2 Scaling
-- Horizontal scaling allowed  
-- Stateless API  
-- Workers scale independently  
+`POST /auth/refresh`
+
+### 6.4 Logout
+
+`POST /auth/logout`
+
+### 6.5 Token Rotation
+
+* Short-lived JWT access tokens
+* Optional refresh token
 
 ---
 
-# 20. Cross-Client Integration
+## 7. Client Authentication & Connection Models (NEW)
 
-Backend supports:
-- desktop app  
-- iPad app  
-- mobile preview app  
-- IDE plugins  
+HiveSync supports two routing modes for **editor plugins**:
 
-All communicate through the same API.
+* **Direct Mode** — plugin → backend
+* **Desktop Proxy Mode** — plugin → desktop → backend
+
+Plugins always choose the best mode **automatically and silently**.
+
+### 7.1 Direct Mode (Default)
+
+Used when:
+
+* Desktop client is not installed
+* OR Desktop is installed but not running
+* OR Desktop is unreachable
+
+In this mode:
+
+* Plugin stores JWT in OS keychain
+* Plugin calls `/api/v1/*` directly
+* Backend enforces rate limits per user
+* Preview & AI jobs still function normally
+
+### 7.2 Desktop Proxy Mode (Preferred)
+
+Used when Desktop is **installed and running**.
+
+Flow:
+
+```text
+Plugin → Desktop (local API) → Backend → Workers
+```
+
+Desktop adds value by:
+
+* Performing local file hashing & path normalization
+* Attaching richer project metadata
+* Handling silent JWT refresh
+* Centralizing logging for preview & AI jobs
+
+### 7.3 Silent Automatic Switching (Option A)
+
+At plugin startup:
+
+1. Attempt to reach Desktop at `http://localhost:{port}/hivesync-desktop-api`
+2. If reachable → Desktop Proxy Mode
+3. If not reachable → Direct Mode
+
+No UI messages.
+No prompts.
+No configuration required.
+
+If Desktop appears/disappears while plugin is running, plugin switches modes automatically.
+
+### 7.4 Auth in Each Mode
+
+Direct Mode:
+
+* Plugin holds JWT
+* Sends `Authorization: Bearer <jwt>` directly to backend
+
+Proxy Mode:
+
+* Plugin may use a local-only token with Desktop
+* Desktop holds backend JWT
+* Desktop sends authenticated requests to backend
+
+### 7.5 Impact on Preview Pipeline
+
+Direct Mode:
+
+* Plugin submits `/preview/request` with file list metadata
+
+Proxy Mode:
+
+* Desktop computes file list from local filesystem
+* Desktop ensures correct paths + hashes
+
+Backend behavior is identical in both modes.
+
+### 7.6 Impact on AI Jobs
+
+* Same backend endpoints
+* Proxy Mode can add more context to AI jobs (e.g., neighboring files)
+
+### 7.7 Security Considerations
+
+* In both modes, JWTs never logged
+* Plugin uses OS keychain to store tokens
+* Desktop never writes tokens to disk in plaintext
+* All backend traffic is HTTPS
 
 ---
 
-# 21. End of Backend Spec
+## 8. Projects API
 
-This file defines **all backend behavior** and is binding for build phases.
+### 8.1 List Projects
 
+`GET /projects`
+
+### 8.2 Create Project
+
+`POST /projects`
+
+### 8.3 Get Project
+
+`GET /projects/{id}`
+
+### 8.4 Update Project
+
+`PATCH /projects/{id}`
+
+### 8.5 Delete Project
+
+`DELETE /projects/{id}`
+
+### 8.6 Project Settings
+
+`GET /projects/{id}/settings`
+`PATCH /projects/{id}/settings`
+
+---
+
+## 9. Task Management API
+
+### 9.1 List Tasks
+
+`GET /projects/{id}/tasks`
+
+### 9.2 Create Task
+
+`POST /projects/{id}/tasks`
+
+### 9.3 Update Task
+
+`PATCH /tasks/{id}`
+
+### 9.4 Delete Task
+
+`DELETE /tasks/{id}`
+
+---
+
+## 10. Comments API
+
+### 10.1 Add Comment
+
+`POST /projects/{id}/comments`
+
+### 10.2 List Comments
+
+`GET /projects/{id}/comments`
+
+---
+
+## 11. Teams API
+
+### 11.1 List Teams
+
+`GET /teams`
+
+### 11.2 Create Team
+
+`POST /teams`
+
+### 11.3 Add Member
+
+`POST /teams/{id}/members`
+
+### 11.4 Update Member Role
+
+`PATCH /teams/{team_id}/members/{user_id}`
+
+### 11.5 Remove Member
+
+`DELETE /teams/{team_id}/members/{user_id}`
+
+---
+
+## 12. Preview Pipeline (Backend)
+
+Reflects modern **stateless tokens**.
+
+### 12.1 Request Preview
+
+`POST /preview/request`
+Body:
+
+* project_id
+* file list + hashes
+
+Backend:
+
+* Validates rate limits
+* Issues stateless preview token
+* Enqueues build job (CPU or GPU based on tier)
+
+### 12.2 Worker Callback
+
+`POST /preview/callback`
+Body:
+
+* job_id
+* bundle_url
+* status
+* logs_url
+* error
+
+Backend:
+
+* Validates callback signature
+* Updates DB
+* Notifies clients
+
+### 12.3 Retrieve Bundle
+
+* Clients use presigned URLs directly to object storage
+
+---
+
+## 13. AI Documentation Pipeline
+
+### 13.1 Submit Job
+
+`POST /ai/jobs`
+Body:
+
+* project_id
+* selection
+* job_type
+
+### 13.2 Check Status
+
+`GET /ai/jobs/{id}`
+
+### 13.3 Worker Callback
+
+Same structure as previews.
+
+---
+
+## 14. Repo Sync (Optional)
+
+### 14.1 Trigger Sync
+
+`POST /repos/sync`
+
+### 14.2 Sync Status
+
+`GET /repos/{project_id}/sync`
+
+### 14.3 Worker Sync Callback
+
+`POST /repos/callback`
+
+Repo sync uses a **mirror model** to avoid tampering.
+
+---
+
+## 15. Notifications API
+
+### 15.1 List Notifications
+
+`GET /notifications`
+
+### 15.2 Mark Read
+
+`POST /notifications/{id}/read`
+
+### 15.3 Mark All Read
+
+`POST /notifications/read_all`
+
+---
+
+## 16. Rate Limiting
+
+Backend enforces limits for:
+
+* Login attempts
+* Preview requests per minute
+* AI job submissions per minute
+* Repo sync frequency
+
+Redis holds counters under keys like:
+
+```text
+rate_limit:<user_id>:<action>
+```
+
+---
+
+## 17. Health Checks
+
+### 17.1 Shallow
+
+`GET /health`
+
+### 17.2 Deep
+
+`GET /health/deep`
+Includes:
+
+* DB
+* Redis
+* Object storage test
+* Worker heartbeat check
+
+---
+
+## 18. Admin API
+
+### 18.1 List Users
+
+`GET /admin/users`
+
+### 18.2 Set User Tier
+
+`POST /admin/users/{id}/tier`
+
+### 18.3 List Workers
+
+`GET /admin/workers`
+
+### 18.4 Queue Stats
+
+`GET /admin/queues`
+
+### 18.5 Preview Stats
+
+`GET /admin/stats/previews`
+
+### 18.6 AI Job Stats
+
+`GET /admin/stats/ai`
+
+### 18.7 Audit Logs
+
+`GET /admin/audit`
+
+### 18.8 Update Scaling Rules
+
+`POST /admin/scaling`
+
+---
+
+## 19. Security Rules
+
+### 19.1 Passwords
+
+* Argon2, no plaintext
+
+### 19.2 JWT
+
+* Short TTL
+* Refresh optional
+
+### 19.3 Presigned URLs
+
+* Short TTL
+* Least privilege per object
+
+### 19.4 Data Validation
+
+* Strict path normalization for file lists
+
+---
+
+## 20. Worker Callback Contract
+
+Workers must send:
+
+```json
+POST /workers/callback
+{
+  "job_id": "...",
+  "status": "SUCCESS" | "FAIL",
+  "bundle_url": "...",
+  "logs_url": "...",
+  "error": null | "..."
+}
+```
+
+Backend validates using a **worker-shared secret**.
+
+---
+
+## 21. Logging Rules
+
+### 21.1 Structure
+
+All logs are JSON with:
+
+* timestamp
+* severity
+* event_type
+* metadata
+
+### 21.2 No Secrets
+
+Logs must NOT contain:
+
+* Signed URLs
+* Passwords
+* JWTs
+* Secrets of any kind
+
+---
+
+**End of backend_spec.md**

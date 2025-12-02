@@ -1,259 +1,342 @@
-# Admin Dashboard Additions — Preview, Autoscaler & Cleanup Visibility  
-_Last updated: 2025-11-25_
+# Admin Dashboard Specification
 
-The Admin Dashboard provides internal visibility into system health, worker performance, preview activity, and autoscaler status.  
-This section defines the new admin views required for stateless preview tokens, preview build jobs, and the cleanup worker subsystem.
+This document defines the **full and final Admin Dashboard behavior** for HiveSync. It consolidates all requirements from Phases J, K, L, M, N, and O, plus supporting specs (backend, security, preview pipeline, pricing tiers, logging/analytics, tasks/teams/notifications).
 
----
-
-# 1. Overview
-
-The Admin Dashboard is an internal-only tool that exposes:
-
-- System health  
-- Worker performance  
-- Preview build activity  
-- Token debugging (safe, non-sensitive fields only)  
-- Cleanup worker actions  
-- Autoscaler status (present even if disabled)  
-- Job queue metrics  
-
-All admin-only endpoints are authenticated via **admin JWT** or designated admin roles in the Users table.
+No contradictions. No missing systems. This is the authoritative version.
 
 ---
 
-# 2. Preview Build Activity Page
+# 1. PURPOSE
 
-This page shows a real-time view of **active and recent preview build jobs**.
+The Admin Dashboard exists for the **system owner only**. Regular users NEVER access it.
 
-### 2.1 Table Columns
+It provides real‑time and historical visibility into:
 
-| Column | Example | Description |
-|--------|---------|-------------|
-| Job ID | `job_7128f` | Unique job reference |
-| Project | `MyApp (ID 101)` | Linked to project metadata |
-| User | `chris@example.com` | User who triggered the token |
-| Platform | `iOS / Android` | From token payload |
-| Status | `queued / building / bundling / uploading / success / failed` | Worker state |
-| Duration | `4.2s` | Time from queued → completed |
-| Error | `PREVIEW_BUILD_FAILED` | If failed |
-| Created At | Timestamp | When build started |
-| Completed At | Timestamp | Optional |
+* Worker health (CPU & GPU)
+* Preview and AI job flow
+* Tier distribution & usage
+* User activity
+* Queue depth & bottlenecks
+* Notification system status
+* Security anomalies (rate limits, auth failures, HMAC mismatches)
+* Logs & analytics
+* FAQ auto-response metrics
 
-### 2.2 Details View (Click Row)
+Admin Dashboard is **read‑only except where noted**.
+
+---
+
+# 2. ACCESS & AUTHORIZATION
+
+* **Admin role is stored on the user model** (`is_admin = true`).
+
+* Admin-only API routes require:
+
+  * Valid JWT
+  * Admin flag
+  * Origin check (desktop or browser)
+  * Rate limit bypass (admin is exempt)
+
+* Admin Dashboard is accessed through:
+
+  * Desktop app (native page)
+  * Browser (direct access to backend)
+  * **iPad app also permitted**, but NOT mobile phone.
+
+No plugin or mobile phone access.
+
+---
+
+# 3. DASHBOARD SECTIONS
+
+The dashboard contains the following main sections:
+
+```
+1. System Overview
+2. Worker Health
+3. Preview Pipeline Metrics
+4. AI Documentation Metrics
+5. Tier Usage & Distribution
+6. Queue Monitoring
+7. User & Project Analytics
+8. Notification System Status
+9. Security Events & Audit Log
+10. FAQ Auto‑Response Accuracy
+11. Logs & Export Tools
+```
+
+Each section is detailed below.
+
+---
+
+# 4. SYSTEM OVERVIEW
+
+High‑level global metrics:
+
+* Number of users (total, active last 7/30 days)
+* Number of projects
+* Tier breakdown (Free / Pro / Premium)
+* Recent errors (last 24 hours)
+* System uptime
+* Worker uptime summary
+
+---
+
+# 5. WORKER HEALTH
+
+Workers are hosted on Cloudflare.
+
+## 5.1 Worker Status Table
+
+Includes columns:
+
+* Worker name (preview_builder, ai_docs_processor, callback_relayer)
+* Last heartbeat timestamp
+* Average latency (per task)
+* Error rate
+* CPU vs GPU
+* Current job count
+* Status (Healthy / Warning / Critical)
+
+## 5.2 Worker Logs
+
+Pulled from R2:
+
+* `/logs/workers/{worker_id}/{timestamp}.json`
+
+Display:
+
+* Errors grouped by type
+* Callback failures
+* Sandbox timeouts
+* R2 upload failures
+* Large-bundle rejections
+
+---
+
+# 6. PREVIEW PIPELINE METRICS
+
+Includes:
+
+* Total previews last 24h / last 30d
+* Latency histogram
+* Tier distribution chart (Free vs Pro vs Premium)
+* Error types:
+
+  * build timeout
+  * bundle too large
+  * invalid token
+  * callback unauthorized
+  * worker overflow
+
+Admin can view **individual preview job details**:
+
+* User ID (masked)
+* Project
+* Tier
+* Worker type
+* Build duration
+* Errors (if any)
+
+---
+
+# 7. AI DOCUMENTATION METRICS
+
+Includes:
+
+* Total jobs last 24h / 30d
+* Token usage distribution
+* File size distribution
+* Latency comparison by tier
+* Error tracking:
+
+  * model failure
+  * timeout
+  * size limit
+  * worker error
+
+Admin can inspect:
+
+* Input file size
+* Token count
+* Model used (OpenAI vs local)
+* Pipeline timings
+
+---
+
+# 8. TIER USAGE & DISTRIBUTION
+
+Charts:
+
+* Free vs Pro vs Premium user counts
+* Preview jobs by tier
+* AI docs jobs by tier
+* Worker queue contribution by tier
+* Upgrade funnel analytics (optional future)
+
+Tier-related insights:
+
+* Free-tier bottlenecks
+* Premium GPU usage patterns
+* Pro-tier drop-off
+
+---
+
+# 9. QUEUE MONITORING
+
+Shows queues for:
+
+* Preview Jobs
+* AI Docs Jobs
+* Notifications
 
 Displays:
 
-- Token payload (safe fields only):
-```
+* Queue depth over time (line chart)
+* Average dequeue time
+* Tier priority effect
+* Worker scale behavior
 
-{
-"pid": 101,
-"uid": 42,
-"plat": "ios",
-"exp": 1732560600,
-"ver": 1
-}
+Alerts:
 
-```
-**Never show signature or full token.**
-
-- Worker logs:
-- Checkout  
-- Install / dependency restore  
-- Metro/Expo output  
-- Packaging steps  
-- Upload results  
-
-- Build log viewer (`build.log`)  
-- Bundle size (if available)  
-- Storage location:  
-`previews/<project_id>/<job_id>/bundle.zip`
+* "Queue > threshold" (configurable)
+* "GPU queue stalled"
 
 ---
 
-# 3. Stateless Token Debugger (Admin-Only)
+# 10. USER & PROJECT ANALYTICS
 
-This page lets admins paste a token **payload** (never the raw token) for debugging access issues or expiration.
+Includes:
 
-### 3.1 Admin Input
+* Active users per day/week/month
+* Active devices per user (desktop/mobile/tablet)
+* Most active projects
+* Most preview-heavy projects
+* Error reports by project
+* Login failures
 
-Field accepts **base64 JSON payload only**, never the full token.
-
-Admins paste:
-```
-
-eyAidHMiOjE3My4uLn0   (decoded to JSON below)
-
-```
-
-### 3.2 Output
-
-- Decoded JSON payload  
-- Timestamp converted to human-readable format  
-- Expiration remaining  
-- Validation checks:
-  - Structure correct  
-  - Timestamp valid  
-  - Version matches system  
-  - Platform valid  
-  - User/project reference exists  
-
-### 3.3 Important
-
-**Admin dashboard must never accept full stateless tokens.**  
-Admins cannot replay tokens.
+Future expansion slots reserved.
 
 ---
 
-# 4. Cleanup Worker Monitor
+# 11. NOTIFICATION SYSTEM STATUS
 
-This page shows the current cleanup settings, last run results, and recent cleanup actions.
+Metrics:
 
-### 4.1 Summary Header
+* Notification send rate
+* Delivery failures
+* WebSocket push failures (premium only)
+* Email/Slack delivery (admin alerts)
 
-- `CLEANUP_ENABLED = true/false`  
-- `CLEANUP_DRY_RUN = true/false`  
-- `TMP_DIR_TTL_MINUTES = ...`  
-- `PREVIEW_BUNDLE_TTL_HOURS = ...`  
-- `LOG_RETENTION_DAYS = ...`  
-- Last run time  
-- Last run duration  
+Admin receives:
 
-### 4.2 Recent Cleanup Actions Table
-
-| Type | Path/Key | Timestamp | Size (if known) | Reason |
-|------|----------|-----------|------------------|--------|
-| Preview Bundle | `/data/previews/1234` | 2025-11-25 02:12 | 4.2 MB | Expired |
-| Temp Dir | `/data/tmp/preview-job-5678` | … | — | Abandoned |
-| Object Blob | `previews/101/abcd/bundle.zip` | … | 3.1 MB | Orphaned |
-| Log File | `/data/logs/debug-2025-11-18.log` | … | 180 KB | TTL exceeded |
-
-### 4.3 Manual Trigger
-
-Button:  
-```
-
-[ Run Cleanup Now ]
-
-```
-
-- Shows confirmation modal  
-- Triggers cleanup queue job  
-- Output appears in activity list
+* Worker down alerts
+* Queue overload alerts
+* Security anomalies
 
 ---
 
-# 5. Autoscaler (GPU/Worker) Panel
+# 12. SECURITY EVENTS & AUDIT LOG
 
-Even if the autoscaler is **disabled**, the panel must appear with greyed-out controls.
+Audit log entries include:
 
-### 5.1 Status Summary
+* User login failures
+* Password reset attempts
+* Token refresh events
+* Worker callback validation failures
+* HMAC mismatch
+* Rate limit violations
+* Admin actions (viewed metrics, exported logs)
+* Team membership changes
 
-- Autoscaler: Enabled / Disabled  
-- Worker Pool:
-  - CPU workers active
-  - GPU workers active
-- Current Queue Depths:
-  - ai_jobs  
-  - preview_build  
-  - cleanup  
+Severity classification:
 
-### 5.2 GPU Worker Status (Optional)
+* Info
+* Warning
+* Critical
 
-If GPU workers exist:
-
-| Worker | Status | Load | VRAM Used | Model |
-|--------|--------|------|-----------|--------|
-| gpu-0 | Ready | 22% | 1.4 GB | deepseek-coder |
-| gpu-1 | Busy | 98% | 38.1 GB | mistral-7b |
-
-For MVP, this can be a **stub / static layout**.
-
-### 5.3 Scaling Rules (Read-Only)
-
-Display (read-only for now):
-
-- Scale-out threshold  
-- Scale-in threshold  
-- Max workers  
-- Current strategy  
-- Next scheduled autoscaler run  
+Everything is timestamped, stored, and exportable.
 
 ---
 
-# 6. System Metrics Overview
+# 13. FAQ AUTO‑RESPONSE ACCURACY
 
-Top-level dashboard for operational metrics:
+HiveSync auto-answers incoming user questions by referencing the FAQ.
 
-### 6.1 Preview Metrics
+Admin sees:
 
-- `preview_build_success_total`  
-- `preview_build_failures_total`  
-- `avg_preview_build_time_seconds`  
-- `preview_upload_failures_total`  
+* Volume of user queries
+* Auto‑response accuracy
+* Response quality score
+* Questions routed to admin manually
+* Failures & escalation count
 
-### 6.2 Cleanup Metrics
-
-- `cleanup_previews_deleted_total`  
-- `cleanup_tmp_dirs_deleted_total`  
-- `cleanup_objects_deleted_total`  
-- `cleanup_last_run_timestamp`  
-
-### 6.3 AI Job Metrics
-
-- `ai_job_success_total`  
-- `ai_job_failure_total`  
-- `avg_ai_job_latency_seconds`  
-
-### 6.4 Health Summaries
-
-- DB connectivity  
-- Redis connectivity  
-- Queue depth  
-- Worker heartbeat age  
+This helps tune FAQ content.
 
 ---
 
-# 7. Admin Notifications & Alerts
+# 14. LOGS & EXPORT TOOLS
 
-Internal alerts for operators:
+Admin can export:
 
-- Preview build failure > X times in Y minutes  
-- Storage upload failures  
-- Cleanup worker disabled unexpectedly  
-- Redis queue depth exceeds threshold  
-- GPU worker offline  
-- Database connection slow  
+* Worker logs
+* Backend logs (PII‑scrubbed)
+* Audit logs
+* Metrics snapshots
+* CSV and JSON
 
-These alerts may appear as:
-
-- Red banners at top  
-- Admin-only push notifications  
-- `alerts` table in Postgres (optional)  
+Log retention rules follow Phase M.
 
 ---
 
-# 8. Admin Dashboard Authentication & Roles
+# 15. SETTINGS (ADMIN‑ONLY)
 
-Only users marked with:
+Admin may configure:
 
-```
+* Queue threshold alert values
+* GPU worker routing thresholds
+* Preview size limits (future ability)
+* Admin Slack webhook
+* Email alert preferences
 
-role = "admin"
+Admin cannot:
 
-```
-
-in the Users table can access the Admin Dashboard.
-
-Future additional roles may include:
-
-- `support`  
-- `developer`  
-- `sysops`  
-
-All roles must be read-only except `admin`.
+* Modify user tiers directly (manual billing not included v1)
+* Modify project data
 
 ---
 
-# End of Admin Dashboard Additions
+# 16. IMPLEMENTATION NOTES (NON-CODE)
+
+* Dashboard is a React web UI served by the backend
+* Admin routes require strict admin validation
+* No secrets ever appear in UI
+* API endpoints defined in Phase J
+* Metrics pulled from DB + R2 + worker callbacks
+* Charts rendered client-side
+
+---
+
+# 17. COMPLETENESS CHECKLIST
+
+This Admin Dashboard spec now fully covers:
+
+* Worker health
+* Queue monitoring
+* Tier analytics
+* Preview pipeline
+* AI docs pipeline
+* Notifications backend
+* Logging/metrics
+* Audit systems
+* Security alerts
+* Admin settings
+* FAQ auto-response evaluation
+
+Matches Phases J–O.
+
+---
+
+# 18. END OF DOCUMENT
+
+This Admin Dashboard doc is now **complete and authoritative**. All future code generation must follow this spec precisely.

@@ -1,0 +1,269 @@
+# Phase G – Editor Plugins Planning (VS Code, JetBrains, Sublime, Vim)
+
+> **Purpose of Phase G:**
+>
+> * Define architecture, capabilities, UX flow, and backend interactions for all HiveSync editor plugins.
+> * Establish EXACT behaviors for Proxy Mode, AI Docs, Previews, Tasks, Notifications, and Search inside editors.
+> * Ensure plugin behaviors align with Desktop + Backend rules.
+> * **No code generation** – no TypeScript/Python/VimL/JetBrains code yet.
+>
+> Replit MUST NOT create or modify `/plugins/` files during Phase G.
+
+---
+
+## G.1. Inputs for This Phase
+
+Replit must read and rely on:
+
+* `/docs/ui_layout_guidelines.md` (plugin notes)
+* `/docs/architecture_overview.md`
+* `/docs/backend_spec.md`
+* `/phases/Phase_E_Desktop_Client_Planning.md`
+* `/phases/Phase_D_API_Endpoints.md`
+* `/docs/pricing_tiers.md`
+
+These define plugin responsibilities + available backend APIs.
+
+---
+
+## G.2. Roles of the Editor Plugins
+
+Editor plugins are:
+
+* Lightweight integrations providing **in-editor AI Docs, inline comments, and quick previews**.
+
+* Dependent on either:
+
+  1. **Proxy Mode** (Plugin → Desktop → Backend) ← Preferred
+  2. **Direct Mode** (Plugin → Backend) when Desktop is not running
+
+* NOT full-featured clients. They:
+
+  * Do NOT upload entire projects
+  * Do NOT manage teams extensively
+  * Do NOT provide admin features
+
+They are **extensions** of the Desktop workflow.
+
+---
+
+## G.3. Supported Editors & Expected Plugin Technologies
+
+### G.3.1 Visual Studio Code
+
+* TypeScript-based extension
+* Webview for AI Docs and Preview modals
+* Uses VS Code API for sidebar, status bar, commands
+
+### G.3.2 JetBrains IDEs
+
+* Kotlin/Java-based plugin
+* UI forms for results
+* Similar behavior to VS Code plugin
+
+### G.3.3 Sublime Text
+
+* Python-based plugin
+* Command palette + sidebar
+
+### G.3.4 Vim/Neovim
+
+* Lua or Python-based integration
+* Minimal UI
+* Popup windows or quickfix lists
+
+All plugins must behave consistently across editors.
+
+---
+
+## G.4. Plugin → Desktop → Backend Communication
+
+### G.4.1 Proxy Mode (Preferred)
+
+* Plugin detects Desktop on `127.0.0.1:{dynamic_port}`.
+* All API calls routed through Desktop local API.
+
+**Desktop responsibilities:**
+
+* Apply tier metadata
+* Add local file hashes
+* Provide additional context
+* Cache results
+* Log plugin-originated actions
+
+### G.4.2 Direct Mode (Fallback)
+
+Used only if Desktop is not found.
+
+* Plugin sends requests directly to backend using user’s token.
+* Fewer capabilities (no local context).
+* No AI Docs for unsaved files.
+* No log collection.
+
+---
+
+## G.5. Plugin UI & UX Flows
+
+### G.5.1 Commands (Common Across Editors)
+
+* **"HiveSync: Generate AI Docs"**
+* **"HiveSync: Request Preview"**
+* **"HiveSync: Open Tasks"**
+* **"HiveSync: Open Comments"**
+* **"HiveSync: Show Notifications"**
+* **"HiveSync: Log In"** / **Log Out**
+
+### G.5.2 Sidebars / Panels
+
+Depending on editor capabilities, plugins must provide:
+
+* AI Docs panel (summary + diff + snippet)
+* Tasks panel
+* Comments panel
+* Notifications panel
+
+Minimal editors (Vim/Sublime) may provide text-based equivalents.
+
+### G.5.3 Status Bar Indicators
+
+* Current tier
+* Pending preview jobs
+* Notification count
+* Desktop Proxy Mode active/inactive
+
+---
+
+## G.6. AI Docs Flow (Plugins)
+
+1. User triggers command.
+2. Plugin reads active file:
+
+   * If Desktop is running → send through proxy with hash
+   * If direct → send file content only
+3. Backend → Worker AI → returns:
+
+   * Summary
+   * Diff
+   * Snippet
+4. Plugin renders result in panel or inline diff view.
+
+Plugins MUST follow same per-tier limits as Desktop.
+
+---
+
+## G.7. Preview Request Flow (Plugins)
+
+1. User triggers "Request Preview".
+2. Plugin collects file content (only changed file, not entire project).
+3. Plugin sends:
+
+   * File path
+   * File content
+   * Platform target
+4. Backend → Worker builds preview
+5. Result is shown:
+
+   * QR code (webview or clipboard)
+   * Token deep link
+
+Plugins may **NOT** bundle full projects (Desktop handles full preview bundling).
+
+---
+
+## G.8. Tasks, Comments & Notifications on Plugins
+
+Plugins provide **read + light edit** only:
+
+* View tasks
+* Change status
+* Add short comments
+* View notifications
+* Mark notifications read
+
+Plugins are NOT for:
+
+* Creating large tasks
+* Managing team membership
+* Multi-file refactors
+
+---
+
+## G.9. Offline/Degraded Mode
+
+### G.9.1 Plugin Offline Behavior
+
+* If backend unreachable → show banner
+* Limit actions to viewing cached AI Docs (if available)
+* Show that preview requests cannot be sent
+
+### G.9.2 Proxy Mode Failure
+
+* If Desktop unreachable mid-session → fallback to Direct Mode
+* Provide warning to user
+
+---
+
+## G.10. Cache & Performance Behavior
+
+Plugins should:
+
+* Cache last AI Docs result per file
+* Cache preview job metadata
+* Cache notification timestamps
+
+Desktop handles deeper cache operations.
+
+---
+
+## G.11. Security & Privacy Rules
+
+* Plugins never store user passwords.
+* Store tokens securely via editor APIs.
+* Never log sensitive data.
+* Respect rate limits (per-tier).
+
+---
+
+## G.12. Mapping 102 Feature Categories → Plugins
+
+Plugins must support:
+
+* AI Docs
+* Comments
+* Tasks (light)
+* Notifications
+* Preview requests
+* Tier display
+* Favorites indicator
+* Quick search
+* Proxy Mode behavior
+* Offline behavior
+* Minimal onboarding help
+
+Plugins do **not** support heavy workflows (admin functions, team invites, multi-file refactor orchestration).
+
+---
+
+## G.13. No Code Generation Reminder
+
+During Phase G, Replit must NOT:
+
+* Create extension manifests
+* Write TypeScript or JetBrains Kotlin code
+* Implement Sublime/Vim plugins
+* Modify `/plugins/`
+
+This is planning only.
+
+---
+
+## G.14. End of Phase G
+
+At the end of Phase G, Replit must:
+
+* Fully map plugin capabilities and restrictions
+* Integrate Proxy Mode consistently across editors
+* Cover all relevant 102 feature categories
+
+> When Phase G is complete, stop.
+> Wait for the user to type `next` to proceed to Phase H.
