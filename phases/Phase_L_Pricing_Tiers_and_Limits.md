@@ -3,8 +3,8 @@
 > **Purpose of Phase L:**
 >
 > * Convert ALL pricing tier rules (Free → Pro → Premium) into a unified, enforceable specification.
-> * Define EXACT limits for previews, AI docs, attachments, tasks, search, notifications, desktop/mobile/plugins, and rate limits.
-> * Provide clear guidance for backend implementation in later phases.
+> * Define how previews, AI docs, attachments, tasks, search, notifications, desktop/mobile/plugins behavior, and rate limits differ by tier.
+> * Provide clear guidance for backend implementation in later phases (backend_spec, Phase N, Phase O).
 > * Ensure tier logic is consistent across ALL clients (desktop, mobile, plugins, workers).
 > * **No code generation**.
 >
@@ -14,348 +14,362 @@
 
 ## L.1. Inputs for This Phase
 
-Replit must read and rely on:
+Replit must read and respect:
 
-* Tier recap (previous message)
-* `/docs/pricing_tiers.md`
+* `/docs/billing_and_payments.md`
 * `/docs/backend_spec.md`
 * `/docs/master_spec.md`
+* `/docs/ui_layout_guidelines.md`
 * `/phases/Phase_H_AI_and_Preview_Pipeline.md`
 * `/phases/Phase_I_Tasks_Teams_Notifications.md`
-* `/phases/Phase_E_Desktop_Client_Planning.md`
-* `/phases/Phase_G_Plugins_Planning.md`
-* `/phases/Phase_F_Mobile_Tablet_Planning.md`
-
-These define combined tier behaviors.
-
----
-
-# -------------------------------
-
-# L.2. TIER DEFINITIONS (Final)
-
-# -------------------------------
-
-### **Free Tier**
-
-* $0
-* Basic usage
-* Limited previews + AI
-* CPU workers, lowest priority
-
-### **Pro Tier**
-
-* ~$14.99/mo
-* Fully usable for solo devs
-* Enhanced preview + AI
-* CPU workers, medium priority
-
-### **Premium / Studio Tier**
-
-* ~$29.99/mo
-* Full performance + GPU routing
-* Best preview speed and AI capacity
-* High concurrency
-
----
-
-# -------------------------------
-
-# L.3. PREVIEW LIMITS BY TIER
-
-# -------------------------------
-
-### **Free**
-
-* Max preview frequency: **5 per hour**
-* Max daily previews: **30**
-* Max concurrent previews: **1**
-* Bundle size cap: **small** (e.g., < 2 MB total uploaded deltas)
-* Device targets: **1 at a time**
-
-### **Pro**
-
-* Max preview frequency: **20 per hour**
-* Max daily: **100**
-* Max concurrent: **2**
-* Medium bundle size (< 10 MB)
-* Device targets: up to **2 devices**
-
-### **Premium**
-
-* Preview frequency: **unlimited**
-* Daily: **unlimited**
-* Concurrent: **3–5** (configurable)
-* Bundle size limit: **large (< 50 MB)**
-* Device targets: multiple (3+)
-* **GPU worker routing**
-
----
-
-# -------------------------------
-
-# L.4. AI DOCUMENTATION LIMITS BY TIER
-
-# -------------------------------
-
-### **Free**
-
-* Max file size: **50 KB**
-* Max tokens: **small** (e.g., ~1k)
-* Max parallel jobs: **1**
-* Cooldown between jobs: **40–60 seconds**
-
-### **Pro**
-
-* Max file size: **200 KB**
-* Tokens: medium (~4k)
-* Parallel jobs: **2**
-
-### **Premium**
-
-* Max file size: **1 MB**
-* Tokens: large (~12k)
-* Parallel jobs: **3–5**
-* **GPU routing** for AI
-
----
-
-# -------------------------------
-
-# L.5. ATTACHMENTS & TASK LIMITS BY TIER
-
-# -------------------------------
-
-### **Attachments**
-
-* Free: < **5 MB**, fewer files
-* Pro: < **20–50 MB**
-* Premium: < **100 MB**
-
-### **Task Limits**
-
-(No hard caps across tiers on number of tasks.)
-
-Attachment type support identical across tiers.
-
----
-
-# -------------------------------
-
-# L.6. NOTIFICATION LIMITS BY TIER
-
-# -------------------------------
-
-### **Free**
-
-* Polling only
-* No realtime push
-
-### **Pro**
-
-* Faster polling
-
-### **Premium**
-
-* **WebSocket live push**
-* Priority notifications
-
----
-
-# -------------------------------
-
-# L.7. SEARCH LIMITS BY TIER
-
-# -------------------------------
-
-### **Free**
-
-* Recent items only (e.g., last 30 days)
-* Lower search token limits
-* Rate-limited
-
-### **Pro**
-
-* Full project search
-* Faster indexing
-
-### **Premium**
-
-* Real-time search indexing
-* Future: AI-assisted semantic search
-
----
-
-# -------------------------------
-
-# L.8. MOBILE/IPAD LIMITS
-
-# -------------------------------
-
-### **Preview History**
-
-* Free: last 3 previews
-* Pro: last 10
-* Premium: full history
-
-### **AI Docs History**
-
-* Same pattern
-
----
-
-# -------------------------------
-
-# L.9. DESKTOP TIER INDICATORS
-
-# -------------------------------
-
-Desktop must:
-
-* Disable preview button when limits hit
-* Show upgrade prompts
-* Display tier badge
-* Prioritize Premium in queue display
-
----
-
-# -------------------------------
-
-# L.10. PLUGIN LIMITS
-
-# -------------------------------
-
-Plugins must:
-
-* Respect preview & AI limits
-* Disable heavy actions for Free tier when capped
-* Show tier warnings
-
-Plugins must never store tier logic themselves — all enforced by backend.
-
----
-
-# -------------------------------
-
-# L.11. API RATE LIMITS BY TIER
-
-# -------------------------------
-
-### Example baseline (actual values configurable later):
-
-#### **Free**
-
-* 30 requests/minute global
-* 5 preview requests/hour
-* 1 AI doc/minute
-
-#### **Pro**
-
-* 60 requests/minute
-* 20 previews/hour
-* 3 AI docs/minute
-
-#### **Premium**
-
-* 120–300 requests/minute
-* Unlimited previews
-* 10 AI docs/minute
-
-Backend enforces these via FastAPI middleware.
-
----
-
-# -------------------------------
-
-# L.12. WORKER ROUTING & QUEUE PRIORITY
-
-# -------------------------------
-
-### **Free**
-
-* CPU worker queue
-* Lowest priority
-
-### **Pro**
-
-* CPU worker queue
-* Higher priority than Free
-
-### **Premium**
-
-* GPU worker routing
-* Top priority
-* Fallback to CPU only if GPU unavailable
-
----
-
-# -------------------------------
-
-# L.13. TIER VISIBILITY ACROSS CLIENTS
-
-# -------------------------------
-
-All clients must display:
-
-* Current tier
-* Upgrade prompts when hitting limits
-* Tier indicators in settings
-
-Mobile/iPad show simplified versions.
-Plugins show badge in status bar.
-
----
-
-# -------------------------------
-
-# L.14. ADMIN DASHBOARD TIER METRICS
-
-# -------------------------------
-
-Admin dashboard shows:
-
-* Tier distribution (Free/Pro/Premium)
-* Preview usage per tier
-* AI docs usage per tier
-* Queue depth impact by tier
-* Worker load by tier routing
-* Revenue estimation (optional future)
-
----
-
-# -------------------------------
-
-# L.15. BACKEND ENFORCEMENT LOGIC (PLANNING ONLY)
-
-# -------------------------------
-
-Backend must:
-
-* Query user tier per request
-* Apply rate limits
-* Validate preview frequency
-* Validate AI Docs limits
-* Validate file sizes for AI Docs
-* Validate number of concurrent preview jobs
-* Enforce attachment size caps
-* Adjust queue priority accordingly
-
-No code yet — only rules defined.
-
----
-
-# -------------------------------
-
-# L.16. No Code Generation Reminder
-
-During Phase L, Replit must NOT:
-
-* Modify backend code
-* Build rate limit middleware
-* Write FastAPI interceptors
-* Modify workers
+* `/phases/Phase_J_Admin_Dashboard.md`
+* `/phases/Phase_K_Security_Rules.md`
+
+> **Important:**  
+> *All numeric enforcement values (per-hour counts, byte limits, etc.) are defined authoritatively in `backend_spec.md`.  
+> Phase L describes **relative behavior and semantics** per tier; it must not override backend_spec values.*
 
 This is planning only.
+
+---
+
+## L.2. Tier Overview (Free → Pro → Premium)
+
+HiveSync has three tiers:
+
+* **Free** – Lowest limits, intended for small solo projects and evaluation.
+* **Pro** – Default paid tier, suitable for regular use on active projects.
+* **Premium** – Highest limits, GPU-assisted workloads, and best queue priority.
+
+Replit must ensure:
+
+* All backends, workers, and clients interpret tiers consistently.
+* Tier information is attached to:
+  * User account
+  * Active session
+  * Preview jobs
+  * AI documentation jobs
+  * Rate-limit keys (Redis)
+
+---
+
+## L.3. Preview Limits (Sandbox Preview)
+
+Preview behavior must follow the **Sandbox Preview** model (Layout JSON + snapshot assets) defined in Phase H and backend_spec.
+
+**Per-tier semantics:**
+
+* **Free**
+  * Lowest preview-per-hour limit.
+  * Lowest concurrent preview jobs.
+  * Smallest allowed preview payload size (Layout JSON + snapshot assets).
+  * Strict cap on number of snapshot fallback components.
+  * Lowest queue priority.
+
+* **Pro**
+  * Higher preview-per-hour limit than Free.
+  * More concurrent preview jobs allowed.
+  * Larger preview payload size.
+  * Higher snapshot fallback allowance.
+  * Medium queue priority.
+
+* **Premium**
+  * Effectively unlimited previews per hour (soft cap only in backend_spec).
+  * Highest concurrent preview jobs allowed.
+  * Largest preview payload size.
+  * Highest snapshot fallback allowance (for complex component libraries).
+  * Highest queue priority.
+  * GPU snapshot rendering enabled when available.
+
+Replit must:
+
+* Pull **exact per-tier numbers** from `backend_spec.md` (Rate Limits section).
+* Ensure preview jobs created in workers reflect the correct tier and priority.
+* Ensure Preview Tokens and Sandbox Events respect tier-based limits.
+
+---
+
+## L.4. AI Documentation & Refactor Limits
+
+AI documentation, refactor suggestions, and related heavy AI jobs must follow tier-aware quotas.
+
+**Free**
+
+* Fewest AI jobs per hour/day.
+* Restricted maximum file size or LOC per request.
+* Lowest queue priority.
+
+**Pro**
+
+* Higher AI job quotas.
+* Larger allowed file size/LOC per request.
+* Medium queue priority.
+
+**Premium**
+
+* Highest AI job quotas.
+* Largest allowed file size/LOC per request.
+* Priority access to GPU-backed workloads where applicable.
+
+Replit must:
+
+* Use numeric quotas from `backend_spec.md` (AI quota section).
+* Enforce limits in backend, not in the client.
+* Return structured `LIMIT_REACHED` errors when limits are hit (see backend_spec + Upgrade Wall spec).
+
+---
+
+## L.5. Attachments, Assets & Storage
+
+Tier rules for:
+
+* Task attachments
+* Asset uploads (images, design files)
+* Misc resource files
+
+**Free**
+
+* Small max size per file.
+* Lower total storage per project (if enforced in backend_spec).
+* Stricter attachment count per task.
+
+**Pro**
+
+* Higher max size per file.
+* Higher project storage.
+* Larger attachment-per-task allowance.
+
+**Premium**
+
+* Highest per-file and per-project storage limits.
+* Most generous attachment counts.
+
+Replit must:
+
+* Use the **exact attachment/storage limits** from `backend_spec.md`.
+* Ensure Task and Project APIs enforce these limits and return structured errors when violated.
+* Ensure object storage (R2) paths and security rules are enforced as per Phase K.
+
+---
+
+## L.6. Notifications & Event Limits
+
+Notifications (desktop, mobile, plugins) must follow the semantics defined in Phase I.
+
+Tier differences:
+
+* **Free**
+  * Lowest rate for server-pushed notification events (if any rate limiting is enabled in backend_spec).
+  * Background polling intervals (where applicable) may be less frequent.
+* **Pro**
+  * Standard notification rate.
+* **Premium**
+  * Highest notification event allowance (if rate limits exist).
+  * Same notification types; only frequency/throughput differ.
+
+Replit must:
+
+* NOT gate basic notifications by tier (all tiers can see task/team/preview_ready/ai_docs_ready notifications).
+* Only rate-limit **volume/frequency**, not notification types.
+* Use backend_spec definitions for any per-tier notification rate limits.
+
+---
+
+## L.7. Search & Indexing
+
+HiveSync search is primarily **in-project file search**, not global web search.
+
+Tier behaviors:
+
+* All tiers see the same **search features** (search by filename, content, symbol, etc.).
+* Tier differences apply only to:
+  * Maximum search frequency (requests per minute/hour).
+  * Possibly result-size limits (if defined in backend_spec).
+
+Replit must:
+
+* NOT create “Pro-only search features” that don’t exist in the rest of the spec.
+* Enforce search rate limits at the backend level using values defined in `backend_spec.md`.
+* Surface standard `LIMIT_REACHED` responses when search limits are exceeded.
+
+---
+
+## L.8. Desktop Client Tier Behavior
+
+Desktop client is the primary development environment.
+
+Tier impacts:
+
+* All tiers:
+  * See the same core UI structure (Project list, Editor, Preview panel, Diagnostics panel).
+* Free vs Pro vs Premium:
+  * Differ in:
+    * Preview frequency/concurrency.
+    * AI documentation/refactor quotas.
+    * Attachment limits.
+    * Rate-limited API calls (search, metadata operations).
+  * Do **not** differ in general editor capabilities (editing files, saving, local operations).
+
+Replit must:
+
+* Ensure Desktop does not hide/hard-disable core editing/preview UI based on tier.
+* Use the Upgrade Wall modal only when a tier-based limit has been hit (see UI guidelines + backend_spec).
+
+---
+
+## L.9. Mobile & iPad Tier Behavior
+
+Mobile/iPad are **consumer preview + light developer UI** (as defined in Phase F and UI guidelines).
+
+Tier impacts:
+
+* All tiers:
+  * Can receive previews sent from Desktop.
+  * See the same preview UI.
+* Free:
+  * Affected by preview limits and token expiration as per backend_spec.
+* Pro:
+  * Higher preview throughput.
+* Premium:
+  * Highest preview throughput and snapshot complexity tolerance.
+
+Replit must:
+
+* NOT expose tier management screens inside mobile/iPad clients (billing is web-only).
+* Respect preview token expiration and tier-based preview limits when receiving previews.
+
+---
+
+## L.10. IDE Plugins (VS Code, JetBrains) Tier Behavior
+
+Plugins provide editor integration only and rely on Desktop/Backend for heavy lifting.
+
+Tier impacts:
+
+* All tiers:
+  * Can use basic plugin features (open project, inline diagnostics, etc.) as long as backend allows.
+* Tier limitations:
+  * Driven by backend preview and AI doc quotas.
+  * When a limit is hit, plugin shows the Upgrade Wall (per UI guidelines).
+
+Replit must:
+
+* NOT embed a billing UI inside plugins.
+* Use the standard `LIMIT_REACHED` response format to trigger upgrade prompts.
+* Respect backend_spec limits for plugin-initiated preview or AI jobs.
+
+---
+
+## L.11. Worker & Queue Priority by Tier
+
+Workers (CPU/GPU) and queues must respect tier-based priorities.
+
+General rules:
+
+* Free:
+  * Lowest queue priority for preview and AI jobs.
+* Pro:
+  * Medium priority.
+* Premium:
+  * Highest priority.
+  * GPU-enabled snapshot rendering and heavy AI where available.
+
+Replit must:
+
+* Use the worker/queue configuration described in `backend_spec.md` and Phase H.
+* Never starve Free tier completely; jobs must still complete within reasonable time.
+* Ensure admin can see per-tier queue patterns in the Admin Dashboard (Phase J).
+
+---
+
+## L.12. Billing, Upgrades & Downgrades
+
+Billing logic and pricing lives in `/docs/billing_and_payments.md`.
+
+Phase L defines how upgrades/downgrades affect limits:
+
+* **Upgrades (Free → Pro, Pro → Premium)**
+  * New limits take effect as soon as billing provider (LemonSqueezy) confirms the new tier.
+  * Active sessions must refresh their entitlements (see backend_spec for session refresh).
+  * In-flight jobs:
+    * May finish under old limits (do not retroactively kill jobs mid-run).
+
+* **Downgrades (Premium → Pro, Pro → Free)**
+  * New, lower limits apply once the downgrade is effective.
+  * Replit must ensure:
+    * Future preview/AI jobs respect the new lower tier.
+    * Existing stored data (attachments, previews) is not immediately deleted by Phase L; any cleanup is governed by backend_spec and Admin tools.
+
+Replit must **NOT**:
+
+* Implement billing or payment processing logic here.
+* Hard-code prices or SKUs; those are in `billing_and_payments.md`.
+
+---
+
+## L.13. Upgrade Triggers & UX (Summary)
+
+When tier-limited actions are blocked (preview, AI docs, heavy search, etc.), backend returns structured 429 `LIMIT_REACHED` errors.
+
+Phase L summary:
+
+* Free tier users are expected to hit preview/AI limits more frequently.
+* Pro users hit limits occasionally on very heavy use.
+* Premium users almost never hit limits.
+
+Replit must:
+
+* Use the Upgrade Wall UI spec (`ui_layout_guidelines.md`) for all upgrade prompts.
+* Not show upgrade prompts randomly; only on genuine limit events (as defined in backend_spec).
+
+---
+
+## L.14. Logging, Analytics & Tier Visibility
+
+Tier information should appear in:
+
+* Admin Dashboard (Phase J) – to understand usage and load per tier.
+* Internal analytics – to monitor system health, not for end-user display.
+
+Replit must:
+
+* NOT use Phase L to create any tier-based user-level data exposure (e.g., “show other users’ tiers”).
+* Ensure logs and metrics respect privacy rules in `security_hardening.md` and Phase K.
+
+---
+
+## L.15. Security & Abuse Controls
+
+Tier rules must **never** weaken security.
+
+* All tiers:
+  * Share the same security baseline (auth, encryption, R2 restrictions, worker callback validation).
+* Premium:
+  * Only receives **more resources**, not weaker checks.
+
+Replit must:
+
+* Ensure tier logic is enforced strictly via backend and workers, not by trusting the client.
+* Use Phase K as the final security authority.
+
+---
+
+## L.16. Implementation Notes for Later Phases
+
+Phase L is **planning only**.
+
+Replit must:
+
+* Use `backend_spec.md` as the single source of truth for:
+  * Numeric limits (per hour/day)
+  * Byte sizes
+  * Concurrency caps
+* Use Phase N and Phase O to:
+  * Implement tier-aware rate limiting
+  * Wire queue priorities
+  * Connect worker pools (CPU/GPU) according to tier rules.
+
+No code generation happens in Phase L.
 
 ---
 
@@ -363,8 +377,8 @@ This is planning only.
 
 At the end of Phase L, Replit must:
 
-* Understand complete tier logic
-* Apply tier rules consistently across all upcoming build phases
+* Understand complete tier logic at a semantic level.
+* Apply tier rules consistently across all upcoming build phases.
 
-> When Phase L is complete, stop.
+> When Phase L is complete, stop.  
 > Wait for the user to type `next` to proceed to Phase M.

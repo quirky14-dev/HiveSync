@@ -282,6 +282,195 @@ Admin-only, enforced by role/tier.
 
 ---
 
+
+### D.3.14 Billing & Subscription Management (NEW)
+
+Billing integration follows the rules defined in `billing_and_payments.md`.  
+All billing endpoints MUST be implemented by the backend and MUST NOT appear in any client code.
+
+---
+
+## **POST /billing/start-checkout**
+**Purpose:**  
+Create a LemonSqueezy checkout session for Pro or Premium upgrades.
+
+**Auth:** Required (session cookie or JWT)
+
+**Request JSON:**
+```json
+{
+  "tier": "pro" | "premium",
+  "billing_cycle": "monthly" | "yearly"
+}
+````
+
+**Behavior:**
+
+1. Validate user session.
+2. Validate tier and cycle.
+3. Create LS checkout using LemonSqueezy API.
+4. Attach `custom_data: { "user_id": <int> }`.
+5. Return hosted checkout URL.
+
+**Response:**
+
+```json
+{
+  "checkout_url": "https://checkout.lemonsqueezy.com/..."
+}
+```
+
+**Errors:**
+
+* 401 UNAUTHORIZED – not logged in
+* 400 BAD REQUEST – invalid tier/cycle
+* 500 – LS API failure
+
+---
+
+## **POST /billing/webhook**
+
+**Purpose:**
+Receive and process LemonSqueezy subscription lifecycle events.
+
+**Auth:**
+HMAC signature required (`X-Signature`) using `LZ_WEBHOOK_SECRET`.
+
+**Behavior:**
+
+1. Validate HMAC signature.
+2. Extract `user_id` from `custom_data`.
+3. Map `variant_id` → `tier`.
+4. Update subscription table fields:
+
+   * `subscription_id`
+   * `status`
+   * `renews_at`
+   * `ends_at`
+5. Ensure idempotency based on `subscription_id`.
+6. Log event for admin auditing.
+
+**Response:**
+`200 OK` always, after processing or safely ignoring duplicates.
+
+**Errors:**
+None externally — never propagate internal errors.
+
+---
+
+## **POST /auth/session-token**
+
+**Purpose:**
+Generate one-time, short-lived login tokens for a seamless mobile → web login (upgrade flow).
+
+**Auth:** Required (user must already be logged into the mobile/desktop client)
+
+**Behavior:**
+
+1. Create DB entry with:
+
+   * token (random)
+   * user_id
+   * expires_at (~90 seconds)
+   * used = false
+2. Return URL:
+
+   ```
+   https://hivesync.dev/login/session/<token>
+   ```
+
+**Response:**
+
+```json
+{
+  "url": "https://hivesync.dev/login/session/<token>"
+}
+```
+
+---
+
+## **POST /auth/session-exchange**
+
+**Purpose:**
+Used by the Cloudflare Pages frontend after following the session-token link.
+
+**Request JSON:**
+
+```json
+{
+  "token": "<one_time_token>"
+}
+```
+
+**Behavior:**
+
+1. Validate token exists + not expired + not used.
+2. Mark token as used.
+3. Create user session cookie.
+4. Return logged-in user object.
+
+**Response:**
+
+```json
+{
+  "status": "success",
+  "user": { ...full user object... }
+}
+```
+
+**Errors:**
+
+* 400 – token missing
+* 410 – expired/used token
+
+---
+
+## **GET /user/me** (UPDATED)
+
+**Purpose:**
+Return full user profile with subscription information.
+
+**Auth:** Required.
+
+**Response:**
+
+```json
+{
+  "id": 42,
+  "email": "user@example.com",
+  "tier": "free" | "pro" | "premium",
+  "subscription_status": "active" | "past_due" | "canceled" | "paused" | "expired" | null,
+  "subscription_id": "sub_123" | null,
+  "renews_at": "2025-02-11T15:00:00Z" | null,
+  "ends_at": "2025-02-11T15:00:00Z" | null
+}
+```
+
+**Notes:**
+
+* These fields must mirror DB schema from Phase C.
+* Tier values must not be inferred from email or heuristics.
+
+---
+
+## **Backend Tier Enforcement**
+
+Any endpoint (preview, refactor, docs, batch processing, GPU queue, etc.) MAY return:
+
+```
+403 TIER_LIMIT_EXCEEDED
+```
+
+When that happens:
+
+* Desktop → show upgrade modal
+* Mobile → open browser via session-token → upgrade page
+* Plugin → show smaller upgrade banner
+
+Backend is authoritative for all limits.
+
+---
+
 ## D.4. Error Handling & Codes
 
 Replit must plan a consistent set of error codes, e.g.:

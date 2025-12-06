@@ -1,13 +1,14 @@
-# Phase H – AI & Preview Pipeline Planning (Cloudflare Workers + R2)
+# Phase H – AI & Preview Pipeline Planning (Workers + R2)
 
 > **Purpose of Phase H:**
 >
-> * Define the complete AI Documentation and Preview build pipelines.
-> * Specify how Cloudflare Workers, Workers AI, R2, and the backend coordinate.
-> * Ensure stateless preview tokens, callback validation, tier enforcement, artifact storage, GPU routing, and retry logic.
+> * Define the complete AI Documentation and Sandbox Preview build pipelines.
+> * Specify how worker containers, the backend, and R2 coordinate.
+> * Ensure stateless preview tokens, callback validation, tier enforcement, storage layout, GPU routing, and retry logic.
 > * **No code generation** – no Worker scripts, no backend code yet.
 >
 > Replit MUST NOT create or modify any `/worker/` files during Phase H.
+
 
 ---
 
@@ -21,8 +22,9 @@ Replit must read and rely on:
 * `/docs/deployment_bible.md`
 * `/docs/pricing_tiers.md`
 * `/phases/Phase_D_API_Endpoints.md`
-* `/phases/Phase_F_Mobile_Tablet_Planning.md`
-* `/phases/Phase_E_Desktop_Client_Planning.md`
+* `/phases/Phase_F_Mobile_Tablet.md`
+* `/phases/Phase_E_Desktop_Client.md`
+
 
 These define the required pipelines.
 
@@ -30,110 +32,136 @@ These define the required pipelines.
 
 ## H.2. Core Principles of the Pipeline
 
-### H.2.1 Fully Stateless
+### H.2.1 Stateless Preview Tokens, Stateful Storage
 
-* Backend issues signed preview tokens.
-* Workers never store state locally.
-* Workers read/write from R2 ONLY.
-* All state is passed through:
-
+* Backend issues signed **stateless preview tokens**.
+* Workers are **Python containers** (CPU and optional GPU) and may use ephemeral local disk during a job.
+* Long-term state (preview outputs, AI docs, logs) lives in **PostgreSQL + R2**, not in worker memory.
+* All security-sensitive state is passed through:
   * Signed token
   * Request body
-  * R2 object
-  * Callback payload
+  * R2 objects
+  * Callback payloads
 
 ### H.2.2 Worker → Backend Callback Only
 
-* Workers NEVER call users or external services.
-* Only POST to `/api/v1/workers/callback`.
-* Backend validates:
+* Workers NEVER call users or external third-party services.
+* Workers only POST back to the backend via:
 
-  * Signature (HMAC)
-  * Timing
+  * `POST /api/v1/worker/callback`
+
+* Backend validates on every callback:
+
+  * Signature (HMAC using `WORKER_CALLBACK_SECRET`)
+  * Timing / replay protection
   * Token not expired
-  * Worker ID authorized
+  * Worker ID authorized and active
 
 ### H.2.3 Tier-Based Routing
 
-* **Premium → GPU Worker**
-* **Pro → CPU Worker (priority over Free)**
-* **Free → CPU Worker (low priority)**
+* **Premium → GPU-enabled worker containers whenever beneficial**
+* **Pro → CPU workers (priority over Free)**
+* **Free → CPU workers (lowest priority)**
 
-These rules must be used for preview and AI jobs.
+These routing rules apply to both **preview jobs** and **AI documentation jobs**, and must be enforced consistently by the backend/job dispatcher.
 
 ---
 
-## H.3. Preview Pipeline (Full Architecture)
+## H.3. Preview Pipeline (Sandbox Layout JSON Architecture)
 
-The Preview pipeline consists of **five stages**:
+The Preview pipeline uses a **Sandbox Interactive Preview** model built on Layout JSON, snapshot assets, and a Local Component Engine (LCE) running on real devices.
+
+The pipeline consists of **five stages**:
 
 ### **H.3.1 Stage 1 – Desktop/Plugin/Mobile Initiates Request**
 
 * Request includes:
 
   * File content list or delta
-  * Platform target (iOS/Android/iPad)
+  * Platform target (iOS / Android / iPad)
   * Tier
   * Project ID
   * User ID
 
 * Backend verifies:
 
-  * Tier limits
-  * Project permission
+  * Tier limits (preview frequency, JSON size, snapshot limits)
+  * Project permissions
   * File size constraints
+  * Project flagged as “mobile app” (for device preview use cases)
+
+If checks pass, backend enqueues a **Preview Build job** for a worker.
 
 ### **H.3.2 Stage 2 – Backend Issues Signed Preview Token**
 
-Token includes (HMAC-signed):
+Backend issues an HMAC-signed preview token that includes:
 
-* job_id
-* project_id
-* user_id
-* platform
-* tier
-* expires_at
-* allowed device types
+* `job_id`
+* `project_id`
+* `user_id`
+* `platform`
+* `tier`
+* `expires_at`
+* `allowed_device_types` (e.g., iPhone, iPad)
+* Any additional flags (e.g., safe-mode preview)
 
-### **H.3.3 Stage 3 – Worker Builds Preview**
+This token is **stateless** and is later used by devices to fetch preview data (Layout JSON + assets) once the job finishes.
 
-Worker performs:
+### **H.3.3 Stage 3 – Worker Builds Sandbox Preview Output**
 
-* Bundle preparation
-* Sandbox execution (no external network)
-* R2 storage upload
-* Pushes callback:
+Worker containers **do not build bundles**. Instead, each worker:
+
+* Parses the relevant files and extracts React Native components.
+* Resolves styles into a **Layout JSON** representation compatible with Yoga/LCE.
+* Identifies non-mappable or complex components and renders them as **static snapshots** (PNG) stored in object storage.
+* Writes outputs to R2:
+
+  * `previews/{screen_id}/layout.json`
+  * `previews/{screen_id}/assets/{asset_id}.png`
+
+* Pushes a callback to the backend:
 
   * `job_id`
-  * status
-  * error code (if any)
-  * r2_key
-  * device compatibility metadata
+  * `status`
+  * `screen_id` (or multiple if multi-screen preview)
+  * `layout_json_key`
+  * `asset_keys[]`
+  * Any relevant metadata (platform, tier, warnings)
 
-Workers MUST retry R2 uploads once on failure.
+Workers MUST retry R2 uploads once on failure before marking the job as failed.
 
 ### **H.3.4 Stage 4 – Backend Validates Callback**
 
 Backend validates:
 
-* Worker signature
-* job_id
-* R2 object existence
-* Not expired
-* Matching platform
+* Worker HMAC signature (`WORKER_CALLBACK_SECRET`)
+* `job_id` matches an active preview job
+* R2 objects for `layout.json` and assets exist
+* Job not expired
+* Platform and tier are consistent with the original request
 
-Then updates `preview_jobs` table.
+Then backend updates `preview_jobs` / `preview_screens` tables with:
 
-### **H.3.5 Stage 5 – Device (Mobile/iPad) Fetches Artifact**
+* `screen_id`
+* R2 keys for Layout JSON + assets
+* Status and timestamps
+* Any warnings or notes
 
-Device fetches token → requests artifact via:
+### **H.3.5 Stage 5 – Device (Mobile/iPad) Fetches Layout JSON & Assets**
 
-* `GET /api/v1/projects/{id}/previews/jobs/{job_id}/artifact`
-* Backend returns signed URL or inline chunk
+The HiveSync Mobile/iPad app:
+
+1. Presents the user with available previews / screens based on the preview token.
+2. Uses the preview token to request Layout JSON and associated assets via backend preview APIs (as defined in `backend_spec.md`).
+3. Renders the screen using the on-device **Local Component Engine + Yoga**.
+4. For custom components rendered as snapshots, loads the referenced asset URLs and inserts them as `HS_ImageSnapshot` nodes.
+5. Streams **Preview Logs** (interactions, navigation events, warnings) back to the backend for later viewing in the Desktop/iPad Developer Diagnostics Panel.
+
+No device ever downloads a “bundle.zip” for this pipeline. Sandbox Interactive Preview is the **primary and only** preview mechanism planned in Phase H.
 
 ---
 
-## H.4. AI Documentation (Workers AI) Pipeline
+## H.4. AI Documentation Pipeline
 
 ### **H.4.1 Stage 1 – Desktop/Plugin Requests AI Docs**
 
@@ -150,37 +178,48 @@ Backend enforces tier limits:
 * Max file size
 * Max tokens
 * Max parallel jobs
+* Rate limits per user / project
 
 ### **H.4.2 Stage 2 – Backend Enqueues Job → Worker**
 
 Worker receives:
 
-* File
-* Context
-* Required summary style
-* Tier metadata
+* File content
+* Context (neighboring files, project metadata if available)
+* Required summary style (short/long, doc vs diff)
+* Tier metadata (Free / Pro / Premium)
 
 ### **H.4.3 Stage 3 – Worker Generates Docs**
 
-Worker uses **Cloudflare Workers AI** to produce:
+Worker containers use the **configured AI provider** to produce:
 
-* Summary
-* Diff suggestion
-* Snippet
+* Summary / explanation
+* Diff-style suggestions
+* Snippet / inline comments (as needed)
 
-Worker writes results to:
+Providers may include:
 
-* `ai-doc-history/{job_id}.json` in R2
+* OpenAI (primary, tier-dependent model)
+* Local model (if enabled by config)
+
+Worker writes results to R2:
+
+* `ai-docs/{job_id}.json`
 
 ### **H.4.4 Stage 4 – Worker Callback**
 
 Worker POSTs callback to backend with:
 
-* job_id
-* status
-* r2_key for AI docs
+* `job_id`
+* `status`
+* `r2_key` for AI docs
+* Any error metadata if failed
 
-Backend validates and stores results into DB.
+Backend:
+
+* Validates callback signature (HMAC using `WORKER_CALLBACK_SECRET`)
+* Stores results in DB
+* Notifies connected clients (Desktop, Plugins, Mobile/iPad) that AI docs are ready
 
 ---
 
@@ -216,7 +255,7 @@ Backend stores this in `worker_heartbeats`.
 Workers must implement:
 
 * 1 retry for R2 upload
-* 1 retry for Workers AI failure
+* 1 retry for AI provider failure (OpenAI or local model)
 
 Backend never retries; backend asks user to retry manually.
 
@@ -229,24 +268,49 @@ Backend marks worker unhealthy if:
 
 Admin dashboard reflects this.
 
+### H.6.4 Session Token Cleanup (Background Task)
+
+Workers must automatically delete expired and used `session_tokens` from the database on a scheduled interval.
+
+**Purpose:**  
+Session tokens are used for secure one-time auto-login to the HiveSync website. They expire in 60–120 seconds and must not persist indefinitely.
+
+**Requirements:**
+* Cleanup runs every 10 minutes (recommended interval).
+* Worker deletes tokens where:
+  * `expires_at < NOW()`
+  * OR `used = true`
+* Operation must be low-load and safe to run frequently.
+* No logs unless rows were deleted.
+* Cleanup runs as part of the normal worker loop; no dedicated container is created.
+
+**Developer Notes:**
+* This is not part of preview/AI pipelines and should not interfere with job routing.
+* Cleanup is compatible with all deployment targets (local Docker, Linode).
+* Implementation occurs in Phase N during backend code generation.
+
 ---
 
-## H.7. Artifact Storage Structure (R2)
+## H.7. Preview Storage Structure (R2)
 
 Replit must define storage layout:
 
-```
 hivesync-r2/
   previews/
-    {job_id}/bundle-{version}.zip
-    {job_id}/metadata.json
+    {screen_id}/layout.json
+    {screen_id}/assets/{asset_id}.png
   ai-docs/
     {job_id}.json
   logs/
+    preview/{session_id}/{event_timestamp}.json
     workers/{worker_id}/{timestamp}.json
   tasks/
     attachments/{attachment_id}
-```
+
+* previews/ holds Layout JSON and snapshot assets for Sandbox Preview.
+* ai-docs/ holds AI documentation outputs.
+* logs/preview/ holds preview session logs...
+* tasks/attachments/ reserved for future attachments.
 
 ---
 
@@ -263,9 +327,10 @@ Workers MUST:
 
 Backend MUST:
 
-* Validate callback signature
-* Validate token expiry before artifact release
+* Validate callback signature (HMAC using `WORKER_CALLBACK_SECRET`)
+* Validate preview token expiry before allowing access to Layout JSON or assets
 * Log all suspicious worker activity
+
 
 ---
 
@@ -273,7 +338,7 @@ Backend MUST:
 
 Replit must map:
 
-* Preview system → whole pipeline
+* Sandbox Preview system → whole pipeline (Layout JSON + snapshots + logs)
 * Worker performance → heartbeats, metrics, retries
 * Tier limits → routing rules & job constraints
 * Logging & audit → worker logs in R2
@@ -302,7 +367,8 @@ At the end of Phase H, Replit must:
 * Understand all preview/AI flows end-to-end
 * Map routing/tier rules
 * Plan callback validation
-* Understand artifact lifecycle in R2
+* Understand Layout JSON + snapshot asset lifecycle in R2
+
 
 > When Phase H is complete, stop.
 > Wait for the user to type `next` to proceed to Phase I.

@@ -1,5 +1,10 @@
 # HiveSync Architecture Overview (Full, Updated, Authoritative)
 
+> **Design System Compliance:**  
+> All UI layout, components, colors, typography, spacing, and interaction patterns in this document MUST follow the official HiveSync Design System (`design_system.md`).  
+> No alternate color palettes, spacing systems, or component variations may be used unless explicitly documented as an override in the design system.  
+> This requirement applies to desktop, mobile, tablet, web, admin panel, and IDE plugin surfaces.
+
 ---
 
 # 1. Purpose of This Document
@@ -214,6 +219,40 @@ HiveSync consists of the following major systems:
 * Autoscaling rules
 * Audit log search
 
+
+### Billing System (LemonSqueezy Integration)
+
+The billing system is a backend-only subsystem responsible for subscription management, identity-secure upgrades, webhook-driven tier changes, and enforcement of usage limits across preview, AI documentation, and refactor operations.
+
+Billing architecture follows `billing_and_payments.md` and includes:
+
+* **Checkout initiation endpoint** (`/billing/start-checkout`)  
+  - Requires authenticated user session  
+  - Backend generates LemonSqueezy checkout sessions  
+  - Attaches `{ user_id }` in `custom_data` metadata  
+  - Frontend never contacts LemonSqueezy directly  
+
+* **Webhook listener** (`/billing/webhook`)  
+  - Validates HMAC signatures  
+  - Processes subscription_created, subscription_updated, subscription_cancelled, payment_failed, etc.  
+  - Updates `users.tier`, `subscription_id`, `subscription_status`, and renewal dates  
+  - Fully idempotent per-subscription event  
+
+* **Subscription data model**  
+  - `tier`  
+  - `subscription_id`  
+  - `subscription_status`  
+  - `subscription_renews_at`  
+  - `subscription_ends_at`  
+  - Optional `checkout_metadata`  
+
+* **Tier enforcement layer**  
+  - Backend endpoints enforce per-tier limits  
+  - Queue priority and GPU access depend on tier  
+  - Preview frequency, AI doc limits, and refactoring limits are tied to user tier  
+
+The billing subsystem operates entirely within the backend API layer and interacts with PostgreSQL for subscription storage, Redis for soft rate limits, and admin analytics for reporting and auditing.
+
 ---
 
 # 4. Core Architectural Principles
@@ -398,6 +437,346 @@ Mode changes are automatic.
 * Realtime previews
 * Stateless tokens
 * Zero sensitive data stored in bundle
+
+
+---
+
+## **9.1 Sandbox Interactive Preview Architecture**
+
+HiveSync includes a **non-executable, interactive mobile preview runtime** that renders user interface layouts directly on a physical mobile device without executing user JavaScript. This system provides a fast, native-feeling UI experience while remaining fully compliant with iOS and Android platform rules.
+
+The subsystem consists of:
+
+* **Backend Layout Analyzer** – Converts user React Native code into structured declarative JSON
+* **Local Component Engine (LCE)** – On-device renderer using HiveSync-owned components
+* **Sandbox Interaction Layer** – Handles taps, scroll, focus, typing, and simulated state
+* **Sandbox Chrome** – Permanent visual indicators that the UI is a preview
+* **Console Overlay** – Animated top-of-screen feedback layer for suppressed actions
+
+This architecture ensures **zero user code execution** while preserving realistic UI behavior.
+
+---
+
+## **9.1.1 Backend Layout Analyzer**
+
+Responsibilities:
+
+1. Parse JS/TS/JSX/TSX
+2. Extract component hierarchy
+3. Convert layout + style into Yoga-compatible JSON
+4. Identify textual content & assets
+5. Extract handler names without evaluating them
+6. Detect navigation relationships
+
+The analyzer MUST NOT:
+
+* Execute JavaScript or dynamic imports
+* Resolve hooks or user state
+* Run any business logic
+
+Output is a pure declarative **Layout JSON Tree** per screen.
+
+---
+
+## **9.1.2 Local Component Engine (LCE)**
+
+The mobile app bundles a fixed library of safe components:
+
+```
+HS_View
+HS_Text
+HS_Image
+HS_Button
+HS_Input
+HS_Scroll
+HS_List
+HS_SafeArea
+HS_NavContainer
+HS_NavScreen
+HS_Spacer
+HS_Overlay
+HS_ImageSnapshot     ← used for fallback rendering
+```
+
+Properties:
+
+* No dynamic code loading
+* No evaluating user JS
+* All layout computed locally with Yoga
+* Behaves like native RN UI for supported components
+* Supports instant scroll, tap, and input behavior
+
+---
+
+## **9.1.3 Interaction Model**
+
+### **Local Interactions (NO backend call)**
+
+* Button press highlight
+* ScrollView inertia/bounce
+* Text input focus & keyboard
+* Press feedback animations
+* Local temporary sandbox state
+
+### **Backend-triggered interactions**
+
+* Declared navigation actions (`navigateTo`)
+* Layout recomposition after code edits
+* Initial preview load
+* Screen-level state transitions requiring structure changes
+
+---
+
+## **9.1.4 Navigation Architecture**
+
+When Layout JSON includes:
+
+```json
+"navActions": { 
+  "onPress": { "navigateTo": "details" }
+}
+```
+
+Device behavior:
+
+1. Animate navigation locally
+2. Fetch new Layout JSON from backend
+3. Replace UI declaratively
+4. Never run user JS code
+
+All transitions must be deterministic.
+
+---
+
+## **9.1.5 Sandbox Chrome**
+
+Permanent preview markers:
+
+### **Pulsing Frame**
+
+* 1 px border around entire preview area
+* Color pulses between `#FFA500` ↔ `#FFD700`
+* Duration ~1.5 seconds
+* Non-interactive
+
+### **Sandbox Banner**
+
+Centered header reading:
+
+```
+SANDBOX PREVIEW
+```
+
+This ensures the preview runtime is clearly not an installed app.
+
+---
+
+## **9.1.6 Console Overlay (Animated Feedback Layer)**
+
+A top-of-screen overlay communicates suppressed or simulated actions.
+
+### **Idle State**
+
+* Height: ~60–80px
+* Opacity: 0.10
+* Touch: pass-through
+
+### **Expanded State**
+
+* Height: 30% of screen
+* Opacity: 0.40
+* Touch: overlay consumes touches
+* Message example:
+
+```
+Sandbox: "handleLogin" triggered. User code not executed.
+```
+
+### **Animations**
+
+* Expand: 250–300ms ease-out
+* Collapse: 250–300ms ease-in
+* Auto-collapse after ~1.5–2 seconds
+
+---
+
+## **9.1.7 Event Logging**
+
+Every sandbox event is logged:
+
+```
+timestamp  
+projectId  
+screenId  
+componentId  
+handlerName  
+message  
+deviceId  
+sessionId
+```
+
+Logs appear in Desktop + Plugin “Preview Logs” panels.
+
+---
+
+## **9.1.8 Security & Compliance**
+
+The sandbox preview MUST:
+
+* Never execute user JS
+* Never evaluate dynamic expressions
+* Never load user modules
+* Render ONLY declarative JSON
+* Display sandbox chrome at all times
+* Keep all interactivity inside HiveSync-owned components
+
+This keeps the system App Store–safe.
+
+---
+
+## **9.1.9 Performance Requirements**
+
+* Local interactions → <1ms
+* JSON render → <50ms
+* Navigation fetch → <300ms
+* Console animations → ≥60 FPS
+
+---
+
+## **9.1.10 Failure Recovery**
+
+If backend fails:
+
+* Keep current screen interactive
+* Show console error
+* Display retry affordance in banner
+* No crash allowed
+
+---
+
+## **9.2 Custom Component Fallback Architecture**
+
+Some user-defined components cannot be mapped directly to HiveSync’s interactive component set. Examples include:
+
+* Components implemented with hooks or dynamic state
+* Third-party libraries (gesture handlers, Paper, Elements, etc.)
+* Components rendering custom animations
+* Components requiring JS execution
+* Anything using user-defined logic for rendering or behavior
+
+These must be rendered safely without breaking the preview experience.
+
+HiveSync handles this using a **visual snapshot fallback system**.
+
+---
+
+## **9.2.1 Fallback Trigger Conditions**
+
+Backend marks a component (or entire subtree) as non-mappable if:
+
+* Style/props depend on JS expressions
+* Rendering depends on hooks or dynamic state
+* Component type is unknown or external
+* It includes unsupported RN APIs
+* It requires JS evaluation to compute its view
+
+When triggered, the backend generates a **static rasterized snapshot**.
+
+---
+
+## **9.2.2 HS_ImageSnapshot Component**
+
+Fallback nodes are emitted as:
+
+```json
+{
+  "id": "c42",
+  "type": "HS_ImageSnapshot",
+  "props": { "uri": "presigned-url-to-snapshot.png" },
+  "style": { ... }
+}
+```
+
+Properties:
+
+* Displays exactly how the custom component *should look*
+* No user logic included
+* No dynamic JS
+* Local component engine treats it as a static visual
+
+---
+
+## **9.2.3 Snapshot Rendering Pipeline (Backend)**
+
+1. Generate a virtual render surface
+2. Evaluate static layout and styles
+3. Draw view tree (text, borders, images, gradients, etc.)
+4. Export PNG
+5. Upload to object storage
+6. Embed presigned URL into Layout JSON
+
+No user JS is executed during this process.
+
+---
+
+## **9.2.4 Touch Behavior for Snapshots**
+
+Snapshots behave as follows:
+
+### **1. Tappable but non-functional**
+
+Touches DO register and produce console messages:
+
+```
+Sandbox: tapped custom component "FunkyButton". (Visual only)
+```
+
+### **2. Visual Press Feedback (Simulated)**
+
+Even though static, LCE will apply:
+
+* brief opacity dip
+* optional 2–4% scale shrink
+* instant rebound animation
+
+This creates a realistic tactile feel.
+
+### **3. No backend call unless navigation is declared**
+
+Snapshots MUST NOT trigger navigation unless JSON explicitly includes navigation actions.
+
+---
+
+## **9.2.5 Hybrid UI Trees**
+
+If a user mixes native and custom components:
+
+```
+HS_View
+ ├── HS_Text
+ ├── HS_ImageSnapshot (CustomProgressBar)
+ ├── HS_Button
+```
+
+LCE renders:
+
+* Interactive HS_Text
+* Static image for CustomProgressBar
+* Interactive HS_Button
+
+Providing a seamless experience in mixed layouts.
+
+---
+
+## **9.2.6 Benefits of Fallback Architecture**
+
+* Prevents preview failures due to custom components
+* Guarantees visual consistency with user code
+* Provides tactile UI feedback
+* Preserves navigation and screen structure
+* Avoids App Store violations
+* Zero JS execution
+* Fully deterministic layout
 
 ---
 

@@ -193,23 +193,62 @@ Backend must include:
 
 # -------------------------------
 
-Workers **must match Phase H + Phase N exactly**.
+## **O.4. WORKER GENERATION GUARDRAILS (CORRECTED)**
 
-Workers must:
+Workers must follow **Phase H + Phase N** exactly.
+
+### **O.4.1 Worker Type**
+
+HiveSync uses **Python job workers**, not Cloudflare Workers, for:
+
+* Preview execution (sandbox preview generation)
+* Snapshot rendering
+* AI documentation jobs
+* Layout validation
+* R2 uploads
+* Tier-aware workload management
+
+A single lightweight Cloudflare Worker (`worker_callback_relayer`) **may be used only** to forward Worker → Backend callbacks.
+
+### **O.4.2 Job Workers MUST:**
+
+* Run as separate Python processes / services (not inside Cloudflare)
+* Use correct R2 client bindings (AWS S3-compatible)
+* Upload preview outputs to R2
+* Validate preview payload sizes
+* Validate snapshot fallback limits
+* Perform layout.json validation
+* Sign callbacks using HMAC with `WORKER_CALLBACK_SECRET`
+* Enforce all rate-limit and tier rules from backend_spec
+* Produce structured JSON logs (Phase M)
+* Never include secrets in code (env-only)
+
+### **O.4.3 Job Workers MUST NOT:**
 
 * Be Cloudflare Worker scripts
-* Use correct R2 bindings
-* Sign callbacks with HMAC
-* Validate payload sizes
-* Upload logs to R2
-* Perform sandboxed previews/AI docs
-* Respect tier/job limits
+* Access Cloudflare R2 bindings (those are Cloudflare-only)
+* Run preview builds inside Cloudflare
+* Perform AI processing inside Cloudflare
+* Contact backend without HMAC signatures
+* Access object storage with user-supplied keys
+* Skip validation layers
+* Log PII
 
-Workers must not:
+### **O.4.4 Cloudflare Worker Limitation**
 
-* Contact backend without HMAC
-* Include secrets in code
-* Access other buckets or prefixes
+The **only** Cloudflare Worker allowed:
+
+```
+worker_callback_relayer
+```
+
+Its responsibilities:
+
+* Validate the presence of required headers (method/path/HMAC)
+* Forward the callback to the backend callback endpoint
+* Never interact with R2
+* Never execute preview or AI logic
+* Never store data
 
 ---
 

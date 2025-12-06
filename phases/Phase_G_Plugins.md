@@ -7,6 +7,11 @@
 > * Ensure plugin behaviors align with Desktop + Backend rules.
 > * **No code generation** – no TypeScript/Python/VimL/JetBrains code yet.
 >
+> **Design System Compliance:**  
+> All UI layout, components, colors, typography, spacing, and interaction patterns in this document MUST follow the official HiveSync Design System (`design_system.md`).  
+> No alternate color palettes, spacing systems, or component variations may be used unless explicitly documented as an override in the design system.  
+> This requirement applies to desktop, mobile, tablet, web, admin panel, and IDE plugin surfaces.
+
 > Replit MUST NOT create or modify `/plugins/` files during Phase G.
 
 ---
@@ -221,6 +226,94 @@ Desktop handles deeper cache operations.
 * Store tokens securely via editor APIs.
 * Never log sensitive data.
 * Respect rate limits (per-tier).
+
+### G.11.1 Billing & Tier Enforcement Rules (NEW)
+
+Editor plugins must follow the billing, subscription, and tier rules defined in `billing_and_payments.md`.
+
+#### 1. Plugins must NOT initiate checkout or embed billing UI
+Plugins cannot:
+
+* Open LemonSqueezy checkout internally  
+* Display or construct checkout URLs  
+* Trigger billing endpoints directly (`/billing/start-checkout`)  
+* Embed upgrade/pay/subscribe views in webviews  
+
+All upgrade actions MUST be handed off to desktop or external browser flows.
+
+#### 2. Tier awareness must come from backend (`/user/me`)
+Plugins must read:
+
+* `tier`  
+* `subscription_status`  
+* `renews_at`  
+* `ends_at`
+
+returned from Desktop Proxy Mode or direct backend call.
+
+Plugins must not locally store subscription state.
+
+#### 3. Plugins must enforce tier limits
+If backend responds to a plugin-triggered action with:
+
+```
+
+403 TIER_LIMIT_EXCEEDED
+
+```
+
+the plugin MUST:
+
+* Display a non-blocking upsell message  
+* Provide an “Open Upgrade Page” button  
+* Use Desktop (if running) to initiate the login-token → browser flow  
+* Otherwise open the upgrade website URL directly
+
+No retries or hidden background attempts are allowed.
+
+#### 4. Plugins must not bypass limitations
+Plugins cannot:
+
+* Retry failed requests due to limits  
+* Attempt alternate APIs  
+* Split requests to avoid limit detection  
+* Cache AI Docs or previews in a way that bypasses backend enforcement
+
+Backend is authoritative.
+
+#### 5. Plugin Proxy Mode must respect desktop tier logic
+When using Proxy Mode:
+
+* Desktop adds tier metadata  
+* Backend applies final enforcement  
+* Plugin must trust the Desktop response fully  
+
+If Desktop reports a limit exceeded condition, plugins must not override it.
+
+#### 6. Plugin UI must display the user’s tier
+Status bar or equivalent must show:
+
+```
+
+Free / Pro / Premium
+
+```
+
+Derived from `/user/me`.
+
+#### 7. No token-level billing logic
+Plugins handle:
+
+* Login tokens  
+* User tokens  
+
+…BUT they must NOT:
+
+* Analyze subscription state  
+* Guess plan types  
+* Implement any part of the billing stack  
+
+Billing remains backend-only.
 
 ---
 

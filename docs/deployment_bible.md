@@ -1,422 +1,850 @@
-# HiveSync Deployment Bible — **Linode Backend + Cloudflare Workers Setup**
+# 📘 **HIVESYNC DEPLOYMENT BIBLE**
 
-> **This version updates the entire Deployment Bible** to align with your final, optimal infrastructure:
->
-> * **Backend:** Linode (FastAPI, Postgres, Redis)
-> * **Workers:** Cloudflare Workers / Cloudflare Workers AI (zero egress)
-> * **Storage:** Cloudflare R2
-> * **Email:** Resend
-> * **Local-first development:** full Docker Compose
->
-> This is the authoritative deployment model for HiveSync.
+**Version: 3.0**
+**Authoritative Reference for Production Deployment**
 
 ---
 
-# 1. Purpose
+# **0. Overview**
 
-This document explains **exactly how to deploy HiveSync** when running:
+HiveSync is deployed as **three major subsystems**:
 
-* Backend on **Linode**
-* Worker jobs on **Cloudflare**
-* Storage on **Cloudflare R2**
-* Email via **Resend**
-* Mobile/Desktop/Plugins communicating with Linode
+1. **Backend API** (FastAPI)
+2. **Data Layer** (Postgres + Redis)
+3. **Worker Cluster** (Python workers handling previews, snapshots, AI Docs)
 
-This is the final, production-ready deployment configuration.
+Additionally:
 
----
+* **Cloudflare** provides security/CDN and one tiny **callback-replayer** Worker.
+* **R2 Object Storage** stores preview images, snapshots, and assets.
+* Desktop, mobile, and plugin apps communicate exclusively with the backend.
 
-# 2. Components to Deploy
+Preview generation, AI Documentation, snapshot rendering, and layout validation occur completely inside the **worker subsystem** — *not* Cloudflare.
 
-### Backend (Linode VM)
-
-* FastAPI backend
-* Reverse proxy (Nginx or Traefik)
-* PostgreSQL (Managed or Docker)
-* Redis (Docker or managed)
-
-### Workers (Cloudflare Workers)
-
-* Cloudflare Workers AI (GPU inference / compute)
-* Cloudflare “simple workers” for lightweight tasks
-
-### Storage (Cloudflare R2)
-
-* Preview bundles
-* AI outputs
-* Worker logs
-
-### Clients
-
-* Desktop (user installed)
-* Mobile/iPad apps
-* Editor plugins
-* Admin dashboard (served by backend)
+This document explains how to deploy, run, secure, scale, and monitor HiveSync in production.
 
 ---
 
-# 3. Environment Separation
+# **1. System Architecture**
 
-## 3.1 Local Development — full instructions
+### **1.1 Backend**
 
-1. Clone repo
-2. Duplicate env templates:
+Runs FastAPI and provides:
 
-   ```bash
-   cp env_templates/backend.env.example backend/.env
-   cp env_templates/worker.env.example worker/.env
-   ```
-3. Run local stack:
+* Auth
+* Projects/Files/Teams
+* Tasks & Notifications
+* Preview job dispatch
+* AI-doc dispatch
+* Worker callback endpoint
+* R2 presigned URL generation
+* Metrics for admin dashboard
 
-   ```bash
-   docker compose up --build
-   ```
-4. Use local backend URL:
+### **1.2 Postgres**
 
-   * Desktop: [http://localhost:4000](http://localhost:4000)
-   * Mobile: use device/emulator pointing to LAN or Cloudflare Tunnel
+Stores:
 
-## 3.2 Staging — Linode
+* Users
+* Projects
+* Tasks
+* Teams
+* AI-doc history
+* Preview metadata
+* Audit logs
 
-1. Create Linode VM (4GB RAM minimum; more recommended)
-2. Install Docker + Docker Compose
-3. Use staging values for `.env`
-4. Use real R2 credentials
-5. Disable debug mode:
+### **1.3 Redis**
 
-   ```env
-   DEBUG=false
-   LOG_LEVEL=info
-   ```
+Provides:
 
-## 3.3 Production — Linode
+* Job queues (preview, ai_docs, snapshot)
+* Rate limit tracking
+* Worker heartbeat tracking
 
-1. Use a larger Linode instance (8–16GB recommended)
-2. Enable auto-backups
-3. Enable UFW firewall
-4. Use HTTPS only
-5. Point Cloudflare DNS → Linode IP
+### **1.4 Workers**
 
----
+Python processes that perform:
 
-# 4. Environment Variables
+* Preview sandbox execution
+* Snapshot rendering
+* AI documentation generation
+* Layout.json validation
+* R2 upload of results
+* Callback signaling back to backend
+* Tier-based rate-limit enforcement
 
-**Backend needs:**
+Workers run **locally**, not inside Cloudflare.
+Workers are **horizontally scalable**.
 
-* `JWT_SECRET`
-* `WORKER_SHARED_SECRET`
-* `POSTGRES_*` or `DATABASE_URL`
-* `REDIS_*` or `REDIS_URL`
-* `R2_BUCKET`
-* `R2_ACCESS_KEY`
-* `R2_SECRET_KEY`
-* `R2_ENDPOINT`
-* `EMAIL_PROVIDER=resend`
-* `RESEND_API_KEY`
+### **1.5 Object Storage**
 
-**Workers (Cloudflare) need:**
+HiveSync uses **Cloudflare R2** for:
 
-* Cloudflare account details
-* R2 binding
-* Durable Object binding (optional)
-* KV Namespace (optional)
+* preview images
+* snapshot images
+* generated documentation artifacts
+* logs
 
----
+Workers upload directly to R2 using AWS-S3-compatible API keys.
 
-# 5. Backend Deployment (Linode)
+### **1.6 Cloudflare Edge**
 
-## 5.1 Create Linode Instance
+Provides:
 
-* Ubuntu 22.04 recommended
-* Install updates:
+* HTTPS termination
+* Caching (if enabled)
+* DDoS protection
+* Global routing
+* Optional firewall rules
+* One small Worker (`worker_callback_relayer`)
 
-  ```bash
-  sudo apt update && sudo apt upgrade -y
-  ```
-* Install Docker:
+This Cloudflare Worker:
 
-  ```bash
-  curl -fsSL https://get.docker.com | sh
-  ```
-* Install Docker Compose
-
-## 5.2 Clone Repo & Create Env Files
-
-```
-git clone https://github.com/quirky14-dev/HiveSync.git
-cd HiveSync
-cp env_templates/backend.env.example backend/.env
-nano backend/.env
-```
-
-Fill in all Cloudflare R2 + Resend credentials.
-
-## 5.3 Run Backend
-
-```
-docker compose -f docker-compose.prod.yml up --build -d
-```
-
-## 5.4 Verify Health
-
-```
-curl https://api.yourdomain.com/api/v1/health
-```
+* does NOT generate previews
+* does NOT run AI
+* simply forwards Worker → Backend callbacks
+* validates HMAC header
 
 ---
 
-# 6. Cloudflare Workers Deployment (Workers + Workers AI)
+# **2. Environments & Config Files**
 
-## 6.1 Create Cloudflare Worker Project
+### **2.1 backend.env**
 
-```
-npm create cloudflare@latest
-```
+Contains:
 
-Choose “Functions + Workers AI” preset.
+* DB credentials
+* Redis host
+* JWT/Session secrets
+* Callback secret
+* AI provider keys
+* R2 keys
+* Preview/AI rate limits
 
-## 6.2 Bind R2
+### **2.2 worker.env**
 
-In `wrangler.toml`:
+Contains:
 
-```toml
-r2_buckets = [
-  { binding = "R2", bucket_name = "hivesync-previews", preview_bucket_name = "hivesync-previews" }
-]
-```
+* Redis host
+* Worker concurrency
+* Callback URL + secret
+* R2 keys
+* AI provider keys
+* Model path (if using local GPU)
+* Preview timeout
+* Worker name/type
 
-## 6.3 Worker Code Requirements
+### **2.3 Required secrets**
 
-Workers will:
-
-* Receive signed preview token + code
-* Use Workers AI for transformation (if needed)
-* Write artifacts to R2
-* POST callback to backend:
-
-  ```
-  POST https://api.yourdomain.com/workers/callback
-  Authorization: WORKER_SHARED_SECRET
-  ```
-
-## 6.4 Deploy Worker
+Must *never* be version-controlled:
 
 ```
-npm run deploy
+JWT_SECRET
+SESSION_SECRET
+R2_ACCESS_KEY_ID
+R2_SECRET_ACCESS_KEY
+WORKER_CALLBACK_SECRET
+OPENAI_API_KEY
+POSTGRES_PASSWORD
 ```
 
-## 6.5 Zero-Egress Guarantee
+Store in:
 
-Because worker → R2 traffic happens **inside Cloudflare**, you pay **zero egress**.
+* Linode Secrets Manager
+* Cloudflare Secrets
+* local .env files
 
 ---
 
-# 7. Object Storage Deployment (Cloudflare R2)
+# **3. Deployment Models**
 
-## 7.1 Create R2 Bucket
+HiveSync supports three environment profiles:
 
-Dashboard → R2 → Create Bucket:
+### **3.1 Local Development**
 
-* `hivesync-previews`
-* `hivesync-ai-logs`
-* `hivesync-artifacts`
-
-## 7.2 API Tokens
-
-Generate an R2 API token with:
-
-* Read/Write to buckets
-* NOT full account access
-
-## 7.3 Backend Integration
-
-In `backend/.env`:
+Run:
 
 ```
-R2_ENDPOINT=https://<accountid>.r2.cloudflarestorage.com
-R2_ACCESS_KEY=...
-R2_SECRET_KEY=...
+docker compose up --build
+docker compose -f docker-compose.multi-worker.yml up --scale worker=1
 ```
+
+Everything runs locally.
 
 ---
 
-# 8. Postgres (Linode or Managed)
+### **3.2 Linode Production Deployment**
 
-## Option A — Linode Managed Postgres (recommended)
+Recommended default architecture:
 
-1. Create Managed DB instance
-2. Set network access to Linode server only
-3. Copy connection string to `backend/.env`
+```
+Backend VM (2–4 vCPU)
+Worker VM(s) (scale as needed)
+Postgres DBaaS or self-hosted
+Redis (self-hosted)
+Object Storage: Cloudflare R2
+Cloudflare Edge → Linode backend
+```
 
-## Option B — Docker Postgres on Linode
-
-* Only recommended for testing
-* Use:
-
-  ```bash
-  docker compose up -d postgres
-  ```
+Workers live on separate VMs when scaling beyond a single-machine deployment.
 
 ---
 
-# 9. Redis (Linode Managed Redis or Docker)
+### **3.3 Hybrid GPU Deployment**
 
-## Option A — Docker Redis
+Use a GPU-enabled Linode instance for:
 
-```
-docker compose up -d redis
-```
+* snapshot rendering
+* heavy AI-doc tasks
+* complex previews
 
-## Option B — Managed Redis
+GPU worker can be:
 
-* Copy connection string to `.env`
+* always-on
+* on-demand via manual commands
+* autoscaled via autoscaler service
 
 ---
 
-# 10. Reverse Proxy (Nginx) Setup
+# **4. Docker Deployment**
 
-## 10.1 Install Nginx
+HiveSync uses **two separate Compose files**.
+
+---
+
+## **4.1 docker-compose.yml (backend + db layer)**
+
+Contains:
+
+* backend
+* postgres
+* redis
+* network + volumes
+
+The backend must NOT include workers.
+This is required by Phase O.
+
+---
+
+## **4.2 docker-compose.multi-worker.yml (worker cluster)**
+
+Contains:
+
+* 1+ CPU workers
+* optional GPU worker
+* optional autoscaler service
+* shared network for backend access
+
+Workers are horizontally scalable.
+
+---
+
+# **5. Networking**
+
+### **5.1 Internal Network**
+
+`hivesync_net` connects:
+
+* backend
+* redis
+* postgres
+* workers
+
+Workers access backend only via:
 
 ```
-sudo apt install nginx
+BACKEND_URL=http://backend:4000
 ```
 
-## 10.2 Site Config
+### **5.2 External Network**
+
+Cloudflare routes:
 
 ```
-server {
-    listen 80;
-    server_name api.yourdomain.com;
-
-    location / {
-        proxy_pass http://127.0.0.1:8000/;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-}
-```
-
-## 10.3 Enable HTTPS
-
-```
-sudo certbot --nginx -d api.yourdomain.com
+https://your-domain.com → Linode backend port 4000 or nginx reverse proxy
 ```
 
 ---
 
-# 11. Deployment of Desktop, Mobile, and Plugins
+# **6. Preview Pipeline (Final Architecture)**
 
-## Desktop
-
-* Build installer via Electron Forge
-* Auto-update using Electron Updater
-* Optionally install plugins during installation
-
-## Mobile/iPad
-
-* Build in Expo/EAS
-* Submit to App Store / Play Store
-* Point to backend URL (Linode)
-
-## Plugins
-
-* Publish VS Code extension
-* Publish JetBrains plugin
-* Bundle Sublime/Vim with Desktop installer
-
----
-
-# 12. Proxy Mode Deployment Rules
-
-## 12.1 Desktop Local API
-
-Desktop exposes:
+### **6.1 Flow**
 
 ```
-http://127.0.0.1:{dynamic_port}/hivesync-desktop-api
+User → Backend → Redis Queue → Worker → R2 → Backend Callback → Client
 ```
 
-**Do NOT expose this port publicly.**
+### **6.2 Worker responsibilities**
 
-## 12.2 No Reverse Proxy Needed
+* Validate preview request
+* Run preview sandbox
+* Enforce timeout
+* Render snapshot
+* Upload result to R2
+* POST callback to backend
+* Include HMAC signature
 
-Plugins connect via localhost; desktop forwards traffic to backend securely.
+### **6.3 No Cloudflare preview execution**
 
-## 12.3 No Backend Changes Required
+Cloudflare has:
 
-Proxy mode is client-side only; backend receives normal requests.
+* NO preview builder
+* NO AI-doc engine
+* NO bundle execution
+* NO transpilation or environment
 
----
-
-# 13. Scaling Strategy
-
-## Backend (Linode)
-
-* Increase Linode RAM/CPU as needed
-* Horizontal scaling optional (Cloudflare Load Balancer)
-
-## Workers (Cloudflare)
-
-* Automatically scale (pay-per-use)
-* GPU scaling handled by Cloudflare
-
-## Object Storage (R2)
-
-* Auto-scales
+This was removed from the architecture.
 
 ---
 
-# 14. Observability
+# **7. AI Documentation Pipeline**
 
-* Cloudflare dashboard for Workers + R2
-* Linode monitoring for backend
-* Backend logs (stdout)
-* Worker callback logs stored in R2
+AI-docs run in **workers**, not Cloudflare.
 
----
+Flow:
 
-# 15. Deployment Checklist
+```
+User → Backend → Redis Queue → Worker → OpenAI → R2 → Callback
+```
 
-**Backend:**
+Workers handle:
 
-* [ ] Env vars set
-* [ ] TLS installed
-* [ ] Postgres reachable
-* [ ] Redis reachable
-* [ ] Reverse proxy running
-
-**Workers:**
-
-* [ ] R2 bound
-* [ ] Workers AI connected
-* [ ] Callback working
-
-**Storage:**
-
-* [ ] Buckets created
-* [ ] Permissions correct
-
-**Clients:**
-
-* [ ] Desktop installer built
-* [ ] Plugins installed
-* [ ] Mobile builds uploaded
-
-**Admin:**
-
-* [ ] Admin-tier user added
-* [ ] Analytics visible
+* structured prompts
+* context assembly
+* safety enforcement
+* R2 uploads
+* tier enforcement
 
 ---
 
-# 16. Summary
+# **8. Worker Callbacks**
 
-This Deployment Bible is now fully updated for:
+Workers report completion to:
 
-* **Linode backend**
-* **Cloudflare workers**
-* **Cloudflare R2 storage**
-* **Resend email**
-* **Local-first testing**
+```
+POST /api/v1/worker/callback
+```
 
-This is the final, authoritative deployment model for HiveSync.
+with headers:
+
+```
+X-HS-Timestamp
+X-HS-Signature
+X-HS-Worker
+```
+
+The backend must:
+
+* validate HMAC
+* validate timestamp
+* store callback record
+* notify connected clients
+
+Cloudflare Worker (`worker_callback_relayer`) may forward this request.
+
+---
+
+# **9. Scaling Model**
+
+### Workers are the core bottleneck.
+
+Scale workers when:
+
+* preview_queue > 10
+* AI_docs_queue > 5
+* snapshot fallback increases
+* worker CPU > 85%
+* preview p95 > 3 seconds
+
+Commands:
+
+### Add CPU workers:
+
+```
+docker compose -f docker-compose.multi-worker.yml up -d --scale worker=4
+```
+
+### Start GPU worker:
+
+```
+docker compose -f docker-compose.multi-worker.yml up -d ai_gpu_worker
+```
+
+### View logs:
+
+```
+docker logs hivesync-ai-cpu-1 --tail 100 -f
+```
+
+---
+
+# **10. Autoscaling (Optional)**
+
+Autoscaler performs:
+
+* queue depth sampling
+* latency sampling
+* worker utilization checks
+* GPU on-demand control
+
+Autoscaler flow:
+
+1. preview_queue > threshold → increase workers
+2. snapshot queue > threshold → start GPU
+3. GPU idle > threshold → stop GPU
+
+Autoscaling is **not active** unless you deploy the autoscaler container.
+
+---
+
+# **11. NGINX Reverse Proxy (Optional)**
+
+Recommended config:
+
+* proxy to backend:4000
+* gzip enabled
+* websocket upgrade for live preview events
+* limit request size to prevent giant uploads
+* rate-limit sensitive endpoints
+
+Nginx is optional if Cloudflare proxies directly to backend.
+
+---
+
+# **12. Security Requirements**
+
+### 12.1 Secrets
+
+Must be stored in environment variables only.
+
+### 12.2 Worker HMAC
+
+Every callback must be signed with WORKER_CALLBACK_SECRET.
+
+### 12.3 R2 Buckets
+
+Make buckets private except for public-preview assets.
+
+### 12.4 No API keys inside mobile/desktop binaries.
+
+### 12.5 HTTPS enforced via Cloudflare.
+
+---
+
+# **13. Logging & Observability**
+
+Backend logs:
+
+* requests
+* preview dispatch
+* worker callbacks
+* AI generation
+* errors
+
+Worker logs:
+
+* preview execution
+* snapshot fallback
+* queue delays
+* callback attempts
+
+Admin Dashboard visualizes:
+
+* queue depth
+* worker load
+* preview & AI latency
+* snapshot metrics
+* GPU status
+* error summary
+* callback success rate
+
+---
+
+# **14. Backup & Disaster Recovery**
+
+### 14.1 Backups:
+
+* Postgres daily
+* R2 object storage: lifecycle rules
+* Backend config snapshots
+
+### 14.2 Restore Procedure
+
+* Restore DB snapshot
+* Redeploy backend
+* Ensure R2 bucket intact
+* Start worker cluster
+
+---
+
+# **15. Deployment Checklist**
+
+Before going live:
+
+✔ R2 credentials working
+✔ Backend reachable
+✔ Workers reachable
+✔ Callback verified
+✔ Redis reachable
+✔ Database migrations applied
+✔ Admin Dashboard accessible
+✔ Workers processing jobs
+✔ GPU worker optional but tested
+
+---
+
+# **16. Troubleshooting**
+
+### Previews not appearing:
+
+* worker offline
+* callback blocked
+* R2 write failure
+* queue backlog
+
+### AI-docs stuck:
+
+* OpenAI key invalid
+* queue backlog
+* worker errors
+
+### Slow performance:
+
+* not enough workers
+* GPU offline
+* queue depth > 15
+
+### Callback failures:
+
+* wrong HMAC
+* timestamp skew
+* Cloudflare Worker misconfigured
+
+---
+
+# **17. Scaling & Worker Orchestration (Integrated Section)**
+
+# 📘 **Section S — Scaling & Worker Orchestration (Beginner-Friendly Guide)**
+
+This section explains **how HiveSync scales**, what “autoscaling” really means, and what you — as the person on call — must do if someone says:
+
+> “Hey, HiveSync feels slow today.”
+
+If you’ve never dealt with scaling before, don’t panic.
+This guide walks you through exactly how to understand the system, how to check what’s wrong, and how to fix it.
+
+---
+
+# 🧠 **S.1 What Scaling Means in HiveSync**
+
+HiveSync has **three main services**:
+
+1. **Backend API**
+2. **Postgres + Redis (databases)**
+3. **Workers**
+
+When someone runs a preview or an AI Docs job:
+
+```
+User → Backend → Redis Queue → Worker → R2 → Backend → Device
+```
+
+The **worker** is the thing that *actually does the work*.
+
+If HiveSync feels slow, **the backend is usually fine** —
+the problem is nearly always that **there aren’t enough workers running**.
+
+Workers are like “employees” doing tasks.
+If you only hire one employee and 50 customers walk in…
+everything feels slow.
+
+---
+
+# 🚨 **S.2 Why Users Experience Slowness**
+
+There are only two real reasons:
+
+### **Reason 1 → Not enough workers.**
+
+Phones, tablets, desktops keep sending preview jobs, and:
+
+* The Redis queue grows longer
+* A single worker cannot keep up
+* Jobs wait in line
+
+### **Reason 2 → GPU worker is off (if needed)**
+
+If someone uses a heavy Component Library or large preview:
+
+* GPU helps
+* If you don’t run GPU worker, CPU workers get overloaded
+
+### **Important:**
+
+Slowness almost NEVER comes from:
+
+* Backend
+* Postgres
+* Redis
+* Cloudflare
+
+It is almost ALWAYS worker saturation.
+
+---
+
+# 🔍 **S.3 How to Check if Workers Are the Problem**
+
+If someone reports slowness, do this:
+
+### **Step 1 — Check Redis queue depth**
+
+Run:
+
+```
+docker exec -it hivesync-redis redis-cli llen preview_queue
+docker exec -it hivesync-redis redis-cli llen ai_docs_queue
+docker exec -it hivesync-redis redis-cli llen snapshot_queue
+```
+
+If any queue depth is:
+
+* `> 3` → Mild load (watch)
+* `> 10` → System is falling behind
+* `> 25` → Users DEFINITELY feel slowness
+* `> 50` → Add workers immediately
+
+---
+
+### **Step 2 — Check worker logs**
+
+Do you see messages like:
+
+```
+[worker] Busy, delaying job
+[worker] Queue saturated
+```
+
+If yes → you need more workers.
+
+---
+
+### **Step 3 — Check if GPU worker is running**
+
+```
+docker ps | grep ai_gpu_worker
+```
+
+If no GPU worker is running and preview latency is high → start one:
+
+```
+docker compose -f docker-compose.multi-worker.yml up -d ai_gpu_worker
+```
+
+---
+
+# ⚙️ **S.4 Manual Scaling (How to Add More Workers Immediately)**
+
+If HiveSync is slow, the simplest fix is:
+
+### **Add more CPU workers RIGHT NOW.**
+
+Run:
+
+```
+docker compose -f docker-compose.multi-worker.yml up -d --scale worker=3
+```
+
+or specifically:
+
+```
+docker compose -f docker-compose.multi-worker.yml up -d --scale ai_cpu_worker_1=3
+```
+
+(Depending on how your worker service is named.)
+
+After 10 seconds:
+
+* Queue depth drops
+* Preview latency drops
+* AI Docs come back to normal
+* Users stop complaining
+
+This is the fix **90% of the time**.
+
+---
+
+# 🤖 **S.5 Does HiveSync Have Autoscaling?**
+
+### Short answer:
+
+❌ **Not unless YOU or your team builds it.**
+
+Autoscaling = Automatically adjusting worker count based on load.
+
+Docker Compose:
+
+* does NOT autoscale
+* does NOT add workers for you
+* does NOT monitor queue depth automatically
+
+This means:
+
+### ❗ If you never wrote the autoscaler code → autoscaling is NOT enabled.
+
+You should assume autoscaling is NOT running unless:
+
+1. There is an `autoscaler` container running
+2. You see logs like:
+
+```
+[autoscaler] Queue overloaded → starting GPU worker
+[autoscaler] Queue low → stopping GPU worker
+```
+
+If you do *not* see these → no autoscaling is active.
+
+---
+
+# 📈 **S.6 What Autoscaling Should Do When Implemented**
+
+An autoscaler monitors:
+
+* Redis queue depth
+* Worker job latency
+* Snapshot rendering load
+* AI-doc load
+* GPU-needed conditions
+
+Then it takes action:
+
+### When to scale UP:
+
+```
+Queue depth > 10
+Preview latency > 3s
+AI jobs piling up
+Snapshot fallback rate increases
+```
+
+Action:
+
+```
+Start new CPU worker
+Start GPU worker
+```
+
+### When to scale DOWN:
+
+```
+Queue depth < 2 
+GPU idle for 10 minutes
+```
+
+Action:
+
+```
+Stop GPU worker
+Stop extra CPU workers
+```
+
+This keeps costs down while keeping performance high.
+
+---
+
+# 🔧 **S.7 What You Must Do If You Don't Have Autoscaling Yet**
+
+If someone complains:
+
+### 1. Check queue depth
+
+### 2. Add workers manually
+
+### 3. Start GPU worker if needed
+
+### 4. Add autoscaling later
+
+This is completely normal for early-stage SaaS platforms.
+
+---
+
+# 📚 S.8 What Should Go Into Your Deployment Bible (Summary Table)
+
+| Problem              | Cause                        | Fix                            |
+| -------------------- | ---------------------------- | ------------------------------ |
+| Previews take >5 sec | CPU worker overloaded        | Add more CPU workers           |
+| AI Docs slow         | AI queue has backlog         | Scale CPU workers              |
+| Large previews slow  | Snapshot renderer overloaded | Start GPU worker               |
+| Traffic spikes       | Too few workers              | Scale CPU workers & GPU        |
+| Random latency       | Worker crash / restart       | Scale + restart workers        |
+| Continuous overload  | Not enough workers 24/7      | Increase baseline worker count |
+
+---
+
+# 🚀 S.9 Recommended Worker Counts at Different User Loads
+
+| Users           | Recommended Workers                |
+| --------------- | ---------------------------------- |
+| 1–20            | 1 CPU worker                       |
+| 20–100          | 2 CPU workers                      |
+| 100–500         | 3–5 CPU workers + optional GPU     |
+| 500+            | 5–10 CPU workers + GPU autoscaling |
+| Enterprise tier | GPU always-on + CPU cluster        |
+
+This is the table engineers actually use.
+
+---
+
+# 🧯 S.10 Quick Emergency Checklist (When Someone Complains)
+
+```
+1. Check Redis queue depth
+2. Check worker logs
+3. Add CPU workers
+4. Start GPU worker
+5. Confirm backend is healthy
+6. Notify team when resolved
+```
+
+Boom — you just handled your first scaling incident.
+
+---
+
+# 🧩 S.11 A Note on Costs
+
+* CPU workers are cheap
+* GPU workers are expensive
+* Autoscaling = cost-efficient + fast
+
+You don’t want GPU running 24/7 unless you have Premium-heavy customers.
+
+---
+
+# 🎉 **S.12 Final Advice (Beginner Mode)**
+
+Scaling HiveSync is **not magic** — it’s just:
+
+* jobs going to Redis
+* workers picking them up
+* more workers = more throughput
+
+If you remember only one thing:
+
+### **“If HiveSync feels slow → add workers.”**
+That’s the essence of horizontal scaling.
+---
+
+# **18. Summary**
+
+HiveSync is a multi-component system.
+Performance and reliability depend on:
+
+* Correct environment variables
+* Worker health
+* Queue depth
+* Snapshot/GPU availability
+* Callback reliability
+* R2 storage access
+* Tier-aware rate limiting
+
+Following this Deployment Bible ensures a stable production system.
+
+---

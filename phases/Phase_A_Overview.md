@@ -305,15 +305,15 @@ Replit should understand, at a high level, what each future phase will do:
 
   * Fill in hard numeric limits and tier-based behavior.
 
-* **Phase M – Deployment & DevOps:**
+* **Phase M – Logging & Analytics Observability:**
 
-  * Scripts, env wiring, and deployment support (Linode + Cloudflare).
+  * Logging, metrics, tracing, admin observability; no deployment.
 
-* **Phase N – Code Generation Execution:**
+* **Phase N – Final Code Generation Instructions:**
 
-  * Only here does Replit generate full code, following all prior phases.
+  * Define ALL deployment requirements, Ensure Consistency.
 
-* **Phase O – Post-Build Validation & Cleanup:**
+* **Phase O – Post-Build Actions:**
 
   * Sanity checks, consistency reports, and final adjustments.
 

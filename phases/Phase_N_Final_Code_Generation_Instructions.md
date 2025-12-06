@@ -21,7 +21,7 @@ Replit must read and rely on:
 * `/phases/Phase_H_AI_and_Preview_Pipeline.md`
 * `/phases/Phase_M_Logging_Analytics_Observability.md`
 * `/docs/master_spec.md`
-* `/docs/pricing_tiers.md`
+* `/docs/billing_and_payments.md`
 * `/docs/architecture_overview.md`
 
 ---
@@ -51,7 +51,8 @@ HiveSync **must support** the following deployment environments:
   * Redis
   * Optional: Admin UI preview server
 
-Workers remain on Cloudflare, not in Docker.
+Workers must NOT be added to Docker Compose. They run as external processes or cloud jobs only.
+
 
 ### **N.2.3 Linode Deployment (Primary Backend Host)**
 
@@ -64,19 +65,20 @@ Workers remain on Cloudflare, not in Docker.
 * Workers hosted on Cloudflare (separate)
 
 ### **N.2.4 Cloudflare Workers (Preview + AI pipeline)**
+### N.2.4 Cloudflare Workers (Callback & Health Only)
 
-* Worker scripts for:
+If Cloudflare Workers are used, they must remain minimal:
 
-  * Preview builder orchestrator
-  * AI Docs processor
-  * Callback sender
-  * R2 interactions
-* R2 bucket for:
+* `worker_callback_relayer`
+  * For relaying Worker → Backend callbacks over HTTPS.
+  * Verifies basic request structure and forwards to the backend callback endpoint.
 
-  * Previews
-  * AI docs
-  * Worker logs
-* Cloudflare Cron (optional future)
+* `healthcheck_worker` (optional)
+  * Simple uptime / reachability probe for monitoring.
+
+No preview building, AI processing, or direct R2 access may run inside Cloudflare Workers.  
+All preview, AI, and R2 operations are handled by the backend and job worker processes described in Phase H and backend_spec.
+
 
 ---
 
@@ -120,17 +122,40 @@ LOG_LEVEL=info
 R2_ACCOUNT_ID=REPLACE_ME
 R2_ACCESS_KEY_ID=REPLACE_ME
 R2_SECRET_ACCESS_KEY=REPLACE_ME
-R2_BUCKET=hivesync-r2
-R2_PUBLIC_URL=REPLACE_ME (if using public assets)
+R2_BUCKET_NAME=hivesync-storage
+R2_PUBLIC_BASE_URL=REPLACE_ME
+
 
 WORKER_CALLBACK_SECRET=REPLACE_ME
+
+
+
+# Billing (LemonSqueezy) required variables
+
+# Backend uses these variables to authenticate and manage checkout creation,
+# subscription lookups, and webhook signature verification. Replit MUST include
+# them in all environment variable templates (.env.example, Docker, Linode).
+
+LZ_API_KEY=REPLACE_ME
+LZ_WEBHOOK_SECRET=REPLACE_ME
+LZ_STORE_ID=REPLACE_ME
+
+# Required variant IDs for subscription tier mapping:
+LZ_PRO_MONTHLY_VARIANT_ID=REPLACE_ME
+LZ_PRO_YEARLY_VARIANT_ID=REPLACE_ME
+LZ_PREMIUM_MONTHLY_VARIANT_ID=REPLACE_ME
+LZ_PREMIUM_YEARLY_VARIANT_ID=REPLACE_ME
+
+# Base URL for constructing hosted checkout sessions
+LZ_CHECKOUT_BASE_URL=https://checkout.lemonsqueezy.com
+
 ```
 
 ### **Workers required variables:**
 
 ```
-R2_BUCKET=hivesync-r2
-WORKER_CALLBACK_URL=https://yourdomain.com/api/v1/workers/callback
+R2_BUCKET_NAME=hivesync-storage
+WORKER_CALLBACK_URL=https://yourdomain.com/api/v1/worker/callback
 WORKER_CALLBACK_SECRET=REPLACE_ME
 AI_MODEL=gpt-4.1
 ```
@@ -138,6 +163,8 @@ AI_MODEL=gpt-4.1
 ### **Desktop/Mobile required variables:**
 
 Minimal — no secrets allowed.
+
+Desktop and Mobile binaries must NEVER contain API keys or secrets; only public configuration values are allowed.
 
 ---
 
@@ -152,7 +179,6 @@ Replit must plan, but NOT generate yet:
 ### **N.4.1 Dockerfiles (to be created later)**
 
 * Backend Dockerfile
-* Admin UI Dockerfile (optional)
 
 ### **N.4.2 Docker Compose**
 
@@ -219,10 +245,24 @@ Upgrade later as usage grows.
 
 ### **N.6.1 Workers to Deploy**
 
-* `preview_builder`
-* `ai_docs_processor`
-* `worker_callback_relayer`
-* `healthcheck_worker` (optional)
+### N.6.1 Workers to Deploy
+
+HiveSync does not use Cloudflare Workers for preview building or AI execution.  
+All preview and AI jobs run entirely inside the backend / worker pipeline defined in Phase H.
+
+**Cloudflare Workers used in deployment are:**
+
+worker_callback_relayer  
+- Relays Worker → Backend callbacks using HMAC-signed requests.  
+- Very small script whose only job is to forward callback HTTP requests to the backend and enforce basic validation (path, method, HMAC header).
+
+healthcheck_worker (optional)  
+- Lightweight uptime & reachability check for monitoring.  
+- May simply return a 200 with a static payload.
+
+**Important:**  
+Preview builds and AI jobs themselves run inside the backend / worker execution environment, not inside Cloudflare Workers.
+
 
 ### **N.6.2 Wrangler Configuration**
 
@@ -236,6 +276,8 @@ Upgrade later as usage grows.
 * Secrets via `wrangler secret put`
 
 ### **N.6.3 R2 Bucket Setup**
+
+R2 lifecycle rules must automatically delete preview assets older than the retention period defined in backend_spec.
 
 Structure:
 
@@ -289,6 +331,28 @@ Workers MUST sign callbacks with HMAC:
 
 Backend must run migrations on startup.
 
+
+### N.7.4 Scheduled Cleanup for Session Tokens
+
+Replit must ensure that the generated backend includes a background worker routine that periodically deletes expired or used entries from the `session_tokens` table.
+Cleanup routines must run in the backend only. Cloudflare Cron is not used in this architecture.
+
+**Requirements:**
+* Cleanup executes every 10 minutes (recommended) or at a similarly safe interval.
+* Worker must delete rows where:
+  * `expires_at < NOW()`
+  * OR `used = true`
+* Cleanup must run inside the normal worker event loop, not as a separate container.
+* Operation must be low-load and safe to run frequently.
+* No verbose logging unless rows were removed.
+* Migration system must create the `session_tokens` table with:
+  * token (PK)
+  * user_id (FK)
+  * expires_at
+  * used
+  * created_at
+* This cleanup requirement is enforced in Phase O as part of final guardrail checks.
+
 ---
 
 # -------------------------------
@@ -297,6 +361,9 @@ Backend must run migrations on startup.
 
 # -------------------------------
 
+Proxy /api/v1/preview/sandbox-event to backend. SSE or WebSocket upgrade must be allowed if implemented.
+Backend must enable CORS for Desktop and Plugin origins.
+
 Replit must prepare config rules:
 
 * Redirect HTTP → HTTPS
@@ -304,7 +371,8 @@ Replit must prepare config rules:
 * Proxy WebSocket connections
 * Deny access to `/internal/*`
 
-SSL via LetsEncrypt.
+SSL/TLS must be enforced end-to-end. In production behind Cloudflare, Cloudflare manages the public certificate at the edge; the origin NGINX instance should also use a valid certificate (e.g., Let’s Encrypt or a Cloudflare origin cert) so that Cloudflare → origin traffic is encrypted.
+
 
 ---
 

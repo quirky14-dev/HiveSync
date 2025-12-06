@@ -145,6 +145,9 @@ All worker-generated files (except uploaded bundles) are:
 * Temporary
 * Deleted after job ends
 
+Workers must periodically delete expired or used session_tokens as defined in Phase H.
+
+
 ## 5.3 Outbound Network Blocking
 
 Workers only communicate with backend via:
@@ -153,7 +156,7 @@ Workers only communicate with backend via:
 POST /workers/callback
 ```
 
-Signed with `WORKER_SHARED_SECRET`.
+Signed with `WORKER_CALLBACK_SECRET`.
 
 ---
 
@@ -182,13 +185,15 @@ Workers compute:
 ## 7.1 Stateless Preview Tokens
 
 Tokens encode:
+- job_id
+- project_id
+- user_id
+- platform
+- tier
+- allowed_device_types
+- expires_at
 
-* Project ID
-* File hash
-* Expiry
-* User ID
-
-No DB lookup required; token is cryptographically trusted.
+No DB lookup required
 
 ## 7.2 Size Limits
 

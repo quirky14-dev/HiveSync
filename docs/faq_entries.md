@@ -361,9 +361,1120 @@ No global sync.
 No multi-repo operations.
 
 ---
+   
 
+### Q: Can I edit code from the mobile app?
 
+* **Category:** Getting Started
+* **Applies To:** Mobile, iPad, Desktop
+* **Tier:** All
+* **Last Updated:** 2025-12-06
 
+Yes. The mobile app includes a lightweight code editor that lets you make quick changes from your phone or tablet — such as modifying a line, changing variables, updating text, or fixing errors.
+
+It is not intended to replace a full desktop IDE, but it supports:
+
+* Syntax highlighting
+* Line numbers
+* Basic search
+* Instant sync back to your project
+* Ability to trigger previews and AI documentation
+
+This is ideal for quick adjustments on the go.
+
+---
+
+### Q: How does device pairing work for previews?
+
+* **Category:** Previews & Devices
+* **Applies To:** Desktop, Mobile, iPad
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+To pair a device:
+
+1. Open the HiveSync Mobile or iPad app.
+2. Go to **Pair Device**.
+3. Scan the QR code shown in the Desktop Client OR enter the six-character pairing code manually.
+4. The device will appear in the Desktop Client under **Linked Devices**.
+
+Pairing uses a short-lived, secure handshake token.
+You can pair multiple devices, but each is isolated per account.
+
+---
+
+### Q: Why do some previews take longer on Free tier?
+
+* **Category:** Pricing & Tiers
+* **Applies To:** Desktop, Mobile, iPad
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+Free-tier previews are processed on shared CPU workers with lower priority. During peak usage:
+
+* Jobs may wait longer in the queue.
+* Large bundles may take extra time to upload or process.
+* Higher-tier users (Pro, Premium) are prioritized by worker schedulers.
+
+Upgrading improves preview speed significantly.
+
+---
+
+### Q: How do I know if a preview failed and why?
+
+* **Category:** Troubleshooting
+* **Applies To:** Desktop, Mobile, iPad
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+HiveSync displays preview errors in the Desktop Client and, if applicable, in the Mobile App. Common reasons include:
+
+* Build timeout
+* Project too large for your tier
+* Invalid preview token
+* Worker capacity overflow
+* Unsupported file or entrypoint
+* Missing dependencies
+
+Click **View Details** to see the error logs.
+
+---
+
+### Q: Does HiveSync automatically back up my projects?
+
+* **Category:** Security & Privacy
+* **Applies To:** Desktop, Web
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+HiveSync does **not** automatically back up your local project files.
+Your source code remains on your computer unless you:
+
+* Push it to GitHub
+* Upload a preview bundle
+* Trigger an AI documentation job
+
+We recommend enabling GitHub or another source control provider for project backups.
+
+---
+
+### Q: What if AI documentation suggests a change I don’t want?
+
+* **Category:** AI Documentation
+* **Applies To:** Desktop, Plugins, Web
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+You always stay in control.
+AI-generated diffs are suggestions only:
+
+* You may **apply**, **reject**, or **partially apply** them.
+* Nothing is overwritten automatically.
+* You can compare side-by-side before accepting changes.
+
+This protects project integrity and ensures predictable behavior.
+
+---
+
+### Q: How does GitHub linking affect preview and AI jobs?
+
+* **Category:** Projects & Teams
+* **Applies To:** Desktop, Plugins, Web
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+GitHub linking is optional and affects only source control.
+Preview and AI jobs operate solely on your **current local project state**.
+
+This means:
+
+* You can run previews even if you haven’t committed changes.
+* HiveSync never automatically pushes or pulls.
+* Git operations are always explicit (you choose when to sync).
+
+---
+
+### Q: Can team members run previews on the same project?
+
+* **Category:** Projects & Teams
+* **Applies To:** Desktop, Mobile, iPad, Web
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+Yes — if they have access to the project:
+
+* Members can run previews.
+* Each user's preview runs separately with their own settings.
+* Running previews does not overwrite or block others.
+
+This is ideal for collaborative testing.
+
+---
+
+### Q: Why does my preview token expire so quickly?
+
+* **Category:** Security & Privacy
+* **Applies To:** Desktop, Mobile, iPad
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+Preview tokens are intentionally short-lived to protect your project.
+Expired tokens prevent:
+
+* Unauthorized device reuse
+* Sharing previews outside your account
+* Access after device loss
+
+Simply send a new preview to generate a fresh token.
+
+---
+
+### Q: Why does the desktop app show “Worker Unavailable”?
+
+* **Category:** Troubleshooting
+* **Applies To:** Desktop
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+This typically means:
+
+* Cloud workers are scaling up
+* Your region is experiencing high load
+* You attempted a preview or AI job during a maintenance window
+
+Try again in 10–20 seconds.
+Premium users typically experience shorter delays.
+
+---
+
+### Q: Why am I seeing a message about project size limits?
+
+* **Category:** Pricing & Tiers
+* **Applies To:** Desktop, Plugins
+* **Tier:** Free, Pro
+* **Last Updated:** 2025-12-06
+
+Different tiers support different maximum project sizes for:
+
+* Preview bundles
+* AI input files
+* Transferred assets
+
+If your project exceeds your tier’s limits, you may:
+
+* Exclude folders from the preview configuration
+* Split large assets
+* Upgrade to increase limits
+
+---
+
+### Q: Can I use HiveSync without an internet connection?
+
+* **Category:** Getting Started
+* **Applies To:** Desktop, Plugins
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+Partially.
+
+**Works offline:**
+
+* Editing project files
+* Local navigation
+* Viewing local history
+* Writing tasks or comments
+
+**Requires internet:**
+
+* Previews
+* AI documentation
+* Logging in
+* Syncing GitHub
+* Mobile device pairing
+* Admin analytics
+
+---
+
+### Q: How do I remove a paired device?
+
+* **Category:** Previews & Devices
+* **Applies To:** Desktop, Mobile
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+Open **Settings → Linked Devices** in the Desktop Client and click **Remove Device**.
+
+The device immediately loses access:
+
+* No more previews
+* No ability to fetch stored artifacts
+* No future pairing without re-authentication
+
+This is recommended if you lose a phone or change devices.
+
+---
+
+### Q: How do I fix “Preview bundle too large” errors?
+
+* **Category:** Troubleshooting
+* **Applies To:** Desktop
+* **Tier:** All (limits vary)
+* **Last Updated:** 2025-12-06
+
+Try these:
+
+1. Exclude non-essential folders (large images, node_modules, builds).
+2. Reduce large assets where possible.
+3. Upgrade your tier to increase limits.
+4. Use `.hivesyncignore` to skip temporary or cache directories.
+
+---
+
+### Q: Can I self-host preview workers?
+
+* **Category:** Admin & Analytics
+* **Applies To:** Admin
+* **Tier:** Pro, Premium
+* **Last Updated:** 2025-12-06
+
+Currently, HiveSync supports self-hosting the backend and database, but **workers must run on the cloud** because they rely on:
+
+* Cloudflare’s compute infrastructure
+* GPU-backed processing (for Premium)
+* Fast, isolated sandboxes
+
+Future versions may allow pluggable custom workers.
+
+---
+
+### Q: What happens if my subscription lapses?
+
+* **Category:** Pricing & Tiers
+* **Applies To:** Desktop, Web
+* **Tier:** Pro, Premium
+* **Last Updated:** 2025-12-06
+
+If your subscription expires or payment fails:
+
+* Your tier reverts to **Free**
+* Existing previews remain accessible unless they expired naturally
+* AI documentation speed and limits reduce
+* GPU worker access stops
+
+Upgrading again instantly restores higher-tier privileges.
+
+---
+
+### Q: Why does AI sometimes refuse large files?
+
+* **Category:** AI Documentation
+* **Applies To:** Desktop, Plugins
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+AI documentation has:
+
+* A maximum file size
+* A maximum token budget
+
+If the file exceeds limits, you can:
+
+* Split it into smaller modules
+* Document individual sections
+* Upgrade to increase limits (Premium supports larger contexts)
+
+---
+
+### Q: What admin tools exist for debugging user problems?
+
+* **Category:** Admin & Analytics
+* **Applies To:** Admin
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+Admins can use:
+
+* User search and filtering
+* Per-user preview and AI job history
+* Last preview artifact
+* GitHub sync status
+* Worker queue diagnostics
+* Session revocation tools
+* Impersonation (view-only mode)
+* Webhook/billing event history
+
+All accessible from the Admin Dashboard.
+
+---
+
+### Q: How do I read or export logs?
+
+* **Category:** Admin & Analytics
+* **Applies To:** Admin
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+From the Admin Dashboard:
+
+* Export worker logs
+* Export backend logs (PII-scrubbed)
+* Export audit logs
+* Export metrics snapshots
+
+Logs are available as CSV or JSON.
+
+---
+
+### Q: Do I need the Desktop App to use HiveSync?
+
+* **Category:** Getting Started
+* **Applies To:** Desktop, Web, Mobile
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+Yes — the Desktop App is required for full functionality, including previews, AI documentation, GitHub linking, and project management.
+
+Mobile/iPad apps act as companions for previews, notifications, and light code editing, but cannot replace the Desktop App entirely.
+
+---
+
+### Q: Can I use HiveSync without installing any plugins?
+
+* **Category:** Getting Started
+* **Applies To:** Desktop, Plugins
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+Yes. Plugins are optional.
+You can run previews and AI docs entirely from the Desktop App.
+
+Plugins simply add convenience like inline comments, gutter actions, and one-click AI requests inside your IDE.
+
+---
+
+### Q: Does HiveSync work with private GitHub repositories?
+
+* **Category:** Projects & Teams
+* **Applies To:** Desktop, Plugins, Web
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+Yes — HiveSync supports private repos through GitHub’s OAuth permissions.
+Only you and your repo collaborators can access linked content.
+
+---
+
+### Q: What file types can AI documentation analyze?
+
+* **Category:** AI Documentation
+* **Applies To:** Desktop, Plugins, Web
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+AI documentation supports most common programming languages, including:
+
+* JavaScript / TypeScript
+* Swift
+* Kotlin
+* Python
+* Java
+* C / C++
+* C#
+* Go
+* Rust
+* Ruby
+* PHP
+
+Binary files, very large assets, and auto-generated build artifacts are skipped.
+
+---
+
+### Q: Can I disable AI documentation for a project?
+
+* **Category:** AI Documentation
+* **Applies To:** Desktop, Web
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+Yes. In the Desktop App under **Project Settings → AI**, you can toggle:
+
+* Allow AI documentation
+* Allow AI refactors
+* Allow inline suggestions
+
+Turning these off prevents the AI from processing files in that project.
+
+---
+
+### Q: How do I change which branch is used for previews?
+
+* **Category:** Projects & Teams
+* **Applies To:** Desktop, Plugins
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+HiveSync previews always use the **current checked-out branch** in your local project.
+To change branches:
+
+1. Use your Git client or the Plugin’s Git panel.
+2. Check out the branch.
+3. Send a new preview.
+
+HiveSync never switches branches automatically.
+
+---
+
+### Q: Why do I see “File not included in preview bundle”?
+
+* **Category:** Previews & Devices
+* **Applies To:** Desktop
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+You may have excluded the file or folder using `.hivesyncignore`.
+This feature helps keep preview bundles small.
+
+Check the file in your ignore configuration and remove it if needed.
+
+---
+
+### Q: Why did my preview expire?
+
+* **Category:** Previews & Devices
+* **Applies To:** Mobile, iPad
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+Previews expire automatically to protect your code:
+
+* Tokens are short-lived
+* Bundles are temporary
+* Cached previews are deleted after inactivity
+
+Send a new preview if you need an updated version.
+
+---
+
+### Q: Can I view past previews?
+
+* **Category:** Previews & Devices
+* **Applies To:** Desktop
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+Yes — under **Preview History**, you can see:
+
+* Success/failure logs
+* Build time
+* Worker type used
+* Errors
+* Timestamps
+
+Old preview artifacts may have expired, depending on storage policy.
+
+---
+
+### Q: Why is the AI refusing to document my file?
+
+* **Category:** AI Documentation
+* **Applies To:** Desktop, Plugins
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+Common reasons:
+
+* File too large for your tier
+* Unsupported binary or auto-generated file
+* Missing language context
+* AI rate limit reached
+
+Split the file or upgrade your tier if needed.
+
+---
+
+### Q: Can I use HiveSync for backend code, not just mobile apps?
+
+* **Category:** Getting Started
+* **Applies To:** Desktop, Plugins
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+Yes — previews are mobile-specific, but AI documentation, refactors, tasks, and GitHub sync work with **any type of code**, including backend or full-stack projects.
+
+---
+
+### Q: Do previews run my code, or are they simulated?
+
+* **Category:** Previews & Devices
+* **Applies To:** Desktop, Mobile, iPad
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+Previews are **rendered**, not executed in full.
+They show:
+
+* UI layout
+* Visual state
+* Screens
+* Navigation flow
+
+They do **not** execute arbitrary runtime logic for security reasons.
+
+---
+
+### Q: Why can’t I use the Admin Dashboard from my phone?
+
+* **Category:** Admin & Analytics
+* **Applies To:** Admin
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+The Admin Dashboard contains dense, data-heavy visualizations that do not translate safely or clearly to mobile phone layouts.
+
+Only Desktop, Web, and iPad can access admin controls.
+
+---
+
+### Q: Can AI refactor multiple files at the same time?
+
+* **Category:** AI Documentation
+* **Applies To:** Desktop, Plugins
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+Not in v1.
+Refactors are **file-by-file** to ensure clarity, safety, and predictable Git diffs.
+
+However, you may step through many files rapidly.
+
+---
+
+### Q: Can I attach files to tasks?
+
+* **Category:** Tasks & Comments
+* **Applies To:** Desktop, Web
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+Yes. Attachments such as images or small assets can be added to tasks.
+They are stored in secure object storage and visible to project members.
+
+---
+
+### Q: How do notifications work across devices?
+
+* **Category:** Tasks & Comments
+* **Applies To:** Desktop, Mobile, iPad
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+Notifications sync automatically.
+You will receive alerts when:
+
+* AI jobs finish
+* Previews complete
+* Task comments change
+* You are mentioned
+* Billing issues occur (Pro/Premium only)
+
+Mobile push notifications require login on that device.
+
+---
+
+### Q: What happens if I close the Desktop App during a preview?
+
+* **Category:** Previews & Devices
+* **Applies To:** Desktop
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+The preview will continue processing in the cloud.
+You can reopen the Desktop App and the system will show the preview result when ready.
+
+---
+
+### Q: Does HiveSync keep a history of AI-generated changes?
+
+* **Category:** AI Documentation
+* **Applies To:** Desktop, Plugins
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+You may view past AI jobs under **AI History**.
+Each entry shows:
+
+* File
+* Job type
+* Summary
+* Status
+* Timestamp
+
+Diffs may expire if older than storage policy.
+
+---
+
+### Q: Can I undo an applied AI refactor?
+
+* **Category:** AI Documentation
+* **Applies To:** Desktop, Plugins
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+Yes — use your Git history.
+AI changes are treated like any other edit, allowing you to revert commits or restore previous versions.
+
+---
+
+### Q: Can I use HiveSync with multiple Git providers?
+
+* **Category:** Projects & Teams
+* **Applies To:** Desktop, Web
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+GitHub is supported natively.
+Other providers (GitLab, Bitbucket) can be used if you sync locally via your normal Git tools.
+HiveSync only integrates OAuth workflows for GitHub at this time.
+
+---
+
+### Q: Can HiveSync preview iPad apps?
+
+* **Category:** Previews & Devices
+* **Applies To:** Desktop, iPad
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+Yes — the preview system supports iPad previews using the same flow as mobile devices.
+
+---
+
+### Q: How many devices can I pair at once?
+
+* **Category:** Previews & Devices
+* **Applies To:** Desktop, Mobile, iPad
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+You may pair multiple devices with no strict limit.
+However, only **your account** can use those devices — other users cannot see or interact with them.
+
+---
+
+### Q: Does AI read my entire project?
+
+* **Category:** Security & Privacy
+* **Applies To:** Desktop, Plugins
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+No.
+AI receives only the file you request documentation or a refactor for.
+Limited context (such as dependency names) may be included for clarity, but not your whole project.
+
+---
+
+### Q: Why does the mobile app sometimes show “Preview offline”?
+
+* **Category:** Troubleshooting
+* **Applies To:** Mobile, iPad
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+Possible causes:
+
+* Preview expired
+* Device lost internet connection
+* Token invalidated
+* Bundle removed
+* App updated while preview was open
+
+Reload the preview from the Desktop App.
+
+---
+
+### Q: Why did my AI job get rate-limited?
+
+* **Category:** AI Documentation
+* **Applies To:** Desktop, Plugins
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+AI jobs per minute/hour/day vary by tier.
+If you exceed your tier limit, requests may be temporarily paused.
+Wait for the reset window or upgrade.
+
+---
+
+### Q: Are previews interactive?
+
+* **Category:** Previews & Devices
+* **Applies To:** Desktop, Mobile, iPad
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+Previews are **visual simulations**, not fully interactive.
+They show UI composition, layout, navigation flow, and screen transitions, but not runtime logic or networking.
+
+---
+
+### Q: Can I invite collaborators who don’t use HiveSync?
+
+* **Category:** Projects & Teams
+* **Applies To:** Desktop, Web
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+Inviting a collaborator automatically creates a HiveSync account for them during onboarding.
+They must log in to access your project.
+
+---
+
+### Q: Do I need to store my project in the cloud?
+
+* **Category:** Security & Privacy
+* **Applies To:** Desktop
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+No — your full project remains local unless:
+
+* You push it via GitHub
+* You generate a preview or AI doc
+* You upload logs voluntarily for support
+
+HiveSync is not a hosted code storage service.
+
+---
+
+### Q: Can I rename a project without breaking GitHub sync?
+
+* **Category:** Projects & Teams
+* **Applies To:** Desktop, Web
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+Yes — renaming a project does not affect its GitHub repo connection.
+Repository URLs remain unchanged.
+
+---
+
+### Q: What does “Preview size limit exceeded” mean?
+
+* **Category:** Troubleshooting
+* **Applies To:** Desktop
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+Your preview bundle may be too large due to:
+
+* High-resolution assets
+* Large node_modules
+* Generated build folders
+* Resource-heavy subdirectories
+
+Exclude unnecessary folders using `.hivesyncignore`.
+
+---
+
+### Q: Why does HiveSync ask for GitHub permissions?
+
+* **Category:** Security & Privacy
+* **Applies To:** Desktop, Web
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+GitHub integration requires permissions to:
+
+* Access repositories you select
+* Push commits
+* Pull changes
+* Read your branches and metadata
+
+HiveSync never accesses repositories you did not explicitly grant access to.
+
+---
+
+### Q: Can I still use HiveSync if I change computers?
+
+* **Category:** Getting Started
+* **Applies To:** Desktop, Web
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+Yes. Simply install the Desktop App on the new machine and sign in.
+Project linking will rebuild automatically when you open the same folder.
+
+---
+
+### Q: Does HiveSync support multiple accounts on one computer?
+
+* **Category:** Getting Started
+* **Applies To:** Desktop
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+Yes — each operating system account may log into a different HiveSync account.
+The Desktop App stores session data per user profile on your computer.
+
+---
+
+### Q: Can I export AI documentation?
+
+* **Category:** AI Documentation
+* **Applies To:** Desktop, Web
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+Yes — you can export AI documentation as:
+
+* Markdown
+* HTML
+* Plain text
+
+Exports do not include private logs or system metadata.
+
+---
+
+### Q: What happens when I delete a project?
+
+* **Category:** Projects & Teams
+* **Applies To:** Desktop, Web
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+Deleting a project:
+
+* Removes it from your account
+* Deletes cloud metadata and preview bundles
+* Does not delete your local files
+* Does not delete your GitHub repo
+
+Deletion is permanent.
+
+---
+
+### Q: Why does the Admin Dashboard show “HMAC mismatch”?
+
+* **Category:** Admin & Analytics
+* **Applies To:** Admin
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+This indicates:
+
+* A webhook payload was modified or corrupted
+* The signing secret changed
+* The provider retried with invalid data
+
+It protects your billing and security workflows.
+
+---
+
+### Q: Why can’t I delete my HiveSync account?
+
+* **Category:** Security & Privacy
+* **Applies To:** Web
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+You may delete your account unless:
+
+* You own active projects
+* You have outstanding subscriptions
+* You are the system admin
+
+Transfer or delete projects first.
+
+---
+
+### Q: Can I migrate my HiveSync data to another system?
+
+* **Category:** Security & Privacy
+* **Applies To:** Web
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+You can export:
+
+* Tasks
+* Comments
+* AI documentation
+* GitHub commits (via Git itself)
+
+Preview bundles are temporary and cannot be exported.
+
+---
+
+### Q: Why do I see multiple preview entries for the same file?
+
+* **Category:** Previews & Devices
+* **Applies To:** Desktop
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+Each preview is generated uniquely.
+If you send multiple previews, each run appears separately with its own logs.
+
+---
+
+### Q: Why do I need to log into the mobile app separately?
+
+* **Category:** Getting Started
+* **Applies To:** Mobile, iPad
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+Device login ensures:
+
+* Secure preview tokens
+* Device pairing protection
+* Notification identity
+* Multi-device isolation
+
+Desktop login does not automatically authenticate mobile devices.
+
+---
+
+### Q: Are my logs shared with other users?
+
+* **Category:** Security & Privacy
+* **Applies To:** Desktop
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+Never.
+Logs are viewable only by:
+
+* You
+* System admin (if shared voluntarily)
+
+---
+
+### Q: How are billing issues handled?
+
+* **Category:** Pricing & Tiers
+* **Applies To:** Web
+* **Tier:** Pro, Premium
+* **Last Updated:** 2025-12-06
+
+Billing events are processed via secure webhooks.
+If a payment fails:
+
+* Your tier may pause
+* You’ll receive notifications
+* The Admin Dashboard shows the issue
+* You can update your payment method
+
+Restoring payment returns your previous tier.
+
+---
+
+### Q: Can I use the Admin Dashboard to modify user projects?
+
+* **Category:** Admin & Analytics
+* **Applies To:** Admin
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+No — the admin dashboard is **read-only**, except for safe administrative controls such as:
+
+* Tier updates
+* Billing overrides
+* Impersonation (view-only)
+* Session revocation
+* Webhook reprocessing
+
+Admins cannot modify or delete user files.
+
+---
+
+### Q: Can I switch between accounts inside the HiveSync desktop app?
+
+* **Category:** Getting Started
+* **Applies To:** Desktop
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+Yes — use **Account → Sign Out** and log into another account.
+Each login keeps separate session data.
+
+---
+
+### Q: Does HiveSync store my GitHub token?
+
+* **Category:** Security & Privacy
+* **Applies To:** Desktop, Web
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+No — GitHub uses OAuth, and HiveSync stores:
+
+* Short-lived access tokens
+* Secure refresh tokens when required
+
+These are encrypted and rotated automatically.
+
+---
+
+### Q: Why does my iPad preview look different from my iPhone preview?
+
+* **Category:** Previews & Devices
+* **Applies To:** iPad, Mobile
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+Previews render using the device’s approximate screen dimensions.
+iPads have different layout rules, so UI differences are expected.
+
+---
+
+### Q: Why do AI suggestions look different between devices?
+
+* **Category:** AI Documentation
+* **Applies To:** Desktop, Plugins, Mobile
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+AI suggestions themselves are identical, but:
+
+* Desktop shows full diff panels
+* Plugins show inline comments
+* Mobile shows simplified summaries
+
+The output is the same — only the presentation changes.
+
+---
+
+### Q: What does “Pending job in queue” mean?
+
+* **Category:** Troubleshooting
+* **Applies To:** Desktop
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+A job has been submitted but not yet assigned to a worker.
+This can happen during:
+
+* Worker scaling
+* High demand
+* Network delays
+* Tier prioritization scheduling
+
+Wait briefly and the job will proceed automatically.
+
+---
+
+### Q: Can I force a preview to cancel?
+
+* **Category:** Previews & Devices
+* **Applies To:** Desktop
+* **Tier:** All
+* **Last Updated:** 2025-12-06
+
+Yes — use the **Cancel Preview** option in the Desktop App while the job is queued or running.
+
+---
 
 
 

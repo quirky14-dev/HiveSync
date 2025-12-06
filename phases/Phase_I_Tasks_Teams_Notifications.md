@@ -19,10 +19,10 @@ Replit must read and rely on:
 * `/docs/ui_layout_guidelines.md`
 * `/docs/backend_spec.md`
 * `/phases/Phase_D_API_Endpoints.md`
-* `/phases/Phase_E_Desktop_Client_Planning.md`
-* `/phases/Phase_F_Mobile_Tablet_Planning.md`
-* `/phases/Phase_G_Plugins_Planning.md`
-* `/docs/pricing_tiers.md`
+* `/phases/Phase_E_Desktop_Client.md`
+* `/phases/Phase_F_Mobile_Tablet.md`
+* `/phases/Phase_G_Plugins.md`
+* `/docs/billing_and_payments.md`
 
 These define all behaviors and UI expectations.
 
@@ -182,7 +182,7 @@ Supports:
 
 * Images
 * Code snippets
-* Small files (<5 MB for Free; larger for Pro/Premium)
+* Small files (<5 MB for Free; higher limits for Pro/Premium; exact limits defined in backend_spec.md)
 
 R2 objects are signed URLs; never public.
 
@@ -211,6 +211,9 @@ Notifications cover the entire platform:
 * Team member joined
 * Admin alerts (for admin only)
 
+Preview Logs (navigation, interaction, snapshot fallback events) are NOT notifications. They do not trigger push banners, badges, or system alerts.
+They appear only inside the Developer Diagnostics Panel and must never surface as user notifications.
+
 ## I.4.1 Notification Structure
 
 Notifications include:
@@ -237,8 +240,14 @@ Notifications include:
 * `comment_added`
 * `preview_ready`
 * `ai_docs_ready`
+* `preview_shared` – A preview session was successfully sent to a device.
+* `preview_share_expired` – A shared preview session expired.
+* `preview_failed` – Preview could not be generated due to worker or pipeline failure.
+
 * `team_invite`
 * `team_joined`
+* `team_member_left` – A collaborator has left the project.
+
 
 ### Admin-Only Types
 
@@ -246,6 +255,9 @@ Notifications include:
 * `queue_high`
 * `job_failed`
 * `security_event`
+* `preview_pipeline_warning` – Worker snapshot rendering issues, preview asset failures, or warnings generated during Sandbox Preview processing.
+* `admin_alert` – Critical issue with worker pipeline (stalled jobs, malformed data).
+
 
 Admin-only notifications appear ONLY in Admin Dashboard.
 
@@ -262,12 +274,18 @@ Admin-only notifications appear ONLY in Admin Dashboard.
 
 ## I.4.6 iPad Behavior
 
-Same as Mobile, but may display preview of content in split view.
+* iPad may optionally display expanded notification details in a right-side preview panel when split view is active.
+* Swipe/press to mark read
+* Unified notification panel
+* Badge count on top toolbar
+* Ability to open related modal directly
 
 ## I.4.7 Plugin Behavior
 
 * Sidebar panel for notifications
 * Light display only (no heavy modals)
+* Plugins must surface preview_ready and ai_docs_ready as toast or banner notifications in the IDE environment for immediate visibility.
+
 
 ## I.4.8 Email & Slack Delivery (Optional)
 

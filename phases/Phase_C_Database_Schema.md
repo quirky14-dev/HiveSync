@@ -104,6 +104,31 @@ Replit must plan the following tables (NO SQL yet):
 * platform
 * last_seen
 
+#### `session_tokens`
+
+* token (PK, TEXT)
+* user_id (FK → users.id)
+* expires_at (TIMESTAMP)
+* used (BOOLEAN, default false)
+* created_at (TIMESTAMP default NOW())
+
+**Purpose:**
+Supports the secure one-time session-token login mechanism used by desktop, mobile, and plugin clients to authenticate users into the HiveSync website without re-entering credentials.
+
+**Rules:**
+
+* Tokens are **single-use**.
+* Tokens expire after 60–120 seconds.
+* Backend marks the token as `used = true` immediately upon consumption.
+* Expired or used tokens may be periodically cleaned via a simple cron/worker process.
+* Token values must be cryptographically secure (256-bit random).
+
+Indexes (required):
+
+* `(user_id)`
+* `(expires_at)`
+* Partial index: `(used) WHERE used = false`
+
 ---
 
 ### **C.3.2 Projects Domain**
@@ -321,6 +346,44 @@ Indices:
 * hashed_key
 * created_at
 * last_used_at
+
+---
+
+### **C.3.12 Subscriptions Domain**
+
+#### `subscriptions`
+
+* id (PK)
+* user_id (FK → users.id)
+* subscription_id (TEXT, unique)  
+  * LemonSqueezy subscription ID  
+* status (enum: active, past_due, canceled, paused, expired)
+* tier (enum: free, pro, premium)
+* renews_at (TIMESTAMP, nullable)
+* ends_at (TIMESTAMP, nullable)
+* checkout_metadata (JSONB, optional)
+* created_at
+* updated_at
+
+**Purpose:**
+Represents the authoritative subscription record for each HiveSync user.  
+This table is updated **exclusively** by the billing webhook handler defined in `billing_and_payments.md`.
+
+**Rules:**
+
+* One active subscription per user.
+* `subscription_id` must be globally unique.
+* Status transitions are driven exclusively by LemonSqueezy webhook events.
+* `tier` is always set based on `variant_id` received via webhook mapping, never by frontend input.
+* If a subscription is canceled or expires, `tier` must revert to `free`.
+
+**Indexes (required):**
+
+* `(user_id)`
+* `(subscription_id)`
+* `(status)`
+* `(renews_at)`
+
 
 ---
 

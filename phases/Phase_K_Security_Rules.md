@@ -19,9 +19,9 @@ Replit must read and rely on:
 * `/docs/backend_spec.md`
 * `/docs/admin_dashboard_spec.md`
 * `/phases/Phase_H_AI_and_Preview_Pipeline.md`
-* `/phases/Phase_E_Desktop_Client_Planning.md`
-* `/phases/Phase_F_Mobile_Tablet_Planning.md`
-* `/phases/Phase_G_Plugins_Planning.md`
+* `/phases/Phase_E_Desktop_Client.md`
+* `/phases/Phase_F_Mobile_Tablet.md`
+* `/phases/Phase_G_Plugins.md`
 
 ---
 
@@ -92,11 +92,14 @@ Preview tokens are:
   * project_id
   * platform
   * tier
-  * allowed devices
+  * screen_ids (one or multiple)
+  * session_id (used for sandbox event logging)
+
 * Never stored in plaintext in DB
 * Never logged fully
 
-Devices use tokens ONLY to fetch artifacts.
+Devices use preview tokens ONLY to fetch Layout JSON + assets and to send sandbox preview events to the backend.
+
 
 ---
 
@@ -107,18 +110,22 @@ Devices use tokens ONLY to fetch artifacts.
 Workers must:
 
 * Run in strict sandbox
-* Disable outbound network access
+* Outbound network access must be restricted to approved AI providers (e.g., OpenAI). All other external domains must be blocked.
 * Limit CPU/GPU time
-* Reject oversize bundles
+* Reject oversize preview payloads (layout.json or snapshot assets)
 * Mask all environment variables
 * Log only non-sensitive data
+
+**All Worker → Backend callbacks must include an HMAC signature using WORKER_CALLBACK_SECRET. Backend must reject unsigned or invalid callback requests.**
+
 
 ### K.6.2 R2 Security
 
 * Signed URLs only
-* All artifacts private by default
+* All preview outputs (layout.json, snapshot assets), AI documentation exports, and log files must be private by default.
 * Objects names must NOT contain user-provided strings
 * R2 bucket policies: deny public access
+* User-supplied strings must never be used directly as R2 object keys. Backend must sanitize, prefix, or hash all object paths.
 
 ---
 
@@ -132,11 +139,14 @@ Desktop must:
 * Sign IPC messages
 * Validate plugin-originated instructions
 
+WebViews must be restricted to local/embedded content only. Remote navigation is disallowed except for approved login/upgrade URLs.
 Desktop acts as privileged local proxy → MUST be secure.
 
 ---
 
 ## K.8. Mobile/iPad Security Rules
+
+* Mobile devices must validate preview tokens upon receipt and must not persist or cache preview data after expiration.
 
 * Secure token storage (secure keychain)
 * No plaintext logs
@@ -165,6 +175,7 @@ Admin views require:
 * Admin JWT with role=admin
 * Strict backend permission checks
 * No client-side trust
+* Admin UI must display user email addresses in redacted form (e.g., ch***@domain.com) except when explicitly inspecting a single user record.
 
 Admin actions require:
 
@@ -200,19 +211,14 @@ Admin logs:
 
 ## K.12. Logging & Privacy
 
+* Preview interaction logs (navigation, warnings, snapshot fallbacks) must exclude PII and be tied only to preview session_id.
+
 Backend and workers must:
 
 * Remove PII from logs
 * Store timestamps, codes
 * Avoid logging full request bodies
 * Support log rotation
-
-User-accessible logs (via admin) must redact:
-
-* Emails
-* IP addresses (partial only)
-* Tokens
-* R2 object keys (partial)
 
 ---
 

@@ -4,7 +4,7 @@
 >
 > * Define the full Admin Dashboard architecture, analytics, data flows, security roles, maintenance actions, alerting, and monitoring.
 > * Cover ALL admin features that exist in specs, recovered features (102-set), and new additions including Slack alerts and FAQ-based auto-response attempts.
-> * Ensure consistent behavior across desktop/iPad/mobile (iPad = read-only admin shortcuts).
+> * Ensure consistent behavior across desktop/iPad/mobile 
 > * **No code generation** – no React, charts, or backend handlers yet.
 >
 > Replit MUST NOT generate or modify `/admin/` code during Phase J.
@@ -19,7 +19,7 @@ Replit must read and rely on:
 * `/docs/backend_spec.md`
 * `/docs/security_hardening.md`
 * `/docs/deployment_bible.md`
-* `/docs/pricing_tiers.md`
+* `/docs/billing_and_payments.md`
 * `/phases/Phase_D_API_Endpoints.md`
 * `/phases/Phase_H_AI_and_Preview_Pipeline.md`
 
@@ -27,12 +27,11 @@ Replit must read and rely on:
 
 ## J.2. Admin Roles & Access Rules
 
-There is **ONE main admin** (the owner of the HiveSync system).
+There is **ONE main admin** (the owner of the HiveSync system), and the Admin Dashboard is only accessible through an online web portal (website).
 
 ### Permissions:
 
 * Full access to:
-
   * System health
   * Worker statuses
   * Queue metrics
@@ -40,9 +39,14 @@ There is **ONE main admin** (the owner of the HiveSync system).
   * Project-level summaries
   * Error logs & audit logs
   * Maintenance actions
+
+### Platform Access Restrictions:
+
 * Only the admin sees the Admin Dashboard.
-* Desktop preferred; iPad has limited read-only subset.
-* Plugins & mobile DO NOT expose the Admin dashboard.
+* Plugins DO NOT expose the Admin Dashboard.
+* iPad DO NOT expose the Admin Dashboard.
+* Desktop client DO NOT expose the Admin Dashboard.
+* Mobile apps DO NOT expose the Admin Dashboard.
 
 ---
 
@@ -94,6 +98,7 @@ Uses:
 Dashboard UI shows:
 
 * Every worker (CPU/GPU type)
+* Worker classifications must match backend registry: CPU preview workers, GPU snapshot workers, and AI documentation workers only.
 * Current queue size
 * Last heartbeat timestamp
 * Error rate
@@ -113,7 +118,6 @@ Displays queue state for:
 
 * Preview queue
 * AI Docs queue
-* Webhook delivery queue (future)
 
 Charts:
 
@@ -165,7 +169,8 @@ Admin dashboard includes:
 * Average wait time
 * Worker type used (CPU vs GPU)
 * Preview job failure rate
-* Fallback count (Premium → CPU fallback)
+* Snapshot fallback count (components rendered as images instead of native primitives)
+* Preview pipeline warnings (snapshot failures, missing assets, JSON issues)
 
 ---
 
@@ -215,6 +220,7 @@ Admin receives Slack alerts for:
 
 * Worker failure (no heartbeat)
 * Preview job failure
+* Preview pipeline warnings (non-fatal but degrade preview quality)
 * AI job failure
 * High queue depth
 * Critical errors
@@ -246,20 +252,8 @@ Admin can:
 
 ---
 
-## J.13. iPad Admin Subset
 
-iPad (read-only admin mode) includes:
-
-* Worker health summary
-* Queue depths
-* High-level system metrics
-* Preview/AI job summaries
-
-No destructive actions from iPad.
-
----
-
-## J.14. Mapping 102 Feature Categories → Admin Dashboard
+## J.13. Mapping 102 Feature Categories → Admin Dashboard
 
 Admin dashboard must cover:
 
@@ -277,7 +271,7 @@ Admin dashboard must cover:
 
 ---
 
-## J.15. No Code Generation Reminder
+## J.14. No Code Generation Reminder
 
 During Phase I, Replit must NOT:
 
@@ -290,7 +284,7 @@ This is planning only.
 
 ---
 
-## J.16. End of Phase J
+## J.15. End of Phase J
 
 At the end of Phase J, Replit must:
 

@@ -16,14 +16,13 @@
 
 Replit must read and rely on:
 
-* `/docs/admin_dashboard_spec.md`
+* `/docs/admin_dashboard.md`
 * `/docs/security_hardening.md`
-* `/phases/Phase_J_Admin_Dashboard.md`
-* `/phases/Phase_K_Security_Privacy.md`
+* `/phases/Phase_K_Security_Rules.md`
+* `/docs/billing_and_payments.md`
 * `/phases/Phase_H_AI_and_Preview_Pipeline.md`
 * `/docs/master_spec.md`
 * `/docs/backend_spec.md`
-* `/docs/pricing_tiers.md`
 
 These define admin visibility + security constraints.
 
@@ -105,8 +104,10 @@ Logs include:
 * R2 upload results
 * Workers AI inference failures
 * Sandbox timeout events
-* Bundle size validation
-* Callback POST status
+* Preview payload validation (Layout JSON + snapshot assets)
+* Callback signature (HMAC) validation result
+* Layout validation warnings (unsupported components, missing assets)
+* Snapshot fallback events (components rendered as images)
 
 Workers NEVER log:
 
@@ -130,6 +131,7 @@ Desktop client logs:
 * Preview request initiated
 * Exceptions in renderer
 * IPC bridge errors
+* Preview log stream connection failures (SSE/WebSocket)
 
 Desktop logs stored locally and can be bundled into a ZIP for admin debugging.
 
@@ -149,6 +151,8 @@ Mobile/iPad log only lightweight events:
 * Preview token validation failures
 * Network errors
 * Push notification failures
+* Sandbox preview interaction events (local only; never uploaded automatically)
+* Snapshot fallback UI warnings
 
 Logs stored only locally unless user explicitly uploads them.
 
@@ -166,6 +170,7 @@ Plugins log:
 * Failed preview requests
 * Failed AI Docs requests
 * Editor API errors
+* Sandbox preview event delivery failures
 
 Plugins DO NOT log file contents or tokens.
 
@@ -186,6 +191,7 @@ Audit logs stored in DB:
 * Login success/failure
 * Worker callback acceptance/rejection
 * Tier violations
+* Preview share events (granted / expired)
 
 Audit logs never expire unless admin configures retention.
 
@@ -208,6 +214,8 @@ Metrics include:
 * Active devices per user
 * Notification send times
 * Search query performance
+* Snapshot fallback rate (per tier)
+* Layout validation warnings count
 
 Metrics are aggregated for Admin Dashboard charts.
 
@@ -229,6 +237,7 @@ Data surfaced to Admin Dashboard:
 * User/project activity graphs
 * FAQ auto-reply accuracy
 * System health indicators
+* Preview event volume (navigation, interaction, warnings)
 
 Admin can export metrics as CSV or JSON.
 
@@ -243,7 +252,7 @@ Admin can export metrics as CSV or JSON.
 Tracing IDs included in all logs allow later:
 
 * Jaeger/OTEL compatibility
-* Cross-component trace stitching (backend → worker → R2 → callback)
+* Cross-component trace stitching (Desktop → Backend → Worker → R2 → Callback)
 
 Tracing is optional in v1 but logs must support it.
 
@@ -260,6 +269,7 @@ Tracing is optional in v1 but logs must support it.
 * Audit logs: unlimited (unless admin prunes)
 * Mobile logs: local only
 * Desktop logs: local only unless manually uploaded
+* Tier-based log volume may require dynamic retention adjustments (admin-configurable).
 
 ---
 
@@ -276,6 +286,7 @@ Analytics shown in Admin Dashboard include:
 * Queue performance by tier
 * Worker GPU/CPU distribution
 * Tier upgrade opportunities
+* Preview warning severity breakdown (info / warn / error)
 
 Admin can filter by tier.
 

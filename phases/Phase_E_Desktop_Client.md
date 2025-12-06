@@ -9,6 +9,11 @@
 >
 > Replit MUST NOT create or modify any `/desktop/` files during Phase E.
 
+> **Design System Compliance:**  
+> All UI layout, components, colors, typography, spacing, and interaction patterns in this document MUST follow the official HiveSync Design System (`design_system.md`).  
+> No alternate color palettes, spacing systems, or component variations may be used unless explicitly documented as an override in the design system.  
+> This requirement applies to desktop, mobile, tablet, web, admin panel, and IDE plugin surfaces.
+
 ---
 
 ## E.1. Inputs for This Phase
@@ -215,6 +220,120 @@ Desktop must implement UI restrictions:
 * Pro/Premium indicators
 * Upgrade links
 * Queue position shown for preview jobs
+
+### **Plan Management (Desktop)**
+
+When user attempts a restricted action:
+
+* Show Upgrade Modal (same text as mobile)
+* Button: **“Open Website”**
+* Open:
+
+  * `HIVESYNC_UPGRADE_URL_DESKTOP`
+
+No embedded billing UI is permitted.
+
+---
+
+### E.8.1 Billing Interaction Rules (NEW)
+
+The Desktop Client must integrate with the HiveSync billing system in a strictly indirect manner, following the rules defined in `billing_and_payments.md`.
+
+#### 1. Desktop MUST NOT embed billing UI
+LemonSqueezy checkout pages must **always** open in the user’s external browser.  
+No iframe, no embedded window, no Electron overlay is allowed.
+
+#### 2. Upgrade actions are browser redirects only
+When a user clicks:
+
+* “Upgrade to Pro”
+* “Upgrade to Premium”
+* “Increase Limits”
+* “Unlock GPU Previews”
+
+Desktop must call:
+
+```
+
+GET /auth/session-token
+
+```
+
+to obtain a one-time login URL, then open:
+
+```
+
+/login/session/<token>
+
+```
+
+in the system browser.  
+After login, the browser will display the upgrade screen and call:
+
+```
+
+POST /billing/start-checkout
+
+```
+
+from the web UI.
+
+No part of Desktop directly calls billing endpoints.
+
+#### 3. Desktop must request subscription status from backend
+On app load, and periodically, Desktop must call:
+
+```
+
+GET /user/me
+
+```
+
+Backend returns:
+
+* `tier`
+* `subscription_status`
+* `renews_at`
+* `ends_at`
+
+Desktop uses this information to:
+
+* Enable/disable preview button
+* Render tier badges (Free / Pro / Premium)
+* Display “Preview limit exceeded” warnings
+* Trigger upgrade modal when needed
+
+#### 4. Desktop must respect tier enforcement
+If backend responds with:
+
+```
+
+403 TIER_LIMIT_EXCEEDED
+
+```
+
+Desktop must:
+
+* Show the Upgrade Modal
+* Provide the “Open Website to Upgrade” button
+* Not attempt retries or hidden requests
+
+#### 5. Subscription changes must take effect immediately
+Once the backend updates `tier` (after webhook):
+
+* Desktop must update limits without requiring restart.
+* Desktop may request `/user/me` to refresh the status.
+
+#### 6. No local caching of subscription state
+Tier information must come from backend only.  
+No local SQLite / localStorage caching is permitted.
+
+#### 7. Desktop must never guess billing state
+If backend returns inconsistent or missing data:
+
+* Desktop must default to Free tier
+* Upgrade modal must remain available
+* Desktop must not misrepresent the user's tier
 
 ---
 
