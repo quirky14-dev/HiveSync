@@ -830,9 +830,266 @@ If you remember only one thing:
 
 ### **“If HiveSync feels slow → add workers.”**
 That’s the essence of horizontal scaling.
+
 ---
 
-# **18. Summary**
+---
+
+# 18. Deploying the Admin Dashboard (Web Portal)
+
+The Admin Dashboard is a standalone React-based frontend application that provides system administration, analytics, worker metrics, sample project management, and configuration controls. It is deployed separately from the backend API and workers.
+
+This section describes how to build and deploy the Admin Dashboard to a production-ready static host (recommended: Cloudflare Pages).
+
+---
+
+## 18.1 Overview
+
+The Admin Dashboard is located under:
+
+```
+/admin_dashboard/
+```
+
+It is a Vite + React SPA that compiles to static assets:
+
+```
+/admin_dashboard/dist/
+    index.html
+    assets/
+        *.js
+        *.css
+        *.svg
+```
+
+These static files can be served from:
+
+- Cloudflare Pages (recommended)
+- Linode NGINX static hosting
+- Any static web host (S3-compatible, Netlify, etc.)
+- Backend static routes (optional, not recommended)
+
+The dashboard communicates with the backend through authenticated admin endpoints such as:
+
+```
+/admin/auth/login
+/admin/metrics/workers
+/admin/metrics/queue
+/admin/system-config
+/admin/sample-projects
+```
+
+---
+
+## 18.2 Build Instructions (Local or CI)
+
+Before deployment, the Admin Dashboard must be built:
+
+```
+cd admin_dashboard
+npm install
+npm run build
+```
+
+This generates the production build into:
+
+```
+/admin_dashboard/dist/
+```
+
+This `dist/` folder is the deployable artifact.
+
+---
+
+## 18.3 Use Environment Variables to Target the Backend API
+
+During build, Vite consumes:
+
+```
+VITE_API_BASE=<backend_url>/api
+```
+
+For production:
+
+```
+VITE_API_BASE="https://your-backend-domain.com"
+```
+
+This value is used for all admin API calls.
+
+In Cloudflare Pages:
+
+- Set this under **Pages → Settings → Environment Variables**
+- Or define a `.env.production` file during build
+
+---
+
+## 18.4 Deploying to Cloudflare Pages (Recommended)
+
+Cloudflare Pages is the preferred host due to:
+
+- Global CDN distribution
+- Automatic TLS
+- Zero servers to manage
+- Lower latency for the admin panel
+- Built-in API environment variables
+
+**Steps:**
+
+1. In Cloudflare Dashboard → Pages → “Create a Project”.
+2. Choose “Upload assets” (NOT Git integration).
+3. Upload the **contents of `/dist`** ONLY.
+4. Set the build output directory to:  
+   ```
+   dist
+   ```
+5. Add environment variable:
+   ```
+   VITE_API_BASE=https://your-backend-domain.com
+   ```
+6. Deploy.
+
+The admin dashboard will be accessible at:
+
+```
+https://your-admin-domain.com
+```
+
+---
+
+## 18.5 DNS and SSL
+
+If assigning a custom domain (recommended):
+
+- Add a CNAME record pointing to Cloudflare Pages’ hostname
+- Enable “Always use HTTPS”
+- Ensure backend CORS settings include your admin dashboard domain
+
+Backend must allow:
+
+```
+Origin: https://your-admin-domain.com
+```
+
+Consider restricting backend admin endpoints via IP allowlist or VPN based on your security posture.
+
+---
+
+## 18.6 Authentication and Session Behavior
+
+The Admin Dashboard performs admin authentication through:
+
+```
+POST /admin/auth/login
+```
+
+Session tokens are stored in:
+
+- localStorage (“admin_session_token”)
+- short-lived JWT with admin-only scope
+
+Token expiration gracefully routes the administrator back to login.
+
+Ensure backend `ADMIN_JWT_SECRET` and `SESSION_EXPIRATION_MINUTES` are set in your `.env`.
+
+---
+
+## 18.7 Backend CORS Configuration
+
+The backend must allow CORS from your admin dashboard domain *only*:
+
+Example:
+
+```
+CORS_ALLOWED_ORIGINS=[
+  "https://your-admin-domain.com"
+]
+```
+
+Avoid wildcard CORS.
+
+---
+
+## 18.8 Serving the Admin Dashboard Through Backend (Optional Alternative)
+
+You may serve static admin assets directly from the backend container using:
+
+```
+/backend/app/static/admin/
+```
+
+This is not recommended for performance, but is supported.
+
+Place the built `dist/` files in:
+
+```
+/backend/app/static/admin/
+```
+
+Then map the FastAPI route:
+
+```
+GET /admin -> serve index.html
+GET /admin/* -> serve index.html
+```
+
+Use this only if you need everything behind a single server.
+
+---
+
+## 18.9 Deploying to Linode (NGINX) — Optional
+
+If not using Cloudflare Pages:
+
+1. Upload the `dist/` folder to your Linode instance.
+2. Configure NGINX:
+
+```
+server {
+    listen 80;
+    server_name admin.yourdomain.com;
+
+    root /var/www/admin_dashboard/dist;
+    index index.html;
+
+    location / {
+        try_files $uri /index.html;
+    }
+}
+```
+
+3. Reload NGINX.
+
+This provides a standard single-page-app deployment.
+
+---
+
+## 18.10 Versioning & Rollbacks
+
+Each admin dashboard deployment should be versioned in CI.  
+Optionally upload builds to object storage (R2 or S3) for rollback.
+
+Deployment Bible does not mandate a specific CI provider.
+
+---
+
+## 18.11 Summary
+
+- The Admin Dashboard is a standalone React SPA.
+- It compiles into a static `/dist` folder.
+- The dist folder is deployed to Cloudflare Pages (recommended).
+- It communicates with backend admin endpoints.
+- Environment variable `VITE_API_BASE` must point to backend.
+- CORS settings must allow the admin domain.
+- No backend worker is needed to serve dashboard files.
+- Configuration settings & metrics fully operate once domain is active.
+
+---
+
+
+---
+
+# **99. Summary**
 
 HiveSync is a multi-component system.
 Performance and reliability depend on:

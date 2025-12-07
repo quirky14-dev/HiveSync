@@ -387,6 +387,45 @@ This table is updated **exclusively** by the billing webhook handler defined in 
 
 ---
 
+### C.3.13 Sample Projects Domain (New)
+
+A new table MUST be added to support Sample Projects as defined in `/docs/sample_projects_spec.md`.
+
+#### Table: `sample_projects`
+
+| Column        | Type        | Notes |
+|---------------|-------------|-------|
+| id            | UUID (PK)   | Primary key  
+| name          | text        | Display name  
+| slug          | text UNIQUE | Used in URLs and local folders  
+| description   | text        | Short description for UI  
+| framework     | text        | 'react_native', 'swiftui', 'compose', 'flutter', etc.  
+| version       | text        | Semantic version (e.g., 1.0.0)  
+| archive_url   | text        | FS or R2 path to ZIP  
+| size_kb       | integer     | Optional, displayed in Desktop Client  
+| featured      | boolean     | Displayed more prominently  
+| active        | boolean     | Soft delete  
+| created_at    | timestamptz | Default now()  
+| updated_at    | timestamptz | Updated automatically  
+
+#### Indexes
+- `sample_projects_slug_idx`  
+- `sample_projects_active_idx`  
+- `sample_projects_framework_idx`
+
+#### Constraints
+- `slug` MUST be unique  
+- ZIP archives MUST NOT contain executables or symlinks  
+- `version` MUST follow semantic versioning  
+
+#### Purpose
+This table supplies onboarding flows and feature discovery via:
+- Desktop Client  
+- Admin Dashboard  
+- Sample analytics (optional future module)
+
+---
+
 ## C.4. Search Index Planning
 
 Replit must include search capability using Postgres extensions:

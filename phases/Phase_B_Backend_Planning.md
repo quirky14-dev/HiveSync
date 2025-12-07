@@ -237,6 +237,42 @@ Replit must plan the following backend domain modules (Python packages):
   * Outbound webhook management
   * CI automation access
 
+### B.3.13 Sample Projects Domain (New)
+
+The backend MUST include a dedicated domain module for managing HiveSync Sample Projects.  
+This domain supports the onboarding workflow and enables the Desktop Client to fetch, download, and update sample applications dynamically.
+
+#### Responsibilities
+- Store metadata for each sample project  
+- Manage sample ZIP archives stored on filesystem or R2  
+- Provide admin-only CRUD operations  
+- Provide public (authenticated) sample list  
+- Generate presigned download URLs  
+- Enforce size limits and ZIP validation  
+- Ensure safe extraction rules (never allow symlink escapes)
+
+#### Module Components
+- `sample_projects_models.py`  
+- `sample_projects_repository.py`  
+- `sample_projects_service.py`  
+- `sample_projects_router.py`  
+
+#### Required Backend Operations
+1. **Create Sample Project (admin)**  
+2. **Update metadata (admin)**  
+3. **Toggle active/featured (admin)**  
+4. **Soft delete (admin)**  
+5. **List sample projects (public — auth required)**  
+6. **Download sample ZIP via presigned URL**  
+7. **Version comparison logic (for Desktop)**  
+
+#### Interactions
+- Used by Desktop Client at launch  
+- Used by Admin Dashboard’s sample management UI  
+- Stored in Postgres, with archives in FS or R2  
+- Plugins and Mobile devices DO NOT interact directly
+
+
 ---
 
 ## B.4. Service Layer Planning

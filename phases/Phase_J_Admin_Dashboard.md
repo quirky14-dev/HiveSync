@@ -212,6 +212,56 @@ Admin confirms destructive actions via modal.
 
 ---
 
+## J.10A. System Settings (New Section)
+
+The Admin Dashboard MUST provide a **System Settings** area where the admin can configure global backend behaviors.  
+These settings directly affect storage, device pairing, sample projects, limits, and other operational concerns.
+
+### 1. Sample Project Storage Settings (New)
+
+The admin MUST be able to configure how and where Sample Projects are stored.
+
+Settings include:
+
+#### 1.1 Storage Provider
+A dropdown with the following options:
+- `filesystem`
+- `r2`
+
+Persisted as:
+- `sample_projects_storage_provider`
+
+Backend will use ONLY the selected provider.
+
+#### 1.2 Filesystem Settings (shown ONLY if provider = `filesystem`)
+- `sample_projects_root_path` (string)
+  - Default: `/app/sample_projects_storage/`
+  - Path MUST exist and be writable
+  - Backend MUST validate path on save
+
+#### 1.3 R2 Storage Settings (shown ONLY if provider = `r2`)
+- `r2_samples_bucket_name` (string)
+  - Backend MUST validate bucket accessibility
+  - Backend MUST generate presigned download URLs
+
+#### 1.4 Maximum Sample ZIP Size
+- Numeric field: `max_sample_size_mb`
+- Enforced during ZIP upload validation
+- Prevents oversized or malicious submissions
+
+### 2. General Behavior
+
+- All settings MUST be protected by admin role  
+- Dashboard MUST call backend `/admin/config` endpoints to read/write settings  
+- Backend MUST expose validated configuration to Sample Projects domain module  
+- These settings MUST appear in `.env.template` generated during Phase M  
+- Changing settings does NOT require a rebuild, only a backend reload  
+- Plugins and mobile apps NEVER see these settings
+
+These settings ensure Sample Projects are stored, validated, and served correctly based on the administrator’s chosen storage provider.
+
+---
+
 ## J.11. Alerts & Integrations
 
 ### Slack Alerts
@@ -268,6 +318,92 @@ Admin dashboard must cover:
 * FAQ monitoring
 * Export tools
 * Maintenance actions
+
+---
+
+## J.13A. Sample Projects Management (New Admin Feature)
+
+The Admin Dashboard MUST include full management capabilities for Sample Projects used by the Desktop Client during onboarding and ongoing usage.
+
+This feature integrates with:
+- `/docs/sample_projects_spec.md`
+- `/docs/v3 Dir Structure Build & Production.md`
+- Backend sample project domain module (service, repository, router)
+- Desktop's sample discovery system
+
+### Capabilities Required
+
+The admin must be able to:
+
+1. **List all sample projects**, showing:
+   - Name  
+   - Description  
+   - Framework (RN/SwiftUI/Compose/etc.)  
+   - Version (semver)  
+   - Size (KB)  
+   - Active state  
+   - Featured state  
+   - Last updated timestamp  
+
+2. **Upload a new sample project** (ZIP file).
+   - Backend validates ZIP contents  
+   - ZIP stored in configured storage provider (FS or R2)  
+   - Metadata recorded in `sample_projects` table  
+   - Version field required  
+
+3. **Edit existing sample projects**
+   - Update name, description, framework, version  
+   - Toggle “active”  
+   - Toggle “featured”  
+
+4. **Soft-delete sample projects**
+   - Removed from public sample list  
+   - Retained for audit and future restore  
+
+5. **Configure where samples are stored**
+   - `sample_projects_root_path`  
+   - `sample_projects_storage_provider` (fs / r2)  
+   - `max_sample_size_mb`  
+
+6. **Preview sample metadata**
+   - Basic listing of included files  
+   - ZIP file size  
+   - Project complexity hints (future)
+
+### Backend Endpoints Used
+
+Admin dashboard uses existing admin-protected routes:
+
+- `POST /admin/samples`  
+- `PUT /admin/samples/{id}`  
+- `DELETE /admin/samples/{id}`  
+- `GET /admin/samples/{id}`  
+- `GET /samples/list` (metadata only)
+
+### Authentication & Security
+
+The admin-only section MUST:
+
+- Require admin role  
+- Enforce ZIP validation rules (no executables, no symlinks)  
+- Enforce maximum size limits  
+- Log all sample modifications to Audit Log (J.9)
+
+### Purpose in the User Workflow
+
+Sample projects:
+- Enable first-time users to preview immediately  
+- Support demo environments  
+- Can be updated any time without requiring mobile/desktop app update  
+- Provide multiple framework examples for broad developer onboarding
+
+Desktop Client will:
+- Fetch sample metadata each launch  
+- Notify user when new sample versions exist  
+- Allow download on-demand  
+- Extract into user workspace
+
+Plugins and Mobile apps DO NOT interact with sample management.
 
 ---
 

@@ -269,6 +269,46 @@ brightness (≤ 70%) or the desaturated variant `hive-yellow-code = #EAC344`. Th
 to syntax highlighting and not to UI elements.
 
 
+## 5.8 Onboarding Visual Primitives (New)
+
+These primitives support the onboarding flow described in `/docs/onboarding_ux_spec.md`.
+
+### 1. Subtle Notice Banner
+- Background: `gray-7`
+- Border: `gray-5`
+- Left accent: `accent-blue` 2px (optional)
+- Typography: `body`
+- Used for:  
+  - Welcome banner  
+  - “New sample available” banner  
+
+### 2. Primary Action Glow
+A lightweight glow indicator used to draw attention once (e.g., Send Preview button highlight).
+
+- Glow token: `hive-yellow-glow`
+- Soft radius (6–10px)
+- Duration: 2–3 seconds
+- No pulsing or large animation  
+
+### 3. Panel-Based Onboarding Elements
+Device Pairing Panel and Sample Selector Panel MUST use:
+
+- Background: `gray-7`
+- Border-left: `gray-6`
+- Padding: `space-6`
+- Typography: `body` / `h3`
+- Width: 300–340px  
+
+### 4. Onboarding Toast Messages
+Toast messages triggered during onboarding MUST follow standard toast styling:
+
+- Background: `gray-7`
+- Border: semantic based on message type  
+- Spacing: `space-3` / `space-4`
+- Motion: fade + slight upward slide  
+
+These primitives MUST NOT introduce new color tokens or unapproved motion patterns.
+
 ---
 
 # 6. Motion & Interaction Rules

@@ -353,6 +353,172 @@ Replit must ensure the Desktop covers:
 * Tier upgrade flows
 * Admin-only desktop diagnostics (optional)
 
+### E.9.1 CLI Integration
+
+The Desktop Client should detect preview jobs initiated by the HiveSync CLI.
+
+If enabled:
+- Display CLI-triggered previews in the preview history.
+- Mark previews with: `"source": "cli"`.
+- No change is required for preview pipeline logic.
+
+---
+
+### E.9.2 Sample Projects Integration (New Desktop Feature)
+
+The Desktop Client MUST integrate with the HiveSync Sample Projects system as defined in `/docs/sample_projects_spec.md`.  
+This feature exists to provide new users with an immediate “Magic Moment” by allowing instant preview of a prebuilt sample project.
+
+#### 1. Sample Metadata Fetching
+On application launch, Desktop MUST call:
+
+```
+GET /samples/list
+```
+
+to retrieve the list of available sample projects and their metadata:
+
+- name  
+- description  
+- framework  
+- version (semver)  
+- size_kb  
+- featured state  
+- active state  
+
+Desktop MUST compare the server versions with any locally downloaded samples.
+
+#### 2. First-Launch Behavior
+On first run, Desktop MUST display a modal:
+
+> **Start With a Sample Project?**  
+> Choose from the list of sample apps (React Native, SwiftUI, Compose, etc.)  
+> Buttons: `[Open Sample]` `[Skip]`
+
+If the user selects a sample:
+- Desktop downloads the associated ZIP archive.
+- Extracts sample into user workspace under:
+  ```
+  ~/HiveSync/sample_projects/<slug>/
+  ```
+- Opens the extracted folder as the active project.
+- Encourages the user to send their **first preview**.
+
+#### 3. Update Behavior (New Sample Notification)
+On every launch, Desktop MUST:
+- Fetch sample metadata.
+- Compare metadata with local cached versions.
+- If a new version is available:
+  Display a subtle notification:
+
+  ```
+  New Sample Available:
+  <sample name> v<version>
+  [Download] [Dismiss]
+  ```
+
+Downloads occur *only if user confirms*.
+
+#### 4. Download & Extraction Rules
+Desktop MUST:
+- Download samples using either direct or presigned URL from backend.
+- Verify ZIP integrity (hash/size).
+- Extract safely into the user’s sample_projects directory.
+- NEVER execute sample code.
+- NEVER place files outside the allowed workspace folder.
+
+#### 5. Open Sample Project Flow
+From the “Create Project” or “Open Project” screens, Desktop MUST show a **Sample Projects** section:
+
+- Previews of available samples  
+- Installed samples  
+- Ability to open immediately  
+
+Opening a sample MUST trigger:
+- Project indexing  
+- File hashing  
+- Standard Preview Send Flow (E.5.2)
+
+#### 6. Sample Metadata Caching
+Desktop SHOULD maintain a small local cache containing:
+
+- slug  
+- version  
+- last_downloaded  
+- local filesystem path  
+
+This cache MUST NOT store:
+- ZIP archives  
+- unsafe file types  
+- raw server responses  
+
+Only metadata for UX purposes.
+
+#### 7. Plugin Interoperability
+Plugins MUST NOT fetch sample projects themselves.  
+Plugins MAY open sample projects only after Desktop has installed them locally.
+
+Plugins rely on Desktop’s local API for:
+- Active project path  
+- Project switching  
+- Preview triggering  
+
+#### 8. Telemetry (Optional)
+If enabled (non-personal event tracking):
+- Desktop logs when a sample is downloaded  
+- Desktop logs when a sample is opened  
+- Desktop logs first successful preview of a sample project  
+
+These metrics feed into the Admin Dashboard Sample Projects analytics view.
+
+---
+
+### E.9.3 Onboarding UX Integration (New)
+
+The Desktop Client MUST implement the first-launch onboarding flow exactly as defined in `/docs/onboarding_ux_spec.md`.
+
+This onboarding is minimal, non-blocking, and designed for developers:
+
+1. **Welcome Banner**  
+   - Appears only on first launch  
+   - Contains: “Welcome to HiveSync — connect a device to send your first preview.”  
+   - Buttons: `[Add Device] [Learn More]`  
+   - Uses Design System *Subtle Notice* component  
+
+2. **Device Pairing Panel**  
+   - Opens as a right-side panel (not modal)  
+   - Displays QR code, fallback text code, short instruction  
+   - Reopens via Settings → Devices  
+   - Defined in Design System → Panels / Sidebars section  
+
+3. **Empty-State Project View**  
+   - If no project is open, Desktop MUST show:  
+     ```
+     Open a project folder to begin
+     or
+     Try a Sample Project →
+     ```
+   - “Try a Sample Project” opens the sample selector panel  
+
+4. **Send Preview Button Highlight**  
+   - On first project open, highlight `[Send Preview]` for 2–3 seconds  
+   - Tooltip: “Send your project preview to connected devices.”  
+   - Implement highlight using Design System *Primary Action Glow*  
+
+5. **No Devices Error Toast**  
+   - If user clicks Send Preview with zero devices linked, show:  
+     ```
+     No devices connected.
+     Add a device to send previews.
+     ```
+   - Toast uses Design System notification tokens  
+
+6. **Subsequent Launch Behavior**  
+   - Desktop checks sample metadata and may show “New sample available” banner  
+   - No repeated onboarding flows  
+
+All onboarding UX logic MUST be implemented using existing Desktop components defined in the UI Layout Guidelines and Design System.
+
 ---
 
 ## E.10. No Code Generation Reminder

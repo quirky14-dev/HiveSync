@@ -125,6 +125,26 @@ Your workflow adapts to whatever device you're using.
 * Preview requests
 * Uses Desktop for secure proxy mode (when available)
 
+### **Command-Line Preview (Optional but Recommended)**
+
+HiveSync includes a lightweight CLI:
+
+```
+npm install -g hivesync
+```
+
+Use it to send previews instantly:
+
+```
+hivesync preview .
+```
+
+If the Desktop Client is running:
+- CLI uses desktop session for authentication.
+
+If running in CI:
+- Set `HIVESYNC_API_TOKEN` for authentication.
+
 ---
 
 # **4. Deep Code Understanding & Documentation (Inline + Diff-Aware)**

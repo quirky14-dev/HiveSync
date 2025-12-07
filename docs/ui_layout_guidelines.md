@@ -81,6 +81,43 @@ Desktop UI **does not show mode switching**.
 Proxy Mode is silent.
 No indicators or toggles.
 
+## 2.5 Onboarding Components (New)
+
+These components are required to support the onboarding flow described in `/docs/onboarding_ux_spec.md`.
+
+### 1. Welcome Banner
+- Uses Design System *Subtle Notice* style  
+- Full-width banner at top of editor  
+- Contains primary and secondary actions  
+- Auto-dismiss allowed  
+
+### 2. First-Launch Highlight (Send Preview Button)
+- Temporary glow effect using `hive-yellow-glow` token  
+- Duration 2–3 seconds  
+- Never replays after first use  
+
+### 3. Device Pairing Panel
+- Right-side panel using Side Panel layout rules  
+- Contains QR image, text code, and instructional text  
+- Width: 300–340px  
+- Follows spacing tokens: `space-4` / `space-6`  
+
+### 4. Sample Project Selector Panel
+- Same Side Panel layout  
+- Displays list of sample projects (text-only cards)  
+- Cards use minimal style: no thumbnails unless defined in design future  
+
+### 5. Empty-State Editor View
+- Uses standard empty-state layout: icon (optional), body text, link  
+- Typography: `body` for main text, `h3` optional header  
+
+### 6. No-Devices Toast
+- Toast style per Notification rules  
+- Short message + inline action  
+
+All onboarding elements MUST use tokens and spacing from the Design System and MUST NOT introduce new color variants, motion patterns, or component styles.
+
+
 ---
 
 # 3. Mobile App UI

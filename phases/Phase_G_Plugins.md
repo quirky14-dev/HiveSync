@@ -173,6 +173,23 @@ Plugins MUST follow same per-tier limits as Desktop.
 
 Plugins may **NOT** bundle full projects (Desktop handles full preview bundling).
 
+### G.7.1 Optional CLI Preview Trigger
+
+Plugins MAY invoke the HiveSync CLI when installed on the user's system.
+
+Invocation format:
+
+```
+hivesync preview <workspace_dir> --json
+```
+
+Rules:
+- If Desktop Client is running, plugin SHOULD use Desktop Proxy Mode instead.
+- If Desktop Client is NOT running, plugin MAY fall back to CLI mode.
+- If CLI is not installed, show a non-blocking warning.
+- CLI output MUST be parsed in JSON mode for stable plugin integration.
+- Plugins MUST NOT store API tokens. Authentication must pass through Desktop Proxy or personal API token env var.
+
 ---
 
 ## G.8. Tasks, Comments & Notifications on Plugins
