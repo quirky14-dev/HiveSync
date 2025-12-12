@@ -34,6 +34,8 @@ This file ensures all platforms behave consistently.
 # 2. Desktop Client UI
 
 ## 2.1 Main Layout
+**Note:** Authentication UI MUST follow `ui_authentication.md` (Email, Google, Apple only).
+
 
 * Left Sidebar:
 
@@ -44,6 +46,11 @@ This file ensures all platforms behave consistently.
   * Settings
 * Main Editor Area
 * Right Panel (toggles):
+ 
+ Architecture Map (new)
+  - Opens full-screen or split-view map
+  - Includes layer toggles (HTML/CSS/JS/API/External)
+  - Includes node inspector for CSS lineage & overrides
 
   * AI Documentation
   * Comments
@@ -97,6 +104,8 @@ These components are required to support the onboarding flow described in `/docs
 - Never replays after first use  
 
 ### 3. Device Pairing Panel
+**Note:** Authentication UI MUST follow `ui_authentication.md` (Email, Google, Apple only).
+
 - Right-side panel using Side Panel layout rules  
 - Contains QR image, text code, and instructional text  
 - Width: 300–340px  
@@ -108,6 +117,8 @@ These components are required to support the onboarding flow described in `/docs
 - Cards use minimal style: no thumbnails unless defined in design future  
 
 ### 5. Empty-State Editor View
+**Note:** UI layout for Preview MUST follow backend rules defined in `preview_system_spec.md`.
+
 - Uses standard empty-state layout: icon (optional), body text, link  
 - Typography: `body` for main text, `h3` optional header  
 
@@ -146,6 +157,51 @@ All onboarding elements MUST use tokens and spacing from the Design System and M
 
 Mobile always communicates **directly** with Backend.
 
+### 3.3.1 First-Run Disclosure Modal (Required for Compliance)
+
+On first launch OR first entry into the preview screen, the app must display a one-time modal informing the user about anonymous layout metric collection.
+
+#### Required Text (must match exactly)
+"HiveSync collects anonymous layout metrics (screen size, safe areas, OS version)
+only to improve virtual-device preview accuracy. No personal data is collected."
+
+#### Modal Rules
+- Width: 80% (mobile), 420px (tablet)
+- Radius: 16px
+- Background: gray-7
+- One button: **OK**
+- No tap-outside dismissal
+- Must persist a local “seen” flag
+- Modal content must also appear in Settings → About → Privacy
+
+
+### 3.4 Preview Header Additions (Virtual Device Mode Support)
+
+HiveSync Mobile requires two new elements in the preview header:
+
+#### 1. Preview Mode Pill
+Displays whether the preview is rendering:
+- The real device  
+- A virtual device model  
+- A special zoom state (“Zoom Mode Enabled”)
+
+Format examples:
+- **Device: Chris’ iPhone 15**
+- **Virtual: iPhone 14 Pro (iOS 17.3)**
+
+Behavior:
+- Tapping the pill opens the Device Selector sheet.
+- Always appears left of the Device Selector icon.
+
+Spacing:
+- Pill → 12px → Selector icon → 8px → any overflow menu.
+
+#### 2. Device Selector Icon
+- Always visible in Mobile preview mode.
+- Opens the cascading selector (Brand → Model → OS Major → OS Minor).
+- Uses bottom-sheet behavior described later.
+
+
 ## **3.5 Mobile Sandbox Preview (Interactive, Non-Executable UI Simulation)**
 
 HiveSync includes a **local, interactive mobile preview system** which renders a simulated version of the user’s mobile UI on-device without executing user code. The preview is driven entirely by backend-generated **Layout JSON** and HiveSync’s on-device **Local Component Engine (LCE)**.
@@ -173,6 +229,50 @@ The mobile preview screen MUST include two permanent chrome elements indicating 
    * Always visible
 
 These visually distinguish Sandbox Preview from an installed app.
+
+#### 3.5.1.1 Virtual Device Selector Bottom Sheet
+
+This bottom sheet is used to switch to virtual devices.
+
+1. Layout
+- Max height: 80% viewport
+- Mobile width: 100%
+- Tablet width: 420–500px centered
+- Background: gray-7
+- Border: gray-6
+- Corner radius: 16px
+
+2. Hierarchical Structure
+i. Brand (Apple, Google, Samsung, etc.)
+ii. Model (filtered by selected brand)
+iii. OS Major Version
+iv. OS Minor Version (“Auto” is default)
+
+3. Navigation Rules
+- Back arrow returns one level.
+- Swipe down closes sheet.
+- Selecting a model without OS versions defaults to **Auto**.
+- Auto label must appear in subtle text.
+
+4. Tablet Variant
+Two-column mode:
+- Left column: Brand + Model
+- Right column: OS Major + Minor
+
+### 3.5.1.2 Virtual Device Frame & Safe Area Visualization
+
+When previewing in Virtual Device Mode:
+
+#### Virtual Device Outline Glow
+- Uses token: `device-outline-glow`
+- Pulses continuously at 2s interval
+- Sits outside preview canvas and never obscures UI
+
+#### Safe-Area / Notch Visualization
+- Flash overlay: `device-notch-flash` for ~0.3s
+- Idle overlay: `device-notch-idle` (low opacity)
+- Must match the virtual device geometry precisely
+- Purely visual; touch targets unchanged
 
 ---
 
@@ -228,6 +328,23 @@ Forbidden behaviors (trigger console overlay):
 * Custom native module usage
 * React state hooks (`useState`, etc.)
 
+### 3.5.3.1 Diagnostic Overlay Z-Index Specification
+
+To maintain consistent preview rendering, all diagnostic overlays follow this order:
+
+| Layer | Z-Index | Description |
+|-------|---------|-------------|
+| Preview Header | 100 | Always top-most |
+| Notch/Safe-Area Overlay | 12 | Idle + flash |
+| Layout Bounding Boxes | 11 | Three-finger tap |
+| Pixel Grid | 10 | Two-finger hold |
+| Virtual Device Outline Glow | 9 | Pulsing effect |
+| Rendered Preview Content | 1 | Layout JSON output |
+| Background | 0 | Base layer |
+
+Overlays must never block UI interactions except where explicitly required (e.g., expanded console).
+
+
 ---
 
 ### **3.5.4 Simulated Interactivity Rules**
@@ -246,6 +363,27 @@ Interactions requiring backend (NEW screen JSON):
 * Navigation to another screen
 * Layout-dependent recomposition
 * Preview refresh due to code edits
+
+### 3.5.4.1 Diagnostic Gesture Behaviors
+
+The Preview Screen supports the following diagnostic gestures:
+
+#### 1. Two-Finger Hold → Pixel Grid
+- Displays alignment grid
+- Opacity: ~8%
+- Density scales with device DPI
+
+#### 2. Three-Finger Tap → Layout Bounding Boxes
+- Shows stack-type bounding boxes
+- Animates in/out with ~150ms fades
+
+#### 3. Pull-Down → Reload Preview
+- Similar to mobile browser refresh
+- Provides small haptic feedback on mobile
+
+#### 4. Long Press Anywhere → Quick Device Switcher
+- Shows the last 5 used virtual devices plus “My Device”
+- Appears bottom-center on mobile, bottom-right on tablet
 
 ---
 
@@ -345,6 +483,137 @@ These appear in **Preview Logs** on desktop & plugins.
 
 ---
 
+# 3.6 Architecture Map UI (Desktop, iPad, Plugins)
+
+The Architecture Map Viewer must support HTML, CSS, JS/TS, Python, and any other file types requested by workers.  
+This UI does not execute user code; it renders the static dependency graph produced by workers.
+
+## 3.6.1 Layer Toggle System (HTML / CSS / Code / External)
+
+The map must include a Layer Toggle Bar with the following options:
+
+- **Code Layer** (default)
+- **HTML Layer**
+- **CSS Layer**
+- **External References Layer**
+- **API Endpoints Layer**
+- **EventFlow Layer** (Premium only)
+
+Toggles may be multi-select. Turning layers on/off filters visible nodes and edges.
+
+## 3.6.2 Node Types & Visual Representation
+
+### HTML Nodes
+- Represented as rectangles with the HTML tag (e.g., `<div>`, `<img>`)
+- Color: gray-6 background
+- On hover: show class list, id, and attributes
+
+### CSS Nodes
+CSS groups are collapsed by default.
+
+Collapsed node form:
+```
+
+styles/main.css
+12 selectors
+
+```
+
+Expanded node form (tree view):
+- `.container` (selector)
+- `.button`
+- `#login`
+- `@media (min-width: 768px)`
+
+### External/Boundary Nodes
+Used for remote CDN dependencies (CSS/JS/assets).
+
+Style:
+- Dashed border  
+- Light blue tint  
+- Globe icon  
+- Click displays the URL and domain
+
+### Code Nodes
+Same as existing Architecture Map spec.
+
+## 3.6.3 CSS Influence Visualization
+
+When CSS Layer is ON:
+
+- **css_applies_to** edges appear as light blue arcs
+- **css_override** edges appear as red diagonals
+- **css_inherit** edges appear as yellow dotted lines
+- **css_specificity** edges appear as purple curves
+
+Edge density rules:
+- Edges are collapsed when > 40 edges match  
+- Expand edges only on node focus or row click
+
+## 3.6.4 Selector Muting UI (Simulation Mode)
+
+Each CSS selector row contains a small toggle switch:
+
+**[ ] Mute**
+
+When toggled:
+- UI sends a `muted_selectors` list to backend (future endpoint)
+- Map highlights recomputed CSS winners
+- Muted selector turns gray and semi-transparent
+- HTML nodes update visually to reflect new lineage rules
+
+## 3.6.5 Rule Lineage Panel (Right Side Inspector)
+
+When clicking a CSS selector, open a side inspector showing:
+
+```
+
+Selector: .container
+Specificity: 12
+Source: main.css (line 45)
+Media: none
+
+Lineage:
+reset.css (overridden)
+layout.css (inherited)
+main.css (dominant)
+
+HTML Elements Affected:
+index.html > .container (3)
+login.html > .container (1)
+profile.html > .container (1)
+
+```
+
+Premium users unlock:
+- Deep specificity graph
+- Timeline view of CSS changes across versions
+
+## 3.6.6 HTML–CSS Combined Highlight Mode
+
+When selecting an HTML element:
+- Matching CSS selectors glow blue
+- Non-matching selectors dim
+- Show a tooltip: “6 selectors apply (3 overridden, 1 inherited, 2 dominant)”
+
+## 3.6.7 Performance Rules (No Node Explosion)
+
+The UI MUST:
+- Collapse CSS trees by default
+- Summarize >20 identical edges
+- Use progressive rendering: load nodes in batches
+- Implement "focus mode": center 1 node + neighbors only
+
+A warning banner must appear if >2,500 nodes load:
+
+> “Large architecture map — some nodes auto-collapsed to preserve performance.”
+
+## 3.6.8 Universal-Language Support UI
+
+If a language is not fully supported for map extraction:
+- Display file nodes normally
+- Show a badge: “Inference Mode”
+- Tooltip: “Map info for this language uses AI-assisted heuristics.”
 
 ---
 
@@ -356,6 +625,10 @@ These appear in **Preview Logs** on desktop & plugins.
 * Center: Code Editor
 * Right: AI Docs / Comments / Notifications
 * Bottom panel for preview runtimes
+* Optional right-side panel: Architecture Map Viewer
+  - Supports split view with code editor
+  - Layer toggles arranged horizontally due to limited height
+  - Touch-friendly expansion of CSS/HTML trees
 
 ## 4.2 Split Review Mode
 
@@ -480,6 +753,8 @@ topics include:
 HiveSync mobile, desktop, and plugin clients must implement a unified upgrade flow that avoids in-app purchases and complies with App Store “Reader App” guidelines.
 
 ## 9.1 Modal Triggers
+**Note:** Plugin authentication MUST follow `ui_authentication.md` (Email, Google, Apple only — no GitHub/Twitter/Facebook).
+
 
 Clients must show the Upgrade Modal when a user attempts an action not included in their current tier:
 
@@ -631,6 +906,27 @@ User must retry the action after upgrading; the client does not auto-retry.
 * Full keyboard navigation (Desktop/iPad)
 * VoiceOver describes limit type + action buttons
 * Contrast and spacing must follow Design System requirements
+
+---
+
+### 9.x Architecture Map / CSS Analysis Tier UI Behaviors
+
+When a user attempts to access Premium CSS features (deep CIA, lineage timeline, specificity graph):
+
+• Free tier:
+  - Block deep analysis
+  - Allow basic HTML/CSS visibility
+  - Show “Deep CSS analysis requires Premium”
+
+• Pro tier:
+  - Allow basic CIA
+  - Deep mode depends on Phase L rules
+  - If disallowed, show upgrade modal
+
+• Premium tier:
+  - Full access to deep CSS Influence Analysis
+  - Enable full rule lineage visualization
+
 ---
 
 ## **10. Automatic Website Login (Session Token Flow)**

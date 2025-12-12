@@ -16,11 +16,18 @@
 Replit must read and rely on:
 
 * `/phases/Phase_B_Backend_Planning.md`
+* `/phases/Phase_L_Pricing_Tiers_and_Limits.md`
 * `/docs/backend_spec.md`
 * `/docs/architecture_overview.md`
 * `/docs/security_hardening.md`
 * `/docs/admin_dashboard_spec.md`
-* `/docs/pricing_tiers.md`
+* `/docs/architecture_map_spec.md`
+* `/docs/preview_system_spec.md`
+* `/docs/ui_authentication.md`
+* `/docs/design_system.md`
+* `/docs/onboarding_ux_spec.md`
+* `/docs/billing_and_payments.md`
+* `/docs/cli_spec.md`
 
 These define what the schema must support.
 
@@ -60,6 +67,14 @@ The PostgreSQL schema must meet the following requirements:
 * Sensitive columns must be clearly identified for encryption/hashing.
 * API keys must store **hashed values only**.
 * No secrets stored in plaintext.
+
+### Preview System
+
+* Schema must support recording:
+  - device_context metadata (DPR, safe areas, orientation, zoom mode)
+  - sensor preview flags (accelerometer, gyroscope, microphone, GPS, camera)
+* Preview jobs must be linkable to device-context state for diagnosis.
+* Event Flow Mode must have a storage domain capable of logging event sequences.
 
 ---
 
@@ -260,6 +275,19 @@ Indices:
 * worker_id
 * error_code
 
+#### Additional Requirements
+
+Preview jobs MUST also store:
+
+* `device_context_json` — DPR, safe-area insets, orientation, zoom mode, resolved device_spec entry
+* `sensor_flags_json` — { camera, microphone, accelerometer, gyroscope, gps }
+* `virtual_device_count` — number of virtual devices requested
+* `eventflow_enabled` — boolean (preview originated from Architecture Map)
+
+Indexes (required):
+* `idx_preview_jobs_device_context`
+* `idx_preview_jobs_eventflow_enabled`
+
 #### `preview_artifacts`
 
 * id (PK)
@@ -267,6 +295,30 @@ Indices:
 * r2_key
 * version
 * created_at
+
+#### `eventflow_events` (New)
+
+* id (PK)
+* job_id (FK → preview_jobs.id)
+* event_type (enum: tap, swipe, tilt, shake, nav)
+* payload_json
+* timestamp
+
+Purpose:
+Stores the Event Flow Mode interaction sequence for debugging and replay.
+
+#### `sensor_preview_history` (New)
+
+* id (PK)
+* job_id (FK → preview_jobs.id)
+* device_model
+* sensor_payload_json
+* created_at
+
+Purpose:
+Records synthetic sensor frames used in Section 12 Preview Enhancements (mic waveform snapshots, camera-frame hashes, etc.).  
+This table is **diagnostic only** and may be pruned automatically.
+
 
 ---
 
@@ -397,7 +449,87 @@ A new table MUST be added to support Sample Projects as defined in `/docs/sample
 |---------------|-------------|-------|
 | id            | UUID (PK)   | Primary key  
 | name          | text        | Display name  
-| slug          | text UNIQUE | Used in URLs and local folders  
+| slug  ### **C.3.14 Device Metrics Domain (New)**
+
+HiveSync MUST track **real-world device metrics** to enable accurate Mobile/iPad virtual-device emulation in the Preview Pipeline.
+
+This domain stores **aggregated, normalized hardware specifications**, not raw samples.  
+Raw samples are ephemeral and consumed by the aggregation logic.
+
+---
+
+#### **Table: `device_specs`**
+
+Canonical, aggregated metrics for a specific device model + OS combination.
+
+| Column                | Type          | Notes |
+|-----------------------|---------------|-------|
+| id                    | UUID (PK)     | Primary key |
+| brand                 | text          | e.g., 'Apple', 'Google', 'Samsung' |
+| device_model          | text          | Human-readable model (e.g., 'iPhone 14 Pro', 'Pixel 8') |
+| os_major              | integer NULL  | OS major version (e.g., 17). NULL = generic hardware row |
+| os_minor              | integer NULL  | OS minor version (e.g., 3). NULL = any minor version |
+| resolution_width_px   | integer       | Logical width in px for the virtual layout engine |
+| resolution_height_px  | integer       | Logical height in px |
+| pixel_ratio           | numeric(4,2)  | e.g., 3.00 |
+| aspect_ratio          | numeric(6,3)  | width/height (cached for fast filtering) |
+| safe_area_top_px      | integer NULL  | Aggregated safe area values (real-device derived) |
+| safe_area_bottom_px   | integer NULL  | Same |
+| safe_area_left_px     | integer NULL  | Same |
+| safe_area_right_px    | integer NULL  | Same |
+| zoom_mode_enabled     | boolean NULL  | TRUE = Zoomed Display variant, FALSE = Standard, NULL = unknown |
+| sample_count          | integer       | Number of contributing real-device samples |
+| last_seen_timestamp   | timestamptz   | Last update from any contributing device |
+
+---
+
+#### **Purpose**
+
+* Supplies the Preview Pipeline with **virtual-device specs** for layout computation.
+* Guarantees accurate notch/island/safe-area behavior across devices.
+* Self-healing: expands automatically as new devices/OS versions appear.
+
+---
+
+#### **Data Sources (Runtime)**
+
+Mobile/iPad clients report:
+
+1. Physical hardware metrics (always)
+2. If user selects a virtual device:
+   - The selected virtual brand/model/OS  
+   - LCE layout results (viewport dims, safe areas, etc.)
+3. Zoom mode flag (iOS only)
+
+Aggregation logic consolidates these into stable rows.
+
+---
+
+#### **Lookup Rules (Critical for Preview Pipeline)**
+
+When resolving a virtual device:
+
+1. **Exact match** on brand + model + os_major + os_minor + zoom flag  
+2. If missing → most recent spec for brand + model + os_major  
+3. If still missing → generic hardware row (os_major/minor = NULL)  
+4. Backend MUST NOT fail due to missing OS minor versions  
+5. device_context (sent from Stage 5 in Phase H) MUST record the resolved value
+
+---
+
+#### **Indexes (Required)**
+
+* `idx_device_specs_brand_model` on (brand, device_model)
+* `idx_device_specs_full_resolution` on (brand, device_model, os_major, os_minor, zoom_mode_enabled)
+* Index on `last_seen_timestamp` for cleanup/analytics
+
+---
+
+#### **Notes**
+
+* This table is **planning only** — Phase C must NOT emit real SQL.
+* Other domains (Preview Jobs, Worker Logs) refer to device specs indirectly via `device_context` JSON.
+        | text UNIQUE | Used in URLs and local folders  
 | description   | text        | Short description for UI  
 | framework     | text        | 'react_native', 'swiftui', 'compose', 'flutter', etc.  
 | version       | text        | Semantic version (e.g., 1.0.0)  
@@ -426,6 +558,89 @@ This table supplies onboarding flows and feature discovery via:
 
 ---
 
+### **C.3.14 Device Metrics Domain (New)**
+
+HiveSync MUST track **real-world device metrics** to enable accurate Mobile/iPad virtual-device emulation in the Preview Pipeline.
+
+This domain stores **aggregated, normalized hardware specifications**, not raw samples.  
+Raw samples are ephemeral and consumed by the aggregation logic.
+
+---
+
+#### **Table: `device_specs`**
+
+Canonical, aggregated metrics for a specific device model + OS combination.
+
+| Column                | Type          | Notes |
+|-----------------------|---------------|-------|
+| id                    | UUID (PK)     | Primary key |
+| brand                 | text          | e.g., 'Apple', 'Google', 'Samsung' |
+| device_model          | text          | Human-readable model (e.g., 'iPhone 14 Pro', 'Pixel 8') |
+| os_major              | integer NULL  | OS major version (e.g., 17). NULL = generic hardware row |
+| os_minor              | integer NULL  | OS minor version (e.g., 3). NULL = any minor version |
+| resolution_width_px   | integer       | Logical width in px for the virtual layout engine |
+| resolution_height_px  | integer       | Logical height in px |
+| pixel_ratio           | numeric(4,2)  | e.g., 3.00 |
+| aspect_ratio          | numeric(6,3)  | width/height (cached for fast filtering) |
+| safe_area_top_px      | integer NULL  | Aggregated safe area values (real-device derived) |
+| safe_area_bottom_px   | integer NULL  | Same |
+| safe_area_left_px     | integer NULL  | Same |
+| safe_area_right_px    | integer NULL  | Same |
+| zoom_mode_enabled     | boolean NULL  | TRUE = Zoomed Display variant, FALSE = Standard, NULL = unknown |
+| sample_count          | integer       | Number of contributing real-device samples |
+| last_seen_timestamp   | timestamptz   | Last update from any contributing device |
+
+---
+
+#### **Purpose**
+
+* Supplies the Preview Pipeline with **virtual-device specs** for layout computation.
+* Guarantees accurate notch/island/safe-area behavior across devices.
+* Self-healing: expands automatically as new devices/OS versions appear.
+
+---
+
+#### **Data Sources (Runtime)**
+
+Mobile/iPad clients report:
+
+1. Physical hardware metrics (always)
+2. If user selects a virtual device:
+   - The selected virtual brand/model/OS  
+   - LCE layout results (viewport dims, safe areas, etc.)
+3. Zoom mode flag (iOS only)
+
+Aggregation logic consolidates these into stable rows.
+
+---
+
+#### **Lookup Rules (Critical for Preview Pipeline)**
+
+When resolving a virtual device:
+
+1. **Exact match** on brand + model + os_major + os_minor + zoom flag  
+2. If missing → most recent spec for brand + model + os_major  
+3. If still missing → generic hardware row (os_major/minor = NULL)  
+4. Backend MUST NOT fail due to missing OS minor versions  
+5. device_context (sent from Stage 5 in Phase H) MUST record the resolved value
+
+---
+
+#### **Indexes (Required)**
+
+* `idx_device_specs_brand_model` on (brand, device_model)
+* `idx_device_specs_full_resolution` on (brand, device_model, os_major, os_minor, zoom_mode_enabled)
+* Index on `last_seen_timestamp` for cleanup/analytics
+
+---
+
+#### **Notes**
+
+* This table is **planning only** — Phase C must NOT emit real SQL.
+* Other domains (Preview Jobs, Worker Logs) refer to device specs indirectly via `device_context` JSON.
+
+---
+
 ## C.4. Search Index Planning
 
 Replit must include search capability using Postgres extensions:
@@ -448,7 +663,10 @@ Tier limits defined in Phase L will be stored either:
 * In a dedicated `tier_limits` table, OR
 * As constants in backend code
 
-Phase C only ensures schema readiness.
+Phase C ensures schema readiness.
+Phase C MUST ensure schema can record:
+* virtual_device_count (for multi-device preview limits)
+* tier-at-time-of-request (for historical enforcement)
 
 ---
 

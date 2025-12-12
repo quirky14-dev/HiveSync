@@ -1476,6 +1476,288 @@ Yes — use the **Cancel Preview** option in the Desktop App while the job is qu
 
 ---
 
+### Q: What login methods does HiveSync support?
+
+* **Category** – Getting Started
+* **Applies To** – All
+* **Tier** – All
+* **Last Updated** – ISO date 2025-12-06
+
+HiveSync supports three secure authentication options:
+
+- **Email + Password**
+- **Google Sign-In**
+- **Apple Sign-In**
+
+These options ensure secure account access across all platforms — Desktop, Mobile, Tablet, and Plugins.
+
+HiveSync does **not** support login through GitHub, Twitter, Facebook, or other OAuth providers.
+
+
+---
+
+### Q: How does HiveSync use my device’s sensors in previews?
+
+* **Category** – Previews & Devices
+* **Applies To** – Desktop, Mobile, Tablet
+* **Tier** – All
+* **Last Updated** – ISO date 2025-12-06
+
+HiveSync can simulate real-world interactions using optional device sensors:
+
+- **Accelerometer & Gyroscope**  
+  Used to animate components or trigger motion-driven UI states.
+
+- **Orientation & Rotation**  
+  Helps test layouts and animations as the device rotates.
+
+- **Camera & Microphone**  
+  Allow components to preview camera frames or audio-reactive UI elements.
+
+- **GPS (Optional)**  
+  Lets map-based or location-aware layouts preview behavior without deployment.
+
+All sensor data is processed locally on your device to help you preview UI behavior.  
+None of it is stored, logged, or run inside your project code, and nothing is uploaded to HiveSync servers.
+
+
+---
+
+### Q: Why is HiveSync asking for camera, microphone, or motion-sensor access?
+
+* **Category** – Previews & Devices
+* **Applies To** – Desktop, Mobile, Tablet
+* **Tier** – All
+* **Last Updated** – ISO date 2025-12-06
+
+Some features in HiveSync’s live device preview require access to device sensors — but only for simulation purposes. Examples include:
+
+- **Camera Preview Simulation**  
+  Allows UI designs that rely on a camera viewfinder to display a live preview feed.  
+  *Camera data is never stored or sent to the backend.*
+
+- **Microphone Waveform Visualization**  
+  Enables components that react to audio levels to show a simulated waveform.  
+  *Audio is never recorded or uploaded.*
+
+- **Motion / Orientation / Tilt / Shake Data**  
+  Lets you preview mobile interactions such as device tilting or shaking without needing to deploy your app.
+
+HiveSync only uses these inputs for **local UI preview simulation**.  
+No real sensor data is ever passed into your project code.
+
+---
+
+### Q: Why do some files in the Architecture Map show green, red, or gray dots?
+
+- **Category:** Previews & Devices
+- **Applies To:** Desktop
+- **Tier:** All
+- **Last Updated:** 2025-12-07
+
+These dots indicate the **reachability status** of external resources referenced by your project, such as:
+
+* CDN-hosted CSS or JS
+* External images or fonts
+* Remote JSON or API URLs
+
+HiveSync checks whether these URLs respond to a quick, safe server-side `HEAD` request.
+
+**Colors:**
+
+* **Green** – The resource responded successfully.
+* **Red** – The resource could not be reached (timeout, DNS error, etc.).
+* **Gray** – HiveSync didn’t check this resource yet or doesn’t have enough information.
+
+Your device and Desktop App never perform these checks themselves.
+HiveSync does them safely on the backend to help you understand external dependencies.
+
+---
+
+### Q: What is a "Boundary Node" in the Architecture Map?
+
+- **Category:** Projects & Teams
+- **Applies To:** Desktop
+- **Tier:** All
+- **Last Updated:** 2025-12-07
+
+A Boundary Node represents an **external resource** that your project depends on, such as:
+
+* A CSS file loaded from a CDN
+* A remote script
+* Images or fonts hosted outside your repo
+* HTML files containing absolute URLs
+
+HiveSync does **not** download or execute these resources.
+Instead, they appear as special nodes so you can:
+
+* See where external dependencies come from
+* Understand which files reference them
+* Optionally view reachability status (green/red/gray)
+
+---
+
+### Q: What does CSS Influence Analysis (CIA) mean in HiveSync?
+
+- **Category:** Previews & Devices
+- **Applies To:** Desktop
+- **Tier:** Pro, Premium
+- **Last Updated:** 2025-12-07
+
+CIA shows how different CSS rules influence your HTML structure.
+It visually highlights:
+
+* Which selectors apply to which elements
+* Overridden or conflicting rules
+* CSS that no longer affects anything
+
+It helps you understand why a layout behaves a certain way without digging through multiple stylesheets.
+
+---
+
+### Q: What is “selector muting,” and why would I use it?
+
+- **Category:** Previews & Devices
+- **Applies To:** Desktop
+- **Tier:** Pro, Premium
+- **Last Updated:** 2025-12-07
+
+Selector muting lets you temporarily **turn off** specific CSS rules to see how your layout behaves without them.
+
+This is useful when:
+
+* A layout looks wrong and you suspect a CSS override
+* You want to test how removing a rule affects spacing or alignment
+* You need to diagnose inheritance problems
+
+Muting does **not** modify your real files. It only updates the visual Architecture Map.
+
+---
+
+### Q: Does HiveSync download or execute external CSS or JavaScript files?
+
+- **Category:** Security & Privacy
+- **Applies To:** Desktop
+- **Tier:** All
+- **Last Updated:** 2025-12-07
+
+No.
+HiveSync never downloads, executes, or evaluates external code.
+
+External references are treated as read‑only metadata:
+
+* The Architecture Map shows them as Boundary Nodes.
+* HiveSync does not fetch the content.
+* At most, HiveSync may check whether the URL is reachable (green/red/gray indicator).
+
+This ensures your project remains secure and isolated.
+
+---
+
+### Q: Can I use HiveSync to understand how my website’s CSS affects layout?
+
+- **Category:** Previews & Devices
+- **Applies To:** Desktop
+- **Tier:** Pro, Premium
+- **Last Updated:** 2025-12-07
+
+Yes. HiveSync’s Architecture Map includes an HTML/CSS view that shows:
+
+* How CSS selectors attach to HTML elements
+* Which rules override others
+* Which properties influence width, height, alignment, and spacing
+* External resources (fonts, images, CDN CSS)
+
+This helps debug layout issues like inherited styles, conflicting selectors, or unexpected overrides.
+
+---
+
+### Q: What languages does HiveSync support in the Architecture Map?
+
+- **Category:** Getting Started
+- **Applies To:** Desktop
+- **Tier:** All
+- **Last Updated:** 2025-12-07
+
+HiveSync supports many languages, including:
+
+* JavaScript / TypeScript
+* HTML / CSS
+* Python
+* Swift
+* Kotlin
+* Java
+* C#
+* C / C++
+* Rust
+* Go
+* Ruby
+* PHP
+
+If HiveSync doesn’t have a built‑in parser, it falls back to a safe analysis layer powered by AI to produce a structural map.
+
+---
+
+### Q: Does the Desktop App ever check external URLs in my project?
+
+- **Category:** Security & Privacy
+- **Applies To:** Desktop, Plugins
+- **Tier:** All
+- **Last Updated:** 2025-12-07
+
+No.
+
+HiveSync’s Desktop App and Plugins never:
+
+* Send requests to external CSS/JS URLs
+* Ping CDN files
+* Check API endpoints
+
+Only the backend may perform optional, minimal `HEAD` checks to mark reachability in the Architecture Map.
+Clients simply display the results.
+
+---
+
+### Q: How does HiveSync know whether an external file actually exists?
+
+- **Category:** Previews & Devices
+- **Applies To:** Desktop
+- **Tier:** All
+- **Last Updated:** 2025-12-07
+
+HiveSync may perform a quick, safe server-side `HEAD` request to see whether an external URL responds.
+
+If it does:
+* The node shows a **green** indicator.
+
+If it fails:
+* The node shows **red**.
+
+If HiveSync didn’t check:
+* The node shows **gray**.
+
+The Desktop App never performs these checks itself.
+
+---
+
+### Q: Why do some CSS or HTML nodes behave differently in the Architecture Map?
+
+- **Category:** Previews & Devices
+- **Applies To:** Desktop
+- **Tier:** All
+- **Last Updated:** 2025-12-07
+
+CSS and HTML nodes include additional visual aids such as:
+
+* Selector-to-element influence lines
+* Overwrite and conflict indicators
+* External resource markers
+* Optional reachability status indicators
+
+These features help you understand cross-file relationships and diagnose layout issues without manually searching through stylesheets.
+
+---
+
 
 
 

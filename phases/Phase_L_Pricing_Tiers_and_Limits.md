@@ -24,6 +24,11 @@ Replit must read and respect:
 * `/phases/Phase_I_Tasks_Teams_Notifications.md`
 * `/phases/Phase_J_Admin_Dashboard.md`
 * `/phases/Phase_K_Security_Rules.md`
+* `/docs/architecture_map_spec.md`
+* `/docs/preview_system_spec.md`
+* `/docs/ui_authentication.md`
+* `/docs/design_system.md`
+* `/docs/cli_spec.md`
 
 > **Important:**  
 > *All numeric enforcement values (per-hour counts, byte limits, etc.) are defined authoritatively in `backend_spec.md`.  
@@ -86,6 +91,69 @@ Replit must:
 * Pull **exact per-tier numbers** from `backend_spec.md` (Rate Limits section).
 * Ensure preview jobs created in workers reflect the correct tier and priority.
 * Ensure Preview Tokens and Sandbox Events respect tier-based limits.
+
+### L.3.1 Multi-Device Preview Limits (Required)
+
+Tier limits for Section 12 multi-device previews:
+
+* **Free**
+  * Maximum: **2 virtual devices per preview job**
+
+* **Pro**
+  * Maximum: **5 virtual devices per preview job**
+
+* **Premium**
+  * **Unlimited virtual devices** per preview job
+
+Replit must:
+* Enforce these limits in backend preview job creation.
+* Return structured `UPGRADE_REQUIRED` errors when limits are exceeded.
+* Ensure workers expect a batch of device_context entries per preview job.
+* Never merge device outputs; each device produces a separate layout + asset bundle.
+
+Clients (desktop, mobile, plugins) MUST:
+* Respect these limits when constructing multi-device preview requests.
+* Display the Upgrade Wall when the tier limit is exceeded.
+
+### L.3.2 CSS Influence Analysis (CIA) Limits
+
+HiveSync supports two levels of CSS static analysis:
+
+* **Basic CIA** – identifies CSS → HTML influence edges and final applied rules.
+* **Deep CIA** – computes override lineages, specificity comparisons, and full property ancestry (as defined in `architecture_map_spec.md` and Phase H).
+
+Tier rules:
+
+**Free**
+* Basic CIA allowed.
+* Deep CIA MUST be blocked.
+* Attempting deep CIA MUST return:
+```
+{
+"error": {
+"code": "TIER_UPGRADE_REQUIRED",
+"message": "Deep CSS analysis requires a higher tier."
+}
+}
+```
+
+**Pro**
+* Basic CIA fully allowed.
+* Deep CIA MAY be allowed depending on backend_spec-defined gating.
+* If deep CIA is disabled for Pro, backend must return `TIER_UPGRADE_REQUIRED`.
+
+**Premium**
+* Full access to deep CIA.
+* Includes:
+* full override/lineage chains,
+* specificity graphs,
+* media-query lineage,
+* selector muting simulation metadata.
+
+Replit must:
+* Enforce CIA limits in worker job creation (Phase H rules).
+* Ensure UI Upgrade Wall appears when deep CIA is requested on insufficient tier levels.
+
 
 ---
 

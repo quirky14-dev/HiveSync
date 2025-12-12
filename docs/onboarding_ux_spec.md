@@ -33,6 +33,14 @@ The **Projects Panel** MUST show:
 - “Recently Opened” (empty)
 
 ### 1.3 Welcome Banner (Minimal)
+
+### 1.4 Offline Mode Behavior (First Launch)
+If the Desktop App is offline:
+- Onboarding banners still display normally
+- “Add Device” panel MUST show: “Offline — pairing unavailable”
+- Sample downloads must show an offline error dialog
+- “Send Preview” MUST be disabled with tooltip: “Connect to the internet to send previews”
+
 A single, non-blocking banner appears at the top:
 
 ```
@@ -102,6 +110,20 @@ Selecting a sample MUST:
 # 4. “Send Preview” Button Highlight (Magic Moment)
 
 ### 4.1 Toolbar Button
+### 4.5 Tier Awareness During Onboarding
+Onboarding flows MUST follow Phase L tier limits:
+- Free Tier → max 2 virtual devices
+- Pro → 5 devices
+- Premium → unlimited devices
+Attempting to exceed limits MUST trigger an upgrade modal, not a technical error.
+
+### 4.4 Preview Enhancements (Section 12 Compliance)
+The first preview the user receives MUST fully comply with Section 12 of `preview_system_spec.md`, including:
+- Support for device context metadata (DPR, safe areas, orientation)
+- Event Flow Mode eligibility when triggered from the Architecture Map
+- Proper handling of real or simulated sensors (camera, mic, accelerometer, gyroscope)
+- Automatic downgrade to placeholder assets if permissions are denied on mobile
+
 The Desktop Client MUST include a top-bar button:
 
 ```

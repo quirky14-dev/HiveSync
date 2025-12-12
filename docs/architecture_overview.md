@@ -253,6 +253,26 @@ Billing architecture follows `billing_and_payments.md` and includes:
 
 The billing subsystem operates entirely within the backend API layer and interacts with PostgreSQL for subscription storage, Redis for soft rate limits, and admin analytics for reporting and auditing.
 
+### HiveSync CLI
+
+* Stateless command-line client
+* Used for CI, backend workflows, automation, and non-UI environments
+* Authenticates via session-bridging or Personal API Tokens
+* Does not render previews or manage teams
+
+Authoritative behavior defined in `cli_spec.md`.
+
+### Web Account Portal
+
+* Lightweight authenticated web client
+* Used only for account-level security actions
+* Issues and revokes Personal API Tokens
+* Displays read-only subscription status
+
+Does not provide collaboration, previews, or project management.  
+Authoritative behavior defined in `web_portal.md`.
+
+
 ---
 
 # 4. Core Architectural Principles
@@ -778,6 +798,89 @@ Providing a seamless experience in mixed layouts.
 * Zero JS execution
 * Fully deterministic layout
 
+# 9.3 Architecture Map – HTML & CSS Layers
+
+In addition to the preview pipeline, HiveSync includes an Architecture Map subsystem that can visualize not only code files and components, but also HTML pages and CSS rules.
+
+This map is always built from static analysis and never executes user code.
+
+---
+
+## 9.3.1 HTML & CSS Node Layers
+
+Two additional node layers extend the existing Architecture Map model:
+
+- **HTML Layer**
+  - Represents HTML files and structural elements.
+  - Nodes cover pages, nested elements, IDs, classes, and asset references.
+  - No DOM execution or runtime evaluation is performed.
+
+- **CSS Layer**
+  - Represents selectors, rule groups, media queries, and `@import` relationships.
+  - Nodes track selector identity and grouping only; styles are not executed.
+
+External CSS/JS or assets loaded from CDNs or other domains are represented as **Boundary Nodes** with dashed outlines and metadata only (no fetched content).
+
+---
+
+## 9.3.2 CSS Influence Analysis (CIA)
+
+CSS Influence Analysis runs as part of the Architecture Map worker pipeline and operates in two modes:
+
+- **Basic CIA (Free / Pro)**
+  - Identifies which selectors apply to which HTML elements.
+  - Highlights the final dominant rule per element.
+  - Collapses large sets of selectors into aggregated indicators.
+
+- **Deep CIA (Premium)**
+  - Computes override lineage and specificity chains.
+  - Shows inherited styles, media-query conditions, and conflict resolution.
+  - Exposes selector muting simulation (visual-only, no file edits).
+
+CIA is purely static analysis:
+
+- No layout engine
+- No DOM construction
+- No script execution
+
+---
+
+## 9.3.3 Tier Constraints for HTML/CSS Mapping
+
+The extended Architecture Map follows these tier rules:
+
+- **Free Tier**
+  - Limited map history.
+  - Basic HTML/CSS layers.
+  - Basic CIA only (no deep lineage, no selector muting).
+
+- **Pro Tier**
+  - All Free-tier capabilities.
+  - Map diff for HTML/CSS (within configured limits).
+  - Extended map history.
+
+- **Premium Tier**
+  - Deep CIA (full lineage and specificity).
+  - Selector muting simulation.
+  - Full multi-layer comparison (Code / HTML / CSS / External / API).
+
+Workers and backend endpoints must validate tier before running deep CIA or muting simulations.
+
+---
+
+## 9.3.4 Security Constraints for HTML/CSS Parsing
+
+HTML/CSS analysis is strictly static and must obey the following:
+
+- No remote fetching of CSS/JS/HTML, fonts, images, or any other assets.
+- No JavaScript execution or evaluation of inline handlers.
+- No DOM or layout engine; no rendering.
+- `@import` rules are parsed but never fetched.
+- External URLs appear only as Boundary Nodes with metadata, not loaded content.
+- AI-assisted inference is allowed only when static parsing is ambiguous and must not exfiltrate secrets or environment data.
+
+These constraints ensure the Architecture Map remains safe even when analyzing untrusted projects.
+
 ---
 
 # 10. AI Documentation Architecture
@@ -872,3 +975,8 @@ This Architecture Overview now:
 * Corrects all numbering & structures
 
 **This is the authoritative architecture description for HiveSync.**
+
+
+## Phase Regeneration Requirement
+
+Architecture MUST drive backend/worker regeneration in Phases B, D, H, L, and N according to this specification.

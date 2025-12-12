@@ -22,6 +22,8 @@ This is authoritative and governs the system-wide security model.
 # 2. Authentication & Credentials
 
 ## 2.1 Passwords
+**Authentication Provider Restriction:** Only Email+Password, Google Sign-In, and Apple Sign-In are permitted. All other OAuth providers MUST be rejected across backend, desktop, mobile, and plugins, following `ui_authentication.md`.
+
 
 * Argon2 hashing
 * Minimum length enforcement
@@ -40,6 +42,30 @@ This is authoritative and governs the system-wide security model.
 * Stored encrypted
 * Rotated on each use
 * Revocation list maintained in Redis
+
+## 2.4 Personal API Tokens
+
+Personal API Tokens are:
+- Issued and revoked exclusively via the Web Account Portal (`web_portal.md`)
+- Used by HiveSync CLI and CI environments
+- Never displayed again after creation
+- Scoped and revocable
+
+Tokens inherit the user’s tier limits and grant no admin privileges.
+
+### 2.4.1 Personal API Token Storage
+
+Personal API Tokens MUST be stored as hashed values in the database.
+
+Required fields:
+- token_hash
+- user_id
+- scope (nullable)
+- created_at
+- last_used_at (nullable)
+- revoked_at (nullable)
+
+Plaintext token values MUST never be stored.
 
 ---
 
@@ -95,6 +121,8 @@ Desktop validates plugin-originated requests:
 # 4. Backend Security
 
 ## 4.1 Strict JSON Schemas
+**Tier Enforcement Security:** All sensitive endpoints (preview, AI, map generation, repo sync) MUST enforce capability limits and ceilings defined in Phase L. Out-of-tier actions MUST be rejected with structured errors to avoid privilege escalation.
+
 
 All input validated via Pydantic.
 
@@ -158,6 +186,43 @@ POST /workers/callback
 
 Signed with `WORKER_CALLBACK_SECRET`.
 
+## 5.4 Static-Only HTML/CSS Analysis
+
+Workers that perform Architecture Map generation with HTML/CSS support must:
+
+- Treat HTML and CSS as static text only.
+- Never execute JavaScript, WebAssembly, or CSS with side effects.
+- Never perform DOM construction, layout computation, or browser rendering.
+- Never fetch remote HTML/CSS/JS, fonts, images, or any external assets.
+- Parse `@import` rules but never follow them over the network.
+
+External URLs discovered during parsing must be represented as Boundary Nodes with metadata only (no downloaded content).
+
+---
+
+## 5.5 Tier-Gated Deep CIA
+
+Deep CSS Influence Analysis (CIA) is more expensive and must be controlled:
+
+- Deep CIA is allowed only for Premium-tier jobs (as defined in pricing and Phase L).
+- Workers must validate tier before performing deep lineage or specificity graphs.
+- Selector muting is simulation-only and must not modify any project files.
+- Workers should enforce a configurable node/selector threshold to prevent runaway analysis.
+
+If tier validation fails, workers must return a tier error and avoid performing the heavy computation.
+
+---
+
+## 5.6 AI-Assisted Parsing Safety (Fallback Mode)
+
+If static parsing for a given language or CSS structure is ambiguous, workers may use AI-assisted inference with the following constraints:
+
+- Only minimal, relevant snippets are sent to the AI provider.
+- No secrets, tokens, or environment variables may be included.
+- No outbound network calls are allowed beyond the configured AI provider endpoint.
+- AI output must be treated as advisory and bounded; it cannot trigger further network or file operations.
+- Workers must log when AI-assisted mode is used for observability and debugging.
+
 ---
 
 # 6. Object Storage Security
@@ -183,6 +248,8 @@ Workers compute:
 # 7. Preview Pipeline Security
 
 ## 7.1 Stateless Preview Tokens
+**Device Sensor Security:** Real sensor, camera, microphone, and orientation data used for previews MUST never be forwarded into user code or stored. All such input MUST remain local to the preview UI layer and be handled according to `preview_system_spec.md`.
+
 
 Tokens encode:
 - job_id
@@ -275,11 +342,54 @@ Backend applies multi-tier rate limits to prevent:
 * Token abuse
 * Preview/AI spam
 
+## 10.4 External Resource Reachability – Restricted Backend Checks Only
+
+HiveSync may optionally perform external resource reachability checks to improve diagnostics for Boundary Nodes in the Architecture Map (CSS, JS, HTML assets, fonts, images, JSON, remote API endpoints, or any absolute URL referenced in user projects).
+
+To preserve the security model:
+
+* Workers MUST remain fully offline with respect to arbitrary external URLs.
+* ONLY backend services may perform limited `HEAD` requests.
+
+**Allowed Behavior (Backend Only):**
+
+Backend services MAY:
+
+* Issue HTTPS `HEAD <url>` requests for Boundary Node URLs.
+* Use short timeouts (2–5 seconds) and strict rate limits (global + per user).
+* Store only minimal metadata:
+  * `reachable` (true/false/"unknown")
+  * `status_code` (if available)
+  * `checked_at` (timestamp)
+  * optional short `error` code (e.g., `timeout`, `dns_error`).
+
+Backend MUST NOT:
+
+* Download response bodies for these checks.
+* Execute scripts or render HTML.
+* Follow redirects to arbitrary destinations.
+* Use these checks to scan internal or private networks.
+
+**Worker Prohibitions:**
+
+Workers MAY NOT:
+
+* Perform DNS lookups, `HEAD`, `GET`, or any other HTTP method against external URLs for reachability.
+* Derive or guess reachability status on their own.
+
+**Client Prohibitions:**
+
+Desktop, mobile, and plugin clients MUST NOT perform their own network reachability probes for Boundary Nodes. They may **only** read the metadata provided by the backend and render it as visual indicators (e.g., reachable / unreachable / unknown).
+
+This ensures that all external probing is centrally controlled, audited, and constrained to safe, metadata-only operations.
+
 ---
 
 # 11. Client-Side Security Rules
 
 ## 11.1 Keychain Storage Only
+**Offline Mode Security:** Sensitive operations (preview generation, AI jobs, map regeneration, device pairing, billing checkout, and admin controls) MUST be blocked when the client is offline. Only cached, read-only resources may be accessed while offline.
+
 
 Desktop, plugins, mobile, and iPad clients must store tokens using:
 
@@ -341,3 +451,8 @@ This updated Security Hardening document now includes:
 It is now fully consistent with the Master Spec, Backend Spec, Architecture Overview, and UI Guidelines.
 
 **This is the authoritative security model for HiveSync.**
+
+
+## Phase Regeneration Requirement
+
+Security rules in this document MUST be applied and regenerated in Phases D, H, K, and N. No legacy logic may override or weaken these controls.

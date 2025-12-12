@@ -22,6 +22,11 @@ Replit must read and rely on:
 * `/docs/billing_and_payments.md`
 * `/phases/Phase_D_API_Endpoints.md`
 * `/phases/Phase_H_AI_and_Preview_Pipeline.md`
+* `/phases/Phase_L_Pricing_Tiers_and_Limits.md`
+* `/docs/architecture_map_spec.md`
+* `/docs/preview_system_spec.md`
+* `/docs/design_system.md`
+* `/docs/ui_authentication.md`
 
 ---
 
@@ -150,6 +155,18 @@ Admin dashboard shows:
 * Most active projects
 * Projects with highest preview usage
 
+### Tier Enforcement Events (Required)
+
+Admin Dashboard MUST surface tier enforcement statistics, including:
+
+* Number of upgrade-required actions triggered (daily)
+* Preview requests blocked due to device-count limits
+* Architecture Map requests blocked due to tier
+* Diff/History requests blocked due to tier
+* Guest Mode violations (free user attempting restricted team actions)
+
+These events MUST be logged in the Audit Log and visible in a dedicated table sorted by timestamp.
+
 ---
 
 ## J.8. AI & Preview Analytics
@@ -171,6 +188,19 @@ Admin dashboard includes:
 * Preview job failure rate
 * Snapshot fallback count (components rendered as images instead of native primitives)
 * Preview pipeline warnings (snapshot failures, missing assets, JSON issues)
+
+### Event Flow Mode Analytics (Required)
+
+Admin Dashboard MUST display metrics related to Event Flow Mode:
+
+* Number of Event Flow–enabled previews per day
+* Total interaction events logged (tap, swipe, tilt, shake, navigation)
+* Avg events per preview
+* Eventflow session failures (invalid payloads, malformed timestamps)
+* Device distribution for Event Flow (iPhone/iPad/Android)
+* Worker pipeline warnings related to Event Flow
+
+Admin can inspect raw Event Flow logs (R2-stored JSON) linked from the preview detail view.
 
 ---
 
@@ -261,6 +291,7 @@ Backend will use ONLY the selected provider.
 These settings ensure Sample Projects are stored, validated, and served correctly based on the administrator’s chosen storage provider.
 
 ---
+
 
 ## J.11. Alerts & Integrations
 
@@ -407,7 +438,42 @@ Plugins and Mobile apps DO NOT interact with sample management.
 
 ---
 
-## J.14. No Code Generation Reminder
+### J.14 Architecture Map Diagnostics: Reachability, HTML/CSS Layers, CIA (NEW)
+
+
+The Admin Dashboard MUST expose diagnostics for the Architecture Mapping pipeline.
+This includes:
+
+
+#### J.14.1 Reachability Metrics
+* Number of Boundary Nodes discovered per map.
+* Count of reachable vs unreachable external URLs.
+* HEAD request error classes: timeout, DNS error, TLS error, rejected.
+* Average HEAD-check duration.
+* Global rate-limit status for reachability checks.
+
+
+#### J.14.2 HTML/CSS Parsing Metrics
+* Number of HTML nodes extracted.
+* Number of CSS selectors.
+* Number of media queries.
+* Number of inferred relationships created by CIA.
+
+
+#### J.14.3 CIA (Basic/Deep) Utilization
+* How many maps ran Basic CIA.
+* How many maps ran Deep CIA (Premium only).
+* Selector muting interactions.
+* CIA fallback events (malformed CSS, unsupported constructs, worker memory limits).
+
+
+#### J.14.4 Security & Worker Compliance
+* Worker attempts to access external URLs MUST be logged and flagged.
+* Admin MUST be able to disable or throttle reachability checks globally.
+
+---
+
+## J.15. Reminder
 
 During Phase I, Replit must NOT:
 
@@ -417,10 +483,6 @@ During Phase I, Replit must NOT:
 * Create `/admin/` folder contents
 
 This is planning only.
-
----
-
-## J.15. End of Phase J
 
 At the end of Phase J, Replit must:
 

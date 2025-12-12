@@ -79,6 +79,24 @@ React Native (Expo-based) app with:
 * Token storage (secure) + refresh handling.
 * Auto-login if valid session exists.
 
+### F.3.3 First-Run Disclosure: Anonymous Layout Metrics Notice (Required)
+
+The HiveSync Mobile/iPad app MUST display a **one-time informational disclosure** on first launch (or first time entering the Preview Screen if preferred).
+
+This disclosure is REQUIRED for App Store compliance because HiveSync collects **anonymous device layout metrics** (not personal data) to provide accurate virtual-device previews.
+
+#### Requirements
+
+1. The disclosure MUST be shown **only once** per installed app instance.
+2. The user must dismiss it via a single **“OK”** button.
+3. No settings, preferences, or permissions are required.
+4. It MUST NOT block preview functionality permanently.
+5. It MUST remain accessible later under  
+   **Settings → About → Privacy**.
+
+#### Disclosure Text (must be exact)
+
+
 ---
 
 ## F.4. Mobile Screens & Flows
@@ -107,6 +125,153 @@ React Native (Expo-based) app with:
 * Accepts preview tokens (QR code scan or deep link).
 * Displays running app/preview (depending on integration type).
 * Shows status indicators (loading, error, expired).
+
+#### F.4.3.1 Real Device vs Virtual Device Modes
+
+The Mobile/iPad app MUST support two preview modes on the Preview Screen:
+
+* **My Device Mode (default):**
+  * Used when the preview is first opened from Desktop/Plugin.
+  * Desktop/Plugin behaves exactly as today: sends preview bundles/tokens targeting the real device.
+  * No virtual device is selected by default; the preview reflects the actual hardware profile.
+  * Preview logs and header pill show: `Device: <user-friendly name>`.
+
+* **Virtual Device Mode (optional):**
+  * Activated only on the Mobile/iPad client via the device selector in the Preview header.
+  * Desktop/Plugin NEVER chooses a virtual device; they only send preview tokens and file metadata.
+  * When Virtual mode is active, the Local Component Engine (LCE: Local Component Engine) renders using a **virtual device spec** from the `device_specs` DB table instead of the physical hardware metrics.
+  * Preview logs and header pill show: `Virtual: <model> (<OS version>)`.
+
+In both modes, the preview:
+
+* Fills the **full width** of the physical screen.
+* Preserves the virtual device’s aspect ratio (no stretching).
+* Treats the preview as a vertically pannable “window” onto the full virtual device frame:
+  * If the virtual device is taller than the physical screen, the top/bottom overflow is simply off-screen and can be revealed by vertical drag.
+
+#### F.4.3.2 Device Selector & Header Tag (Mobile/iPad)
+
+* A device icon in the Preview header opens a **bottom-sheet selector** (phone + iPad).
+* Selector uses cascading filters powered by the Device Specs DB:
+  * Brand → Device Model → OS Major → OS Minor.
+  * Brand selection filters available Models (e.g., Apple → iPhone 12 / 12 Pro / 13 / 14 Pro / 15 / 15 Pro).
+  * Model selection filters OS Major versions.
+  * OS Major selection filters OS Minor versions (e.g., 17.1 / 17.3 / 17.4).
+* If OS or minor is left as “Auto”, the app uses the most recent known version in the DB and shows a hint like:
+  * `Auto (17.x latest)`.
+* User MUST select at least **Brand + Model** before switching from “My Device” to a virtual preset; otherwise, preview remains in My Device mode.
+* Recently used virtual devices are stored per project for convenience, but preview token creation and delivery from Desktop/Plugin do **not** depend on any virtual selection.
+* Preview header shows a pill next to `Preview`:
+  * `Device: Chris’ iPhone 15` in My Device mode.
+  * `Virtual: iPhone 14 Pro (iOS 17.3)` in Virtual mode.
+* Tapping the pill is a shortcut to reopen the full cascading device selector.
+
+Preview console/logs MUST always include the current context, for example:
+
+* `Preview: Device – iPhone15,4 / iOS 17.3 (Zoomed: false)`
+* `Preview: Virtual – iPhone 14 Pro / iOS 17.1`
+
+#### F.4.3.3 Virtual Device Outline & Glow
+
+* When a preview is rendered (My Device or Virtual), the UI MUST show a pulsing **yellow/gold outline** that matches the **virtual device silhouette**, not just the rectangular viewport:
+  * Outer rounded screen corners.
+  * Notch / Dynamic Island cutout (if present).
+  * Bottom gesture-bar region (if present).
+* This outline:
+  * Uses the same pulsing style already defined for Sandbox Preview chrome.
+  * Is purely visual and does **not** affect touch mapping or layout.
+* When the user changes virtual device, the outline briefly animates with a slightly stronger pulse to emphasize the change.
+
+#### F.4.3.4 Orientation, Panning, and Keyboard
+
+* The app listens to physical device orientation changes.
+* In both My Device and Virtual modes:
+  * Preview always fills the width and preserves the virtual device’s aspect ratio.
+  * Vertical overflow is revealed by **vertical panning** (drag up/down) with no warping or letterboxing.
+* When the physical keyboard appears:
+  * The preview viewport is translated upward so its bottom edge sits just above the keyboard (if keyboard-shift is enabled in settings).
+  * The underlying virtual device frame DOES NOT change layout; only the viewport position changes.
+  * The user can continue to pan vertically within this shifted state to inspect areas that would otherwise be hidden by the keyboard.
+* When the keyboard dismisses, the preview viewport returns to its normal centered position.
+
+#### F.4.3.5 Quick Switcher & Gestures (Power Tools)
+
+The Preview Screen MUST support the following gestures:
+
+* **Long press anywhere on the preview** → Quick Device Switcher:
+  * Shows a small panel with the last 5 virtual devices plus:
+    * `[My Device]` pinned at the top.
+    * `[more]` at the bottom to open the full cascading selector.
+  * Example:
+    * `[My Device]`
+    * iPhone SE
+    * iPhone 14 Pro Max
+    * Pixel 8
+    * iPhone 12 Pro
+    * `[more]`
+* **Pull-down gesture inside preview**:
+  * When pulled down from the top of the scroll range past a threshold, triggers a **preview rebuild**.
+  * Provides a small haptic tick when the threshold is crossed.
+  * Shows a loading spinner or subtle activity indicator in the header while the new preview is requested.
+* **Two-finger long press**:
+  * Overlays a pixel-aligned grid on the preview, aligned to the virtual device coordinates after scaling.
+  * Grid opacity fades in on hold and fades out when both fingers are released.
+* **Three-finger tap**:
+  * Toggles a debug overlay that shows:
+    * Bounding boxes for layout elements (colored by stack type: VStack/HStack/ZStack, Column/Row, etc.).
+    * An expandable panel with the current effective device specs:
+      * Model and OS version.
+      * Viewport dimensions (logical + px).
+      * Safe areas:
+        * When opened, briefly flashes a semi-transparent white overlay to indicate safe-area regions.
+        * Then drops to a low-opacity persistent overlay so the layout remains visible.
+      * Pixel ratio.
+  * A second three-finger tap or close button hides this overlay.
+
+#### F.4.3.6 Misalignment & Zoomed Display Indicators
+
+* If the app detects content clearly intersecting reserved safe areas (e.g., under the notch, Dynamic Island, or bottom gesture area), the Preview header shows a small **warning icon**.
+* Tapping the warning icon briefly highlights offending regions in a warning color and shows a short explanation, such as:
+  * “Content intersecting top safe area”
+  * “Bottom gesture area overlap”
+* On iOS devices, the app MUST detect Display Zoom vs Standard by comparing the measured viewport to known native metrics for the hardware:
+  * If Zoomed is active, show a subtle `Zoomed Mode Enabled` tag near the device pill.
+  * Users may still emulate Standard mode via a virtual preset for layout comparison.
+
+#### F.4.3.7 Event Flow Mode (Mobile/iPad Responsibilities)
+
+When a preview is initiated from the Architecture Map on Desktop and the job is marked `eventflow_enabled=true`, the Mobile/iPad app MUST operate in Event Flow Mode.
+
+Device responsibilities in this mode:
+
+1. **Capture Interaction Events**
+   Mobile/iPad MUST capture the following native interactions and forward them to:
+   `POST /api/v1/projects/{project_id}/previews/{job_id}/events`
+   * tap  
+   * long-press  
+   * swipe (direction + delta)  
+   * scroll gesture  
+   * device tilt (accelerometer)  
+   * shake gesture  
+   * navigation actions simulated by LCE  
+
+2. **Never Execute User Code**
+   Interaction forwarding MUST NOT trigger any project logic.  
+   Only UI-level gestures are transmitted.
+
+3. **Event Payload Requirements**
+   Each event MUST include:
+   * event_type  
+   * timestamp (ISO8601)  
+   * payload (positions, deltas, orientation, etc.)  
+   * device_context_hash (optional optimization)
+
+4. **End of Event Flow**
+   Mobile/iPad MUST stop sending interaction events when:
+   * preview ends
+   * Desktop closes the Map screen
+   * job enters any terminal state (success, failure, expired)
+
 
 ### F.4.4 AI Docs Screen
 
@@ -184,6 +349,46 @@ Admin actions (like triggering maintenance) primarily occur via Desktop or web a
   * `GET /api/v1/projects/{project_id}/previews/jobs/{job_id}/artifact`
 * App then renders preview or shows error.
 
+#### F.6.2.1 Device Context Submission (Required)
+
+When requesting preview artifacts or participating in a preview session, Mobile/iPad MUST attach a `device_context` object that includes:
+
+* device model (physical or selected virtual)
+* logical viewport size
+* pixel ratio (DPR)
+* safe-area insets
+* orientation state
+* display-zoom state (if detectable)
+* OS major/minor version
+* virtual flag (true/false)
+
+Rules:
+* In **My Device Mode**, device_context MUST reflect physical hardware.
+* In **Virtual Device Mode**, device_context MUST reflect the selected preset from Device Specs DB.
+* These fields MUST NOT be left blank; backend and workers rely on accuracy for Section 12 rendering and diagnostics.
+* Mobile/iPad MUST NOT include real sensor output here — only capabilities (camera/mic/gyro/gps availability).
+
+#### F.6.2.2 External Resource Reachability (Mobile/iPad Constraints)
+
+Mobile and iPad clients **do not** perform any external resource reachability
+checks themselves. All reachability information for external resources
+(CDN CSS/JS, images, fonts, JSON endpoints, APIs, etc.) is computed centrally by
+backend services and exposed only through Architecture Map metadata on Desktop.
+
+
+Rules:
+* Mobile/iPad apps MUST NOT issue HTTP requests to probe whether external
+resources referenced in user projects are reachable.
+* Mobile/iPad apps MUST NOT attempt to infer reachability from preview failures;
+they only show preview/job status as returned by the backend.
+* If future UX surfaces any reachability-related indicators (e.g., in a read-only
+diagnostics view), those indicators MUST be derived only from backend-supplied
+metadata.
+
+This keeps network probing centralized in the backend and ensures that
+Mobile/iPad clients remain focused on preview rendering and interaction events
+(Event Flow Mode), not on external resource diagnostics.
+
 ### F.6.3 Error Cases
 
 * Invalid/expired token.
@@ -201,7 +406,7 @@ UI must display clear messages and suggest using Desktop if needed.
 HiveSync includes a **local, interactive, non-executable mobile preview mode** that allows users to view and interact with a simulated version of their app UI without installing or running any actual code. This system is powered by:
 
 1. **Layout JSON** generated by the backend
-2. **Local Component Engine (LCE)** inside the HiveSync mobile app
+2. **Local Component Engine (LCE: Local Component Engine)** inside the HiveSync mobile app
 3. **Sandbox Chrome** for visual identification
 4. **Console Overlay** for simulated/blocked actions
 5. **Fallback Snapshot Rendering** for unsupported UI components
@@ -210,7 +415,7 @@ This section defines how the device must render, animate, and interact with Sand
 
 ---
 
-### F.6.5.1 Local Component Engine (LCE)
+### F.6.5.1 Local Component Engine (LCE: Local Component Engine)
 
 The HiveSync mobile app must include a pre-defined, static library of safe React Native components:
 
@@ -261,7 +466,7 @@ When the device receives Layout JSON:
 
 Example Layout JSON node:
 
-```json
+```
 {
   "id": "btn-login",
   "type": "HS_Button",
@@ -330,7 +535,7 @@ Sandbox: "handleSave" triggered. User code not executed.
 * When console = idle → **touch passes through**
 * When console = expanded → **touch blocked in overlay region**
 * Sandbox chrome (border + banner) → always pass-through
-* LCE components receive taps normally
+* LCE: Local Component Engine components receive taps normally
 
 ---
 
@@ -338,7 +543,7 @@ Sandbox: "handleSave" triggered. User code not executed.
 
 If Layout JSON includes:
 
-```json
+```
 "navActions": {
   "onPress": { "navigateTo": "details" }
 }
@@ -359,7 +564,7 @@ If a user-defined component cannot be mapped to HS_*:
 
 Backend emits:
 
-```json
+```
 {
   "id": "c42",
   "type": "HS_ImageSnapshot",
@@ -480,9 +685,7 @@ No part of Mobile/iPad directly contacts billing endpoints.
 On load and periodically, call:
 
 ```
-
 GET /user/me
-
 ```
 
 Backend returns:

@@ -217,6 +217,8 @@ This merges the old detailed DB schema with new system requirements.
 ---
 
 ## 6. Authentication
+**Authentication Provider Restriction:** Backend MUST only support Email+Password, Google Sign-In, and Apple Sign-In. No other OAuth providers (GitHub, Twitter, Facebook, etc.) are permitted. All behavior MUST follow `ui_authentication.md`.
+
 
 ### 6.1 Login
 
@@ -327,6 +329,8 @@ HiveSync supports two routing modes for **editor plugins**:
 * **Desktop Proxy Mode** — plugin → desktop → backend
 
 Plugins always choose the best mode **automatically and silently**.
+
+Backend APIs are consumed by the Desktop Client, Mobile/Tablet clients, Editor Plugins, Web Account Portal, and HiveSync CLI (see `cli_spec.md` and `web_portal.md`).
 
 ### 7.1 Direct Mode (Default)
 
@@ -504,6 +508,16 @@ Backend behavior is identical in both modes.
 ---
 
 ## 12. Preview Pipeline (Backend)
+
+**Parsing Dependency:**  
+Backend behavior related to dynamic node reconciliation, static map regeneration, and eventflow integration MUST respect the parsing rules defined in `parser_accuracy_stack.md`, including confidence thresholds and fallback behavior for uncertain or unknown nodes.
+
+**Offline Mode Restriction:** Preview generation MUST NOT be enqueued or executed when the requesting client is offline. Only cached previews may be returned while offline, following Offline Mode rules in Master Spec Section 29.
+
+**Device Context Requirement:** Preview endpoints MUST accept and log a `device_context` object exactly as defined in `preview_system_spec.md` (including device model, viewport size, DPR, safe area insets, and orientation). All layout computations MUST use these metrics.
+
+**Event Flow Integration:** Backend MUST route preview interaction events (taps, swipes, shakes, tilts) using node/component IDs defined in `architecture_map_spec.md`, so Event Flow Mode accurately highlights the correct nodes.
+
 
 Reflects modern **stateless tokens**.
 
@@ -790,6 +804,456 @@ Backend stores each event in Preview Logs so Desktop/iPad clients can display th
 
 ---
 
+### 12.8 Device Context Requirements (Real vs Virtual Mode)
+
+All Preview Pipeline requests from Mobile/iPad clients MUST include a `device_context` object.  
+This ensures accurate diagnostics, reproducibility, and layout tracing across both real-device and virtual-device preview modes.
+
+#### 12.8.1 Required Fields in `device_context`
+
+Every request to:
+
+* `GET /preview/screen/{screen_id}`
+* `POST /preview/sandbox-event`
+
+MUST include:
+
+```json
+{
+  "mode": "device" | "virtual",
+  "effective_device_model": "iPhone 15" | "iPhone 14 Pro" | "...",
+  "effective_os_version": "17.3",
+  "zoom_mode_enabled": false,
+  "viewport_width_px": 0,
+  "viewport_height_px": 0
+}
+````
+
+Definitions:
+
+* **mode**
+
+  * `"device"` → layout computed using physical hardware metrics
+  * `"virtual"` → layout computed from resolved `device_specs` DB row
+* **effective_device_model**
+
+  * MUST reflect the model actually used for layout computation
+* **effective_os_version**
+
+  * MUST reflect the OS version used in the model resolution step
+* **zoom_mode_enabled**
+
+  * TRUE if physical iOS Display Zoom is active
+* **viewport_width_px / viewport_height_px**
+
+  * The final scaled viewport dimensions used by the LCE after layout pass (NOT the physical phone’s pixel dimensions)
+
+#### 12.8.2 Behavior in Real Device Mode
+
+* `mode = "device"`
+* LCE uses physical metrics:
+
+  * Hardware resolution
+  * Pixel ratio
+  * Safe areas (including notch / island / gesture area)
+  * Zoomed Display information
+* Vertical panning is allowed when layout height exceeds the physical screen window.
+
+#### 12.8.3 Behavior in Virtual Device Mode
+
+When user selects a virtual preset on Mobile/iPad:
+
+1. LCE resolves the corresponding row in `device_specs`.
+2. Layout is computed using the **virtual**:
+
+   * Logical resolution
+   * Safe areas
+   * Pixel ratio
+   * Aspect ratio
+   * OS major/minor version
+3. The real device only provides:
+
+   * Width-scaling factor
+   * Vertical panning window (no stretching)
+   * Keyboard shift offset
+   * Orientation changes
+
+Backend MUST NOT reject preview requests due to missing OS minor versions; fallback resolution rules apply automatically.
+
+#### 12.8.4 Resolution Fallback Rules
+
+LCE and backend MUST resolve the virtual preset using:
+
+1. Exact match on brand + model + os_major + os_minor + zoom flag
+2. If missing → most recent spec for brand + model + os_major
+3. If missing → generic hardware row (`os_major`/`os_minor` NULL)
+4. device_context MUST include the **resolved** OS version actually used
+
+#### 12.8.5 Logging Requirements
+
+Every Sandbox event log MUST store the device_context as submitted:
+
+```json
+{
+  "mode": "virtual",
+  "effective_device_model": "iPhone 14 Pro",
+  "effective_os_version": "17.3",
+  "zoom_mode_enabled": false
+}
+```
+
+These fields MUST appear in:
+
+* Desktop Developer Diagnostics Panel
+* Admin Dashboard (device/session entries)
+* Worker job logs (for preview analysis)
+
+This ensures reproducibility of virtual-device layout bugs.
+
+## 12.9 External Resource Reachability (Boundary Node Metadata)
+
+To support safer diagnostics of external imports (CSS, JS, HTML assets, fonts, images, JSON, remote APIs, or any absolute URL referenced in the Architecture Map), the backend MAY attach optional **reachability metadata** to Boundary Nodes.
+
+Workers MUST NOT perform any network requests.  
+ONLY the backend is permitted to run a safe HEAD check.
+
+### 12.9.1 Backend HEAD Request Rules
+
+When the Architecture Map contains one or more external URLs:
+
+* Worker output remains purely static.
+* Backend optionally performs a `HEAD <url>` request.
+  - No body is downloaded.
+  - No redirect following.
+  - HTTPS required.
+  - Strict 2–5 second timeout.
+* Backend rate-limits these checks globally and per user.
+
+If successful:
+
+```
+
+"reachability": {
+"url": "[https://cdn.example.com/x.css](https://cdn.example.com/x.css)",
+"reachable": true,
+"status_code": 200,
+"checked_at": "2025-01-15T03:12:44Z"
+}
+
+```
+
+If unreachable or timed out:
+
+```
+
+"reachable": false,
+"status_code": null,
+"checked_at": "...",
+"error": "timeout" | "dns_error" | "tls_error"
+
+```
+
+If backend does not perform a check:
+
+```
+
+"reachable": "unknown"
+
+```
+
+### 12.9.2 Security Requirements
+
+* Workers are fully prohibited from performing network calls.
+* Backend MUST NOT:
+  - download files,
+  - execute remote content,
+  - parse remote CSS/JS,
+  - render pages,
+  - evaluate HTML/JS in any form.
+* HEAD check responses MUST NOT be cached longer than 10 minutes.
+* Only Boundary Nodes may receive reachability metadata.
+
+### 12.9.3 API Representation
+
+All preview/map endpoints MUST pass through reachability metadata transparently:
+
+* `/architecture/map/latest`
+* `/architecture/map/version/{id}`
+* `/architecture/map/diff`
+* Preview metadata panels (Surface, Desktop)
+
+Clients MAY read metadata but MUST NOT perform their own HEAD checks.
+
+### 12.9.4 UI Integration Contract
+
+Clients showing Boundary Nodes (Desktop, Mobile, iPad):
+
+* Show **green** indicator for reachable URLs.
+* Show **red** indicator for unreachable URLs.
+* Show **gray** indicator for unknown/not-checked URLs.
+* Tooltip or metadata panel MUST include the status code if present.
+
+The backend MUST NOT include UI markup; only structured JSON metadata.
+
+### 12.10 External Resource Path Correction 
+
+Backend MUST support the following correction pipeline when a user edits an external path from the Architecture Map:
+
+1. Client sends `POST /architecture/external/test` → Backend performs a HEAD-only probe.
+2. If reachable, client may send `POST /architecture/external/commit` containing a minimal diff.
+3. Backend applies patch using standard file-write rules.
+4. Backend MUST enqueue an incremental map-regeneration job.
+5. New reachability metadata is attached to the updated map version.
+6. Desktop/iPad clients auto-refresh the visible map.
+
+Workers MUST NOT contact external URLs; backend performs tests.
+
+### 12.11 Dynamic Node Discovery Support (NEW)
+
+Backend MUST support runtime discovery triggered by preview events.
+
+#### 1. Runtime Resolution Endpoint
+Backend MAY expose optional lookup:
+`GET /api/v1/projects/{project_id}/architecture/runtime/resolve?filePath=...`
+Returns supplemental metadata if available.
+
+#### 2. Regeneration Trigger
+When client commits a dynamic fix:
+- Backend applies patch.
+- Backend queues incremental Architecture Map regeneration.
+- Updated reachability and metadata are attached to the new map version.
+
+#### 3. Event Flow Integration
+Preview event packets referencing missing nodes MUST NOT fail.
+Backend forwards event context to the client.
+
+### 12.12 Runtime Node Discovery Event Handling (NEW)
+
+#### 1. Unknown-Node Event Acceptance
+Backend MUST accept preview event packets referencing components, files, or identifiers that do **not** exist in the current static Architecture Map version.
+- These events MUST return HTTP 200.
+- Backend MUST NOT reject or fail event logging due to missing static node IDs.
+- This ensures uninterrupted Event Flow visualization on the client.
+
+#### 2. Identity Preservation for Reconciliation
+When a dynamic node is created at runtime, backend MUST:
+- Preserve the runtime-discovered node's identifier.
+- Reuse that identifier during the next static map regeneration **if** the same file/component is detected.
+
+This guarantees deterministic client-side reconciliation (preventing flicker or duplication during merge).
+
+#### 3. Incremental Regeneration Behavior
+When a dynamic correction (e.g., file path fix) is committed:
+- Backend MUST enqueue a lightweight incremental map regeneration job.
+- Worker MUST attach updated metadata reflecting static discovery.
+- Backend MUST signal the client to update the affected node(s) without re-rendering the entire map.
+
+---
+
+# **12.13 Preview Heartbeat & Auto-Reconnect (NEW)**
+
+To prevent silent preview stalls, HiveSync MUST implement a lightweight heartbeat protocol between client and backend.
+
+### **12.13.1 Heartbeat Endpoint**
+
+Backend MUST expose:
+
+```
+POST /preview/heartbeat
+```
+
+Request body:
+
+```json
+{
+  "project_id": "<uuid>",
+  "preview_token": "<stateless token>",
+  "client_id": "<uuid>",
+  "last_event_at": "ISO8601 timestamp"
+}
+```
+
+### **12.13.2 Backend Behavior**
+
+Backend MUST:
+
+* Validate the preview_token signature
+* Validate project_id ownership
+* Check if the associated worker is:
+
+  * alive
+  * reachable
+  * not crashed
+  * not overloaded
+
+Backend returns:
+
+```json
+{
+  "ok": true,
+  "data": {
+    "status": "ok" | "building" | "ready",
+    "next_poll_in_ms": 3000
+  }
+}
+```
+
+Failure responses:
+
+* `410 PREVIEW_SESSION_EXPIRED` → preview_token invalid or expired
+* `503 PREVIEW_WORKER_UNAVAILABLE` → worker crashed or unreachable
+* `429 LIMIT_REACHED` → tier-based throttling
+
+All errors MUST return the standard envelope.
+
+### **12.13.3 Client Requirements**
+
+Clients (Desktop, Mobile, iPad, Plugins) MUST:
+
+1. Send heartbeat every **3–5 seconds** while preview is active.
+2. If **2 consecutive heartbeats** fail:
+
+   * Mark preview as **stale**.
+   * Attempt immediate reconnect using `/preview/request`.
+3. If **4 consecutive heartbeats** fail:
+
+   * Display an explicit UI message:
+
+     ```
+     Preview session lost — tap to reconnect.
+     ```
+4. On reconnect:
+
+   * Client MUST request a fresh preview_token.
+   * Client MUST discard stale preview state.
+
+### **12.13.4 Backend Re-Push Behavior**
+
+If reconnect occurs after heartbeat failures:
+
+Backend MUST:
+
+* Re-send the **full Layout JSON snapshot**
+* Re-send **asset references**
+* Reset preview session state
+* Avoid reuse of old worker assignments
+
+This ensures the mobile/tablet preview always returns to a known state.
+
+### **12.13.5 Worker Failure Recycling**
+
+If a preview worker is detected dead/unresponsive:
+
+* Backend MUST NOT reuse that worker instance
+* Backend MUST:
+
+  * Mark prior tasks as `failed_soft`
+  * Enqueue a retry on a **different** worker
+  * Raise job priority once (boost)
+  * Return explicit status in `/preview/heartbeat`
+
+### **12.13.6 No Silent Background Activity**
+
+Backend MUST NOT treat silent inactivity as “still working.”
+
+If **no successful heartbeat has occurred within 12 seconds**:
+
+* The preview session MUST be considered expired
+* Clients MUST be told to reconnect explicitly
+
+---
+
+## **12.14 Preview Worker Priority, Queue Boosting & Redundant Execution (NEW)**
+
+To minimize preview stalls and eliminate “hanging preview” scenarios for Free and Pro tiers, HiveSync MUST implement intelligent queue escalation and redundant worker retrying.
+
+### **12.14.1 Queue Separation**
+
+Backend MUST maintain the following worker queues:
+
+* `preview.realtime` — high-priority preview and Event Flow jobs
+* `preview.background` — non-interactive map rebuilds
+* `preview.heavy` — expensive AI/code-analysis jobs
+
+Preview requests **MUST** be routed to `preview.realtime`.
+
+### **12.14.2 Priority Boosting on Failure**
+
+If a preview job fails due to timeout, congestion, or a worker crash:
+
+1. Mark job as `failed_soft`.
+2. Retry **once** immediately with increased priority.
+3. Assign the retry to a **different worker instance**.
+4. Do NOT allow infinite retries.
+
+If the second attempt also fails:
+
+Backend MUST return error:
+
+```
+PREVIEW_FAILED_TWICE
+```
+
+and stop retrying.
+
+### **12.14.3 Redundant Worker Execution (Optional Optimization)**
+
+HiveSync MAY run certain preview jobs redundantly:
+
+* Same job submitted to two workers simultaneously
+* The first successful result “wins”
+* The second worker’s job is cancelled
+
+This reduces tail latency for large or noisy projects.
+
+Workers MUST NOT perform side effects while running redundantly.
+
+### **12.14.4 Warm Standby Workers**
+
+Autoscaler SHOULD maintain:
+
+```
+min_idle_workers ≥ 1
+```
+
+per queue for low-latency preview.
+
+When queue depth exceeds worker count:
+
+* Autoscaler MUST spawn new workers *preemptively*,
+  not wait for a long backlog.
+
+### **12.14.5 Hard Queue Limits & Backpressure**
+
+Define global per-environment limits:
+
+* `max_workers_total`
+* `max_workers_per_queue`
+
+When limits are reached:
+
+* Preview requests MUST NOT be dropped
+* Backend MUST return:
+
+```
+503 PREVIEW_WORKER_UNAVAILABLE
+estimated_wait_ms: <integer>
+```
+
+* Client MUST retry with backoff (via heartbeat logic)
+
+### **12.14.6 Tier-Aware Ordering**
+
+Worker queues MUST enforce:
+
+* Free tier → lowest priority
+* Pro tier → medium priority
+* Premium → highest priority, plus boosted auto-scaling
+
+Tier **does not** affect retry behavior once a task starts.
+
+---
+
 ## 13. AI Documentation Pipeline
 
 ### 13.1 Submit Job
@@ -854,6 +1318,8 @@ Repo sync uses a **mirror model** to avoid tampering.
 ---
 
 ## 16. Rate Limiting
+**Tier Enforcement:** All preview, AI, map generation, and repo-sync operations MUST enforce tier limits as defined in Phase L (Pricing & Limits). Out-of-tier requests MUST be rejected with a structured `429 LIMIT_REACHED` error.
+
 
 Backend enforces limits for:
 
@@ -1061,6 +1527,8 @@ Logs must NOT contain:
 ---
 
 ## 22. **New Environment Variables (Plan Management Links)**
+**Billing Sync Requirement:** Backend MUST update user tier based on LemonSqueezy webhooks and immediately downgrade or pause entitlements when subscriptions are cancelled, expired, or payment fails, following `billing_and_payments.md`.
+
 
 The backend must expose two configurable URLs used by clients to redirect users to external plan-management pages:
 
@@ -1097,3 +1565,8 @@ Client handles UI.
 
 
 **End of backend_spec.md**
+
+
+## Phase Regeneration Requirement
+
+Backend code MUST be regenerated in Phases D, H, L, and N according to this specification. No legacy backend behavior may override or conflict with these rules.

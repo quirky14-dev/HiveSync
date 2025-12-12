@@ -14,6 +14,19 @@
 > No alternate color palettes, spacing systems, or component variations may be used unless explicitly documented as an override in the design system.  
 > This requirement applies to desktop, mobile, tablet, web, admin panel, and IDE plugin surfaces.
 
+## Optional Tool Installation
+
+The Desktop Client MUST provide a way for users to install additional HiveSync tools after initial setup, including:
+- HiveSync CLI
+- Supported editor plugins
+
+This functionality MUST:
+- Be accessible outside of first-run onboarding
+- Not require reinstalling the Desktop Client
+- Link to platform-appropriate installers or official installation instructions
+
+The Desktop Client MUST NOT require CLI or plugin installation for core functionality.
+
 ---
 
 ## E.1. Inputs for This Phase
@@ -24,7 +37,8 @@ Replit must read and rely on:
 * `/docs/master_spec.md`
 * `/docs/architecture_overview.md`
 * `/docs/backend_spec.md`
-* `/docs/pricing_tiers.md`
+* `/docs/billing_and_payments.md`
+* `/phases/Phase_L_Pricing_Tiers_and_Limits.md`
 * `/phases/Phase_D_API_Endpoints.md`
 
 These define UI expectations and backend interactions.
@@ -138,6 +152,122 @@ Replit must plan the following flows.
 * Send to backend → worker
 * Desktop displays status updates
 * Provides QR code or direct link for device preview
+
+#### Event Flow Mode (Desktop Responsibilities)
+
+If the user initiates a preview **from the Architecture Map screen**, Desktop MUST:
+
+* include `"eventflow_enabled": true` in the preview request payload
+* include the current focused node or selection context (if any)
+* visually indicate “Event Flow Mode Active” on the Architecture Map toolbar
+* disable map navigation controls that conflict with preview/timeline interactions
+* listen for Event Flow updates from backend and animate nodes accordingly
+* automatically exit Event Flow Mode when:
+  - the preview job ends
+  - the user navigates away from the Architecture Map view
+  - the device disconnects
+
+Desktop MUST NOT run user code or simulate logic — only animate map nodes based on backend-delivered interaction events.
+
+#### Multi-Device Preview UI (Tier-Aware)
+
+Desktop MUST support the multi-device preview model as defined in `preview_system_spec.md` Section 12.
+
+* Users may select multiple virtual devices (iPhone, iPad, Android variants).
+* Desktop MUST enforce limits:
+  - Free Tier: 2 devices
+  - Pro Tier: 5 devices
+  - Premium Tier: unlimited
+* Each device variant must appear as an independent preview card in the Preview History.
+* Desktop MUST visualize each device's status:
+  - queued
+  - rendering
+  - ready
+  - error
+* If user attempts to exceed device limit:
+  - show Upgrade Modal
+  - do not send the request
+* Desktop must show a small notice:
+  “Rendered previews may differ per device due to screen size, DPR, and safe area.”
+
+#### Preview Enhancements (Desktop Requirements)
+
+Desktop MUST include the following fields in preview requests when available:
+
+* `device_context`:
+  - device model
+  - DPR (device pixel ratio)
+  - safe-area insets
+  - orientation (portrait/landscape)
+  - viewport dimensions
+
+* `sensor_flags`:
+  - camera_available
+  - microphone_available
+  - accelerometer_available
+  - gyroscope_available
+  - gps_available
+
+These fields are required for correct operation of:
+* Section 12 device simulations
+* Event Flow Mode
+* Worker-side rendering logic
+
+#### E.5.2.1 Boundary Node Reachability Indicators (Desktop Architecture Map)
+
+When the Desktop Architecture Map view is open, and the backend includes
+reachability metadata for external resources (Boundary Nodes), the Desktop Client
+MUST display a simple visual status indicator and MUST NOT perform any network
+checks itself.
+
+**Data Source:**
+
+* Reachability information is provided exclusively by the backend in
+Architecture Map responses (e.g., `reachable`, `status_code`, `checked_at`).
+* Desktop MUST treat this as read-only metadata.
+
+
+**UI Behavior:**
+
+* For each Boundary Node representing an external resource (CSS, JS, HTML asset,
+image, font, JSON, API endpoint, or any absolute URL):
+* **Green indicator** → reachable (status 200–399).
+* **Red indicator** → unreachable (error, timeout, status 400+).
+* **Gray indicator** → unknown or not checked.
+* Indicators should remain visible at normal zoom levels; when the user zooms
+out far enough that nodes are collapsed, indicators may be hidden or
+aggregated.
+* Hovering a Boundary Node with metadata SHOULD display a tooltip or side-panel
+entry including:
+* URL (truncated if long)
+* Reachable: Yes / No / Unknown
+* Status Code (if present)
+* Last Checked timestamp (if present)
+
+
+**Prohibited Behavior (Desktop):**
+
+* Desktop MUST NOT perform its own HEAD/GET/OPTIONS/other HTTP requests to
+"re-check" reachability.
+* Desktop MUST NOT treat lack of metadata as an error.
+* Desktop MUST NOT attempt to infer reachability from anything other than
+backend-supplied metadata.
+
+This keeps **all external probing centralized in the backend**, while allowing
+Desktop to surface helpful diagnostics inside the Architecture Map view.
+
+
+
+**Desktop Responsibilities:**
+* Collect device_context based on user-selected virtual device profile.
+* Never access camera/microphone/accelerometer on the Desktop itself.
+* Never proxy or transmit real sensor data from Desktop.
+* Only forward user-selected device capabilities.
+* For camera simulation:
+  - Desktop may send “camera placeholder enabled” flag only.
+* For microphone waveform simulation:
+  - Desktop must NOT record audio, only enable the UI flag.
+
 
 ### E.5.3 AI Docs / Refactor Flow
 

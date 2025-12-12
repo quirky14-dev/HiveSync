@@ -60,7 +60,8 @@ The brand should feel:
 |----------------|------------|-------|
 | `accent-blue`  | `#4DA3FF`  | Secondary CTAs, links, AI activity, focus indicators on dark UI |
 | `accent-blue2` | `#6EB7FF`  | Hover, info states, highlight text in explanations |
-| `accent-cyan`  | `#14C8E0`  | Optional highlight for live-preview connectivity (mobile binder, device online status) |
+| `accent-cyan`  | `#14C8E0`  | highlight for live-preview connectivity (mobile binder, device online status) |
+| `accent-green`  | `#75f029`  | border for nodes |
 
 Accent Blue is ALWAYS cooler than Hive Yellow — never compete.
 
@@ -93,10 +94,67 @@ Accent Blue is ALWAYS cooler than Hive Yellow — never compete.
 |------------------|------------|-----|
 | `success`        | `#2ECC71`  | Successful job, preview ready |
 | `warning`        | `#F2C94C`  | Tier limits approaching |
-| `error`          | `#E74C3C`  | Failing previews, AI error |
+| `error`          | `#c22c1d`  | Failing previews, AI error |
+| `error-fill`     | `825f5b`   | Node Fill, error |
 | `info`           | `#4DA3FF`  | Informational banners |
 
 These colors **never replace** brand colors for navigation or primary CTAs.
+
+
+---
+
+## 2.5 Device Outline & Diagnostics Overlay Tokens (New)
+
+These tokens support Virtual Device Mode, safe-area diagnostics, and notch visualization overlays.
+
+| Token                 | Value                                | Usage |
+|-----------------------|----------------------------------------|-------|
+| `device-outline-glow` | rgba(244,197,66,0.35)                 | Pulsing virtual-device frame glow |
+| `device-notch-flash`  | rgba(255,255,255,0.20)                | Initial flash to reveal notch/safe areas |
+| `device-notch-idle`   | rgba(255,255,255,0.06)                | Persistent low-opacity safe-area overlay |
+| `diagnostic-grid`     | rgba(255,255,255,0.08)                | Pixel grid overlay lines |
+| `diagnostic-box`      | rgba(77,163,255,0.35)                 | Layout bounding box outlines |
+
+---
+
+**Parsing Dependency:**  
+Visual semantics for uncertain, heuristic-derived, or AI-fallback parser results MUST follow the confidence thresholds defined in `parser_accuracy_stack.md`.  
+All token usage for low-confidence or runtime-discovered nodes MUST be consistent with this spec.
+
+--- 
+
+## 2.6 Architecture Map Node Tokens
+
+The architecture map must style nodes using these tokens, not raw hex values.
+
+| Token                    | Default Value   | Usage |
+|--------------------------|-----------------|-------|
+| `node-code-fill`         | `gray-6`        | Source code files (.js, .ts, .py, .php, etc.) |
+| `node-code-border`       | `gray-3`        | Border for code nodes |
+| `node-code-icon`         | `accent-blue`   | Small glyph or accent elements |
+| `node-asset-fill`        | `gray-7`        | Images, fonts, static assets |
+| `node-asset-border`      | `gray-4`        | Asset node borders |
+| `node-config-fill`       | `gray-7`        | Config files (.json, .yml, .env, etc.) |
+| `node-config-border`     | `accent-cyan`   | Helps configs stand out subtly |
+| `node-external-fill`     | `gray-8`        | External / third-party / out-of-project deps |
+| `node-external-border`   | `accent-green`  | Combined with dashed edge style |
+| `node-ai-fill`           | `gray-6`        | AI-generated or AI-suggested files |
+| `node-ai-border`         | `hive-yellow`   | Thin ring for “AI touched this” |
+| `node-error-fill`        | `error-fill`    | Nodes with analysis/build errors |
+| `node-error-border`      | `error`         | Strong error outline |
+| `node-unknown-fill`      | `gray-7`        | Unknown / unparsable filetypes |
+| `node-unknown-border`    | `gray-4`        | Muted border |
+| `node-selected-border`   | `hive-yellow`   | Active/selected node outline |
+| `node-highlight-glow`    | `accent-blue`   | Event flow highlight glow (pulse) |
+| `node-html-fill`         | `gray-7`        | HTML file nodes |
+| `node-html-border`       | `gray-2`        | HTML file outlines |
+| `node-api-fill`          | `gray-7`        | API endpoint nodes |
+| `node-api-border`        | `success`       | Green outline for valid API nodes |
+| `node-modified-badge-fill` | `hive-yellow` | Badge fill for locally modified nodes |
+| `node-modified-badge-border` | `accent-blue` | Outline for modified badge |
+| `node-runtime-discovered-flash` | `#FFFFFFE6` | Flash color (white, 90% opacity) |
+| `node-runtime-discovered-temp` | `accent-blue-40` | Breathing glow tint (40–75% pulse) |
+| `node-runtime-discovered-border` | `accent-blue` | Temporary outline for runtime nodes |
 
 ---
 
@@ -153,6 +211,38 @@ HiveSync uses an **8px base grid**.
 ---
 
 # 5. Component Library
+## 5.X Authentication Buttons (Required)
+
+HiveSync authentication uses exactly three login methods:
+
+1. **Email + Password**
+2. **Google Sign-In** — must use official Google-branded button (white background, Google logo).
+3. **Apple Sign-In** — must follow Apple HIG (black background, white text, Apple logo).
+
+No other OAuth providers may appear in login UI. All platforms MUST follow `ui_authentication.md`.
+
+## 5.X Preview Sensor Visual Components (Required)
+
+HiveSync previews may use real sensor inputs to animate UI behaviors. Required components:
+
+- **Camera Preview Surface:** Rounded mask (12–16px), never full-bleed; supports diagnostic overlays.
+- **Microphone Waveform:** Smooth 120ms envelope; accent-blue or gray-1.
+- **Accelerometer/Gyroscope Tilt:** Subtle transforms (≤4°), smooth easing.
+- **Event Flow Node Pulses:** Accent-blue pulse (200–250ms), never occludes map edges.
+
+## 5.X Tier-Locked UI Components (Required)
+
+Tier-gated UI elements MUST follow:
+
+- Locked features use a small lock icon (`gray-3`)
+- Hover/tap opens **Upgrade Modal**
+- Modal primary color: Hive Yellow
+- No error-tone visuals for tier restrictions
+- Virtual device limit indicator:
+  - Free → “2-device limit” badge
+  - Pro → “5-device limit” badge
+  - Premium → unlimited devices
+
 
 These components are used across all platforms.
 
@@ -191,6 +281,26 @@ To standardize elevation across clients, shadows must use:
 
 No color-tinted shadows are allowed except the subtle warm glow for primary buttons.
 
+## 5.1.1 Preview Mode Pill (New Component)
+
+Used inside the Preview Header on Mobile, Tablet, and Desktop.
+
+### Styles
+- Background: `gray-6`
+- Text: `gray-0`
+- Padding: `space-2` / `space-3`
+- Border radius: 12px
+- Icon optional (device or virtual-device glyph)
+- Height target: 26–28px
+
+### States
+- **Real Device Mode:** `Device: <name>`
+- **Virtual Device Mode:** `Virtual: <model> (<OS>)`
+- **Zoom Mode Enabled:** small badge appended
+
+### Interactions
+- Tap to open Device Selector bottom sheet (mobile/tablet)
+- Hover highlight on desktop: `gray-5` background wash
 
 ---
 
@@ -268,6 +378,7 @@ elements. To prevent CTA confusion, editor yellow must either use the normal Hiv
 brightness (≤ 70%) or the desaturated variant `hive-yellow-code = #EAC344`. This rule applies only
 to syntax highlighting and not to UI elements.
 
+---
 
 ## 5.8 Onboarding Visual Primitives (New)
 
@@ -311,13 +422,70 @@ These primitives MUST NOT introduce new color tokens or unapproved motion patter
 
 ---
 
+## 5.9 First-Run Disclosure Modal (New Required Component)
+
+This modal is required for App Store compliance and appears exactly one time.
+
+### Layout
+- Width: 80% of screen (mobile), 420px (tablet)
+- Background: `gray-7`
+- Border radius: 16px
+- Padding: `space-6`
+- Title: `h3`
+- Body text: `body`
+- Button row: single Primary button (“OK”)
+
+### Content (must be exact)
+"HiveSync collects anonymous layout metrics (screen size, safe areas, OS version)
+only to improve virtual-device preview accuracy. No personal data is collected."
+
+### Behavior
+- Shown once on first app launch OR first time a preview is opened
+- Not dismissible by tapping outside
+- Stored via local device storage flag
+- Accessible later in Settings → About → Privacy
+
+---
+
 # 6. Motion & Interaction Rules
+
+**Event Flow Visual Rules**
+Event Flow Mode uses animated cues when mobile/tablet interactions occur:
+
+- **Node Highlight Pulse:** Accent-blue, soft 16–22px glow, 200–250ms duration.
+- **Dependency Path Animation:** Accent-blue (70% opacity), 300–400ms travel, linear/ease-in.
+- **Shake/Tilt Animations:** ≤4° rotation or ≤8px motion; never elastic or playful.
+
 
 - Durations: 120–180ms  
 - Easing: `cubic-bezier(0.25, 0.1, 0.25, 1)`  
 - Allowed animations: fade, slide-up, subtle scale  
 - Not allowed: bouncy, elastic, playful motions  
 - Hover states should never jump or reflow content  
+
+### 6.1 Diagnostic & Virtual Device Effects (New)
+
+#### Virtual Device Glow
+Used to highlight the rendered virtual-device frame.
+- Color: `device-outline-glow`
+- Pulse duration: 2s, ease-in-out
+- Intensity: 35%
+- Cycle: continuous while preview is active
+
+#### Notch & Safe-Area Reveal
+- Initial flash: `device-notch-flash` (0.3s)
+- Idle overlay: `device-notch-idle`
+- Never blocks interactions
+
+#### Pixel Grid
+- Line color: `diagnostic-grid`
+- Opacity: 8%
+- High-density grid (device-scaled, not physical screen-scaled)
+
+#### Layout Bounding Boxes
+- Stroke: `diagnostic-box`
+- Thickness: 1–2px device-scaled
+- Rounded corners: 6px
 
 ---
 
@@ -361,6 +529,35 @@ Light mode must be implemented strictly as a tone-shift using existing neutrals.
 - Larger tap targets  
 - Hive Yellow for primary actions  
 - Blue for preview/device-online status  
+
+### 7.3.1 Virtual Device Selector Bottom Sheet (New)
+
+This component allows users to select Brand → Model → OS Major → OS Minor.
+
+#### Layout
+- Max height: 80% of screen
+- Width:
+  - Mobile: full width
+  - Tablet: 420–500px centered
+- Background: `gray-7`
+- Border: `gray-6`
+- Handle: `gray-5` pill (optional)
+
+#### Cascading Structure
+1. Brand list (Apple, Google, Samsung)
+2. Device Models (filtered by Brand)
+3. OS Major (filtered by Model)
+4. OS Minor (or "Auto (latest)")
+
+#### Interaction Rules
+- Tapping a row transitions to next level
+- Back arrow returns one level up
+- Selecting Model without OS defaults to Auto
+- “Auto” label uses `gray-3` text style
+
+#### Debug Indicators
+- If Zoom Mode detected: small pill appended
+- If model is missing specs: muted style row (gray-4)
 
 ---
 
@@ -555,6 +752,21 @@ Refactor summary lists structural changes, warnings, and potential breaking chan
 * Displays project name, build status pill, and preview content.
 * Buttons: Refresh, Report Issue.
 * Error state includes “View Details” to show logs.
+
+### 10.2.3.1 Diagnostic Overlay Z-Index Rules (New)
+
+The following stacking order MUST be consistent across Mobile and Tablet:
+
+| Layer | Z-Index | Notes |
+|-------|---------|-------|
+| Preview Header | 100 | Always top-most UI element |
+| Notch/Safe-Area Overlay | 12 | Idle + flash states |
+| Layout Bounding Boxes | 11 | Three-finger tap gesture |
+| Pixel Grid | 10 | Two-finger hold gesture |
+| Preview Content | 1 | Base rendered UI |
+| Background | 0 | App shell |
+
+Overlays must not intercept navigation gestures unless explicitly allowed (e.g., vertical panning).
 
 ---
 

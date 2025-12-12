@@ -19,10 +19,17 @@ Replit must read and rely on:
 * `/docs/architecture_overview.md`
 * `/docs/security_hardening.md`
 * `/docs/admin_dashboard_spec.md`
-* `/docs/pricing_tiers.md`
 * `/docs/faq_entries.md`
 * `/docs/alerting_and_monitoring.md`
 * `/phases/Phase_A_Overview.md`
+* `/phases/Phase_L_Pricing_Tiers_and_Limits.md`
+* `/docs/architecture_map_spec.md`
+* `/docs/preview_system_spec.md`
+* `/docs/design_system.md`
+* `/docs/ui_authentication.md`
+* `/docs/onboarding_ux_spec.md`
+* `/docs/billing_and_payments.md`
+* `/docs/cli_spec.md`
 
 These files are **authoritative** for backend behavior.
 
@@ -183,6 +190,13 @@ Replit must plan the following backend domain modules (Python packages):
   * Stateless preview token issuance
   * Job metadata persistence
   * Size/quota enforcement (per tier)
+  * Support for Section 12 preview enhancements:
+  - device_context (model, DPR, safe-area, orientation)
+  - multi-device preview (carousel + grid)
+  - sensor-driven preview simulation (accelerometer, gyroscope, camera, microphone waveform, GPS)
+  - eventflow_mode flag for Map-driven previews
+* Tier enforcement for virtual device limits (Free=2, Pro=5, Premium=unlimited)
+
 
 ### B.3.8 `ai_docs` Domain
 
@@ -207,6 +221,12 @@ Replit must plan the following backend domain modules (Python packages):
 
   * Worker health tracking
   * Queue depth monitoring (metadata, not actual queue implementation)
+  * Execution of Preview jobs with Section 12 sensor/camera/microphone/GPS context
+* Validation of device_context payloads using PREVIEW_DEVICE_CONTEXT_SECRET
+* Event Flow Mode job tagging and state propagation
+* Billing sync/desync reconciliation tasks
+* Dormant account auto-deletion jobs
+
 
 ### B.3.10 `audit` Domain
 
@@ -323,9 +343,10 @@ The backend must enforce tiers at:
 
 1. **Auth layer** – attach `tier` to user context.
 2. **PreviewService** – job size/timeout checks.
-3. **AIDocsService** – line count, complexity limits.
-4. **NotificationService** – optional caps.
-5. **API throttling** – higher limits for higher tiers.
+3. **Preview multi-device limits** – enforce Free=2, Pro=5, Premium=unlimited.
+4. **AIDocsService** – line count, complexity limits.
+5. **NotificationService** – optional caps.
+6. **API throttling** – higher limits for higher tiers.
 
 Exact numeric limits are defined in Phase L, but **Phase B must ensure there are hooks and fields to enforce them.**
 

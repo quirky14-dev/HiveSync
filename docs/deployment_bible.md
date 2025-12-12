@@ -23,6 +23,10 @@ Preview generation, AI Documentation, snapshot rendering, and layout validation 
 
 This document explains how to deploy, run, secure, scale, and monitor HiveSync in production.
 
+Additionally, HiveSync includes a minimal **Web Account Portal**, deployed as a lightweight authenticated web application.  
+The Web Account Portal is used exclusively for account-level security actions such as API token management and subscription status display.  
+It is deployed separately from the Admin Dashboard and Desktop clients.
+
 ---
 
 # **1. System Architecture**
@@ -145,6 +149,8 @@ R2_SECRET_ACCESS_KEY
 WORKER_CALLBACK_SECRET
 OPENAI_API_KEY
 POSTGRES_PASSWORD
+API_TOKEN_PEPPER
+PREVIEW_TOKEN_SECRET
 ```
 
 Store in:
@@ -283,6 +289,23 @@ User → Backend → Redis Queue → Worker → R2 → Backend Callback → Clie
 * POST callback to backend
 * Include HMAC signature
 
+### Worker Sensor Validation (Optional Enhancement)
+
+Workers receiving preview jobs MUST validate the `device_context` payload,
+including:
+- device model
+- DPR
+- safe-area insets
+- orientation state
+- declared sensor availability (camera, microphone, accelerometer, gyroscope)
+
+Workers do **not** access sensors themselves and MUST NOT attempt to read or
+request camera/microphone/hardware input. All real sensor data is handled
+client-side and used only for preview simulation.
+
+If the device_context is malformed, workers MUST return a structured
+`INVALID_DEVICE_CONTEXT` error.
+
 ### **6.3 No Cloudflare preview execution**
 
 Cloudflare has:
@@ -293,6 +316,98 @@ Cloudflare has:
 * NO transpilation or environment
 
 This was removed from the architecture.
+
+## 6.4 Architecture Worker Enhancements (HTML, CSS & CIA Support)
+
+The Architecture Map Worker now handles expanded parsing and analysis workloads.  
+This section describes the operational impact for deployment, autoscaling, and worker provisioning.
+
+### 6.4.1 New Responsibilities
+
+Workers must support:
+
+* **HTML static parsing** (tags, classes, ids, assets, script/link relationships)
+* **CSS parsing** (selectors, rules, properties, media queries, @imports)
+* **CSS Influence Analysis (CIA)**  
+  - Basic mode: rule → element mapping  
+  - Deep mode: override lineage, specificity chains, inheritance relationships  
+* **External-boundary node recognition** for CDN CSS/JS  
+* **Tier-aware analysis depth**  
+* **Selector muting simulation hooks** (Premium)
+
+Workers must NOT:
+
+* fetch external CSS/JS  
+* execute HTML/JS  
+* compute actual browser layout or rendering  
+* run any network calls during map extraction
+
+All work must remain static, sandboxed, and bounded.
+
+---
+
+### 6.4.2 CPU vs Memory Impact
+
+* HTML/CSS parsing is CPU-light.  
+* Deep CIA requires slightly more CPU, especially in large projects with many selectors.  
+* Memory usage increases only slightly due to selector trees and lineage metadata.
+
+GPU is **not** required.
+
+---
+
+### 6.4.3 Autoscaling Considerations
+
+Deep CIA jobs take longer than standard Architecture Map jobs.
+
+Recommended autoscaling adjustments:
+
+* Track worker queue length specifically for `architecture_map_generate` job types.  
+* Scale up earlier when:  
+  - CSS-heavy projects appear  
+  - Large multi-page websites are analyzed  
+  - Multiple Premium users request deep CIA simultaneously
+
+Autoscaling **only** adjusts worker count — all logic remains stateless.
+
+---
+
+### 6.4.4 Estimated Per-Job Cost
+
+Informational only (not enforced at runtime):
+
+* Basic map (JS/TS/Python): ~20–150ms  
+* HTML + CSS basic CIA: ~50–300ms  
+* Deep CIA (Premium): ~70–750ms depending on project size  
+* Selector muting recomputation (simulation): ~20–120ms
+
+These numbers help operators size workers and anticipate load patterns.
+
+---
+
+### 6.4.5 DevOps Recommendations
+
+* Use separate autoscaling metrics for Architecture Map jobs vs Preview jobs.  
+* Keep worker logs for CIA separate from preview logs for debugging.  
+* If providing observability dashboards, tag Architecture Map jobs with:  
+  - `language_detected`  
+  - `css_influence_mode`  
+  - `parser_mode` (`static`, `ai-assisted`, `mixed`)  
+* Keep a soft limit (not enforced by backend) of **2500 nodes** before UI warns user.
+
+---
+
+### 6.4.6 No Deployment Changes Required
+
+Despite new features, **deployment complexity stays the same**:
+
+* No new containers  
+* No new environment variables  
+* No GPU requirement  
+* No additional queues  
+* No browser runtime or headless engine  
+
+Architecture Map workers remain pure-Python static analyzers.
 
 ---
 
@@ -835,7 +950,7 @@ That’s the essence of horizontal scaling.
 
 ---
 
-# 18. Deploying the Admin Dashboard (Web Portal)
+# 18. Deploying the Admin Dashboard
 
 The Admin Dashboard is a standalone React-based frontend application that provides system administration, analytics, worker metrics, sample project management, and configuration controls. It is deployed separately from the backend API and workers.
 

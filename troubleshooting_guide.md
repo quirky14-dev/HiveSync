@@ -54,7 +54,32 @@ Fix:
 - Remove unnecessary files
 - Upgrade tier (optional)
 
+## 1.6 Architecture Map Shows Red/Gray External Nodes (Reachability)
+
+**Symptom:** Some nodes in the Architecture Map appear with red or gray dots.
+
+**Meaning:**
+- Red → HiveSync could not reach an external URL your project references.
+- Gray → HiveSync did not attempt a reachability check.
+
+**Common Causes:**
+- CDN outage
+- Wrong or outdated external URL
+- DNS or TLS errors
+- The external resource was removed or renamed
+
+**Fixes:**
+- Verify the external URL manually in a browser.
+- Update the reference in your project if it is no longer valid.
+- If the resource is optional, ignore the indicator.
+
+**Important:**
+- HiveSync never downloads or executes external code.
+- Workers never make network requests.
+- This feature is informational only.
+
 ---
+
 # 2. AI Documentation Issues
 
 ## 2.1 "AI Job Failed"
@@ -277,6 +302,7 @@ Fix:
 - Check worker config
 
 ---
+
 # 12. General Debugging Tools
 - `docker logs backend`
 - `docker logs worker`
@@ -284,6 +310,26 @@ Fix:
 - Admin → Error Stream
 - Admin → Callback Monitor
 
+### 12.1 Inspecting Reachability Metadata
+
+
+To debug external-resource issues in your project:
+
+1. Open Desktop → Architecture Map.
+2. Click any Boundary Node (external URL).
+3. Inspect its metadata panel:
+- Reachable: Yes / No / Unknown
+- Status Code
+- Last Checked
+- Error (if any)
+
+**Useful for diagnosing:**
+- Missing CDN files
+- Removed assets
+- Intermittent external API outages
+
+
+If you suspect HiveSync is misreporting something, an admin can check backend logs to see recent reachability attempts.
 ---
 # 13. Summary
 This Troubleshooting Guide is the complete, unified reference for diagnosing and fixing issues in HiveSync across backend, workers, clients, and deployment environm

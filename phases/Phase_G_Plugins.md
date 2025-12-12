@@ -14,6 +14,20 @@
 
 > Replit MUST NOT create or modify `/plugins/` files during Phase G.
 
+## CLI Dependency Handling
+
+Certain plugin features may rely on the HiveSync CLI.
+
+If the HiveSync CLI binary is not detected in the user’s PATH:
+- The plugin MUST continue to function in a degraded (non-CLI) mode
+- The plugin MUST display a non-blocking prompt indicating that the CLI is recommended
+- The plugin MUST offer a one-click install action where supported by the platform
+
+The plugin MUST:
+- Detect CLI availability via a version check
+- Never require CLI installation for basic editor functionality
+- Defer all installation logic to a platform-aware installer or documented install flow
+
 ---
 
 ## G.1. Inputs for This Phase
@@ -23,9 +37,9 @@ Replit must read and rely on:
 * `/docs/ui_layout_guidelines.md` (plugin notes)
 * `/docs/architecture_overview.md`
 * `/docs/backend_spec.md`
-* `/phases/Phase_E_Desktop_Client_Planning.md`
+* `/phases/Phase_E_Desktop_Client.md`
 * `/phases/Phase_D_API_Endpoints.md`
-* `/docs/pricing_tiers.md`
+* `/phases/Phase_L_Pricing_Tiers_and_Limits.md`
 
 These define plugin responsibilities + available backend APIs.
 
@@ -173,15 +187,38 @@ Plugins MUST follow same per-tier limits as Desktop.
 
 Plugins may **NOT** bundle full projects (Desktop handles full preview bundling).
 
+### G.7.0 Device Context Requirements for Plugins
+
+Plugins operate with a simplified device_context model.
+
+When sending preview requests, plugins MUST include:
+
+* `target_device` – the user-selected device type (e.g., "iPhone 14", "iPad Pro", "Android Pixel 7")
+* `platform` – ios / android / web (as applicable)
+* `virtual` – always `true` (plugins never represent a physical device)
+* `capabilities` – plugin MUST include:
+  - camera_available: false
+  - microphone_available: false
+  - accelerometer_available: false
+  - gyroscope_available: false
+  - gps_available: false
+
+Rules:
+
+1. Plugins MUST NOT claim access to real sensors.
+2. Plugins MUST NOT attempt to calculate DPR or safe-area insets.
+3. When Desktop Proxy Mode is active, Desktop will overwrite plugin-provided device_context.
+4. In Direct Mode, plugin-provided device_context becomes authoritative for the preview job.
+
+This ensures plugins remain consistent in the multi-device preview ecosystem.
+
 ### G.7.1 Optional CLI Preview Trigger
 
 Plugins MAY invoke the HiveSync CLI when installed on the user's system.
 
 Invocation format:
 
-```
-hivesync preview <workspace_dir> --json
-```
+`hivesync preview <workspace_dir> --json`
 
 Rules:
 - If Desktop Client is running, plugin SHOULD use Desktop Proxy Mode instead.
@@ -189,6 +226,21 @@ Rules:
 - If CLI is not installed, show a non-blocking warning.
 - CLI output MUST be parsed in JSON mode for stable plugin integration.
 - Plugins MUST NOT store API tokens. Authentication must pass through Desktop Proxy or personal API token env var.
+
+### G.7.2 Event Flow Mode Compatibility (Required)
+
+Plugins do NOT participate directly in Event Flow Mode, but they MUST pass through any `eventflow_enabled` flag received from Desktop or supplied by the user’s environment.
+
+Rules:
+
+1. If Desktop Proxy Mode is active, plugin MUST forward `eventflow_enabled` exactly as Desktop provides it.
+2. Plugins must NOT attempt to infer or suppress Event Flow Mode.
+3. Plugins must NOT generate eventflow interaction logs (only Mobile/iPad do this).
+4. If Direct Mode is used and user triggers a preview from a file linked to a Map context, plugin MUST include:
+
+`{ "eventflow_enabled": true }`
+
+Failing to propagate this flag breaks Event Flow Mode.
 
 ---
 
@@ -332,9 +384,31 @@ Plugins handle:
 
 Billing remains backend-only.
 
+### G.11.2 External Resource Reachability Restrictions (Plugins)
+
+Editor plugins MUST NOT perform network reachability checks for external
+resources referenced in user projects.
+
+**Rules:**
+* Plugins MUST NOT:
+* Issue HEAD/GET/OPTIONS requests to external URLs to test reachability.
+* Implement custom logic to probe or "ping" CDN assets, APIs, or other
+external endpoints.
+* Use editor-provided HTTP clients for the purpose of external reachability
+diagnostics.
+* Plugins MAY display reachability-related information **only** if it is
+provided by the backend (or Desktop Proxy Mode) as part of existing API
+responses.
+* Plugins MUST treat such metadata as read-only and MUST NOT attempt to
+independently confirm or override it.
+
+This ensures that external resource probing remains centralized and controlled
+by backend services, and that plugins remain lightweight, editor-integrated
+clients focused on previews, AI Docs, tasks, and notifications.
+
 ---
 
-## G.12. Mapping 102 Feature Categories → Plugins
+## G.12. Mapping Feature Categories → Plugins
 
 Plugins must support:
 

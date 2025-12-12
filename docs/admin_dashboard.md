@@ -455,6 +455,8 @@ Read-only access for debugging missing-file or sync issues.
   “Artifact no longer available.”
 
 ## 10.6 Additional Support Tools
+**Preview System Integration:** All preview-related admin tools MUST follow `preview_system_spec.md`, including device context, virtual device settings, Event Flow events, and Section 12 preview diagnostics.
+
 
 Additional non-destructive admin tools that simplify support and troubleshooting.
 
@@ -499,6 +501,11 @@ Shows:
 * Last seen
 * Session type (desktop / mobile / plugin)
 * IP, optional
+* Most recent **Preview Device Context** used (e.g., `Device: iPhone 15 / iOS 17.3` or `Virtual: iPhone 14 Pro / iOS 17.1`)
+* Whether the device is reporting **Display Zoom** as enabled (iOS only)
+
+Admin-visible only.  
+Useful for testing API calls on behalf of a user without requiring their password.
 
 ### Copy User API Token
 Provides:
@@ -551,6 +558,8 @@ Admin receives:
 
 
 ## 11.5 Billing & Subscription Status (NEW)
+**Tier Resolution Rule:** Displayed user tier MUST reflect the resolved tier state (subscription + admin override) defined in Phase L (Pricing & Limits). Overrides MUST expire automatically according to those rules.
+
 
 The Admin Dashboard must include a complete billing visibility panel showing each user’s subscription state as defined in `billing_and_payments.md`.
 
@@ -880,3 +889,8 @@ Matches Phases J–O.
 # 18. END OF DOCUMENT
 
 This Admin Dashboard doc is now **complete and authoritative**. All future code generation must follow this spec precisely.
+
+
+## Phase Regeneration Requirement
+
+Admin Dashboard backend and UI MUST be regenerated during Phases J, K, L, M, and N according to this specification. No older logic may override or conflict with these rules.

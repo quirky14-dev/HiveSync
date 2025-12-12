@@ -23,6 +23,11 @@ Replit must read and rely on:
 * `/phases/Phase_H_AI_and_Preview_Pipeline.md`
 * `/docs/master_spec.md`
 * `/docs/backend_spec.md`
+* `/docs/architecture_map_spec.md`
+* `/docs/preview_system_spec.md`
+* `/docs/ui_authentication.md`
+* `/docs/design_system.md`
+* `/phases/Phase_L_Pricing_Tiers_and_Limits.md`
 
 These define admin visibility + security constraints.
 
@@ -83,6 +88,13 @@ All backend logs stored in:
 * DB (structured summaries)
 * R2 (detailed logs)
 
+* **Tier Enforcement Logs:**  
+  * Multi-device preview limit violations  
+  * Architecture Map generation blocked due to plan  
+  * Diff/History/API calls blocked due to tier  
+  * Guest-mode edit attempts  
+  * Upgrade-required events (blocked API calls)
+
 ---
 
 # -------------------------------
@@ -114,6 +126,49 @@ Workers NEVER log:
 * Code contents
 * User tokens
 * Full file contents
+
+## M.4.1 Preview Logging (Required)
+
+Workers MUST emit structured logs for Section 12 preview features:
+
+* `device_context_validation` – missing or invalid DPR, orientation, insets, model ID
+* `sensor_flag_mismatch` – client claims sensors that platform cannot support
+* `multi_device_batch` – number of devices rendered, per-device timings
+* `eventflow_enabled` – whether Event Flow Mode was active
+* `eventflow_stub_created` – worker created empty event session container
+* `layout_per_device` – per-device layout summary (node count, warnings)
+* `render_degraded` – snapshot fallback or degraded rendering mode triggered
+* `orientation_mismatch` – device_context orientation conflicts with layout constraints
+
+No real sensor data is ever logged.
+
+## M.4.2 Architecture Map Logging Extensions (NEW)
+
+To support advanced diagnostics, the following MUST be logged:
+
+### M.4.2.1 HTML/CSS Layer Metrics
+* Total HTML nodes parsed.
+* Total CSS selectors.
+* Total media queries.
+* Total selector-to-element influence edges produced.
+
+### M.4.2.2 CIA Metrics
+* CIA mode used: Basic or Deep.
+* Fallback to AI parser (if static parsing incomplete).
+* Selector muting usage.
+* Specificity-chain resolution counts.
+
+### M.4.2.3 Reachability Check Logs (Backend Only)
+* URL checked.
+* Status: reachable / unreachable / unknown.
+* HTTP status code (if any).
+* Error type: timeout / DNS / TLS / refusal.
+* Duration of HEAD request.
+* Whether global or per-user rate-limit was applied.
+
+
+Workers MUST NOT perform URL probes other than for Event Flow and Architecture Mapping.
+If a worker attempts an external network call outside of this, the event MUST be logged as a security violation.
 
 ---
 
@@ -289,6 +344,8 @@ Analytics shown in Admin Dashboard include:
 * Preview warning severity breakdown (info / warn / error)
 
 Admin can filter by tier.
+
+* Tier enforcement violation counts (preview, map, diff, guest-mode)
 
 ---
 

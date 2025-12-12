@@ -33,6 +33,11 @@ Core components:
 * **iPad Enhanced App**
 * **Editor Plugins** (VS Code, JetBrains, Sublime, Vim)
 * **Admin Dashboard**
+* **HiveSync CLI** — Headless interface for automation, CI workflows, artifact capture/replay, and preview triggering.  
+  Specification: `cli_spec.md`
+
+* **Web Account Portal** — Minimal authenticated web surface for account security, API token management, and subscription visibility.  
+  Specification: `web_portal.md`
 
 ---
 
@@ -69,10 +74,17 @@ All defined via SQLAlchemy + Pydantic with consistent timestamp & ID conventions
 ---
 
 # 4. API Domains
+### Authentication Provider Restriction (Global)
+HiveSync MUST support only:
+- Email + Password
+- Google Sign-In
+- Apple Sign-In
+No other OAuth providers are allowed. All flows MUST follow `ui_authentication.md`.
 
 
-* `/users` — profile, settings, tier
-* `/teams` — team membership, roles
+
+* `/users` — profile, settings, tier, GDPR export (`GET /users/me/export`), account deletion (`DELETE /users/me`)
+* `/teams` — team membership, roles, ownership transfer hooks
 * `/projects` — metadata and file lists
 * `/tasks` — project tasks
 * `/comments` — inline/general comments
@@ -84,15 +96,18 @@ All defined via SQLAlchemy + Pydantic with consistent timestamp & ID conventions
 * `/rate_limits` — abuse detection
 * `/health` — shallow & deep checks
 * `/admin` — analytics, scaling, audit logs
-* `/auth` — login, register, tokens, one-time session-token generation for automatic website login
+* `/auth` — login (Email/Password, Google, Apple only), register, tokens, forgot/reset password (`POST /auth/forgot_password`, `POST /auth/reset_password`), one-time session-token generation for automatic website login
 * `/billing` — subscription checkout, LemonSqueezy webhook, tier enforcement
+* `/architecture` — architecture map generation, retrieval, version history, diff APIs
+* `/devices` — device pairing codes, device listing, lost-device revocation
+
 
 > **Billing System Integration:**  
 > HiveSync’s backend MUST implement all billing logic as defined in `billing_and_payments.md`.  
 > This includes:  
 > - authenticated checkout initiation via `/billing/start-checkout`  
 > - attaching `user_id` metadata to LemonSqueezy checkout sessions  
-> - processing all subscription lifecycle events via `/billing/webhook`  
+- processing all subscription lifecycle events via `POST /billing/webhook/lemonsqueezy` (FastAPI route mounted under the `/billing` domain)  
 > - verifying webhook HMAC signatures  
 > - updating user tiers, subscription status, renewal dates  
 > - enforcing per-tier limits (preview, AI docs, refactors, queue priority)  
@@ -105,6 +120,14 @@ All endpoints standardized using JSON envelopes.
 ---
 
 # 5. Preview Pipeline (Stateless)
+### Tier Limits (Preview Submission Rules)
+Preview generation MUST obey Phase L:
+- Free: 2 devices
+- Pro: 5 devices
+- Premium: unlimited
+- Guest: cannot send previews
+Exceeding limits returns UPGRADE_REQUIRED.
+
 
 This is HiveSync’s signature subsystem.
 
@@ -398,6 +421,82 @@ The mobile app MUST:
 * Render sandbox chrome consistently
 * Never execute user JS or dynamic code
 
+## 5.2 Event Flow Mode
+### Event Flow Mode Rules
+- Active only when Architecture Map is open AND preview initiated from map
+- Mobile/tablet sends tap/swipe/tilt/shake events
+- Desktop animates corresponding nodes
+- Terminates when leaving map or preview ends
+- Premium-only; lower tiers show upgrade modal
+ (Desktop Architecture Map ↔ Mobile Sandbox)
+
+Event Flow Mode
+### Event Flow Mode Rules
+- Active only when Architecture Map is open AND preview initiated from map
+- Mobile/tablet sends tap/swipe/tilt/shake events
+- Desktop animates corresponding nodes
+- Terminates when leaving map or preview ends
+- Premium-only; lower tiers show upgrade modal
+ is a **Premium-only** visualization layer that links live UI interaction events from sandboxed mobile previews to the desktop Architecture Map screen, without ever executing user code.
+
+High-level behavior:
+
+* Event Flow Mode
+### Event Flow Mode Rules
+- Active only when Architecture Map is open AND preview initiated from map
+- Mobile/tablet sends tap/swipe/tilt/shake events
+- Desktop animates corresponding nodes
+- Terminates when leaving map or preview ends
+- Premium-only; lower tiers show upgrade modal
+ can only be activated when:
+  * The **Architecture Map** screen is open on Desktop, and
+  * A sandbox preview was initiated from that screen for the same project.
+* Mobile/Tablet clients:
+  * Run the normal **Sandbox Interactive Preview System**.
+  * Emit safe, structured UI interaction events (taps, navigation, screen focus, etc.) tagged with:
+    * `projectId`, `screenId`, `componentId`, and a session-safe identifier.
+  * Never send or execute user JavaScript.
+* Desktop client:
+  * Subscribes to Event Flow Mode
+### Event Flow Mode Rules
+- Active only when Architecture Map is open AND preview initiated from map
+- Mobile/tablet sends tap/swipe/tilt/shake events
+- Desktop animates corresponding nodes
+- Terminates when leaving map or preview ends
+- Premium-only; lower tiers show upgrade modal
+ events while the Architecture Map screen is open.
+  * Highlights nodes and animates dependency paths corresponding to incoming events.
+  * Stops receiving/processing events when:
+    * The preview ends, or
+    * The user navigates away from the Architecture Map screen, or
+    * Event Flow Mode
+### Event Flow Mode Rules
+- Active only when Architecture Map is open AND preview initiated from map
+- Mobile/tablet sends tap/swipe/tilt/shake events
+- Desktop animates corresponding nodes
+- Terminates when leaving map or preview ends
+- Premium-only; lower tiers show upgrade modal
+ is explicitly turned off.
+* Backend:
+  * Treats these events as **telemetry only**, not as code execution.
+  * Validates that the session is Premium tier before forwarding events to subscribed clients.
+* Safety:
+  * Event Flow Mode
+### Event Flow Mode Rules
+- Active only when Architecture Map is open AND preview initiated from map
+- Mobile/tablet sends tap/swipe/tilt/shake events
+- Desktop animates corresponding nodes
+- Terminates when leaving map or preview ends
+- Premium-only; lower tiers show upgrade modal
+ must not execute user code or mutate server-side state beyond logging/telemetry.
+  * If the Premium entitlement is revoked (downgrade), Event Flow Mode
+### Event Flow Mode Rules
+- Active only when Architecture Map is open AND preview initiated from map
+- Mobile/tablet sends tap/swipe/tilt/shake events
+- Desktop animates corresponding nodes
+- Terminates when leaving map or preview ends
+- Premium-only; lower tiers show upgrade modal
+ is disabled automatically.
 
 ---
 
@@ -411,6 +510,47 @@ The mobile app MUST:
 6. Client fetches result
 
 Supports snippet, full-file, and multi-file.
+
+## 6.2 Architecture Map System (Overview)
+
+HiveSync includes a dedicated **Architecture Map System** that builds and maintains a graph representation of a project’s structure.
+
+Authoritative details live in `docs/architecture_map_spec.md`. At a high level:
+
+* **Supported languages (initial):** JS/TS (incl. React), Vue, Angular, Python (Flask/FastAPI/Django), PHP (Laravel). C# and others may be added later.
+* **Graph model:**
+  * Node types: file, class, function, component, service, model, route, page.
+  * Edge types: import, export, calls, data_flow, component_contains, route_to_component.
+  * Stored as versioned JSON: `nodes[]`, `edges[]`, `metadata{}`.
+* **Worker pipeline:**
+  * New **Map Worker** job type processes a full project or a file delta list.
+  * Pipeline: parse → analyze → build graph → optimize → version → store in object storage.
+  * Incremental updates are supported: only changed files are reprocessed.
+* **APIs (backend):**
+  * `POST /architecture/map/generate` — enqueue (or trigger) a new map generation for a project.
+  * `GET  /architecture/map/latest` — return the latest stable map version for a project.
+  * `GET  /architecture/map/version/{id}` — fetch a specific version by ID.
+  * `POST /architecture/map/diff` — compute a diff between two map versions (node/edge-level).
+* **Tier rules (summary):**
+  * Free: view-only access to existing maps; no map generation.
+  * Pro: can generate maps for one configured project; limited history.
+  * Premium: unlimited maps per project, diff support (including architecture diff), and Event Flow Mode
+### Event Flow Mode Rules
+- Active only when Architecture Map is open AND preview initiated from map
+- Mobile/tablet sends tap/swipe/tilt/shake events
+- Desktop animates corresponding nodes
+- Terminates when leaving map or preview ends
+- Premium-only; lower tiers show upgrade modal
+ integration.
+* **Sync behavior:**
+  * Desktop/Mobile/iPad always request the latest version on map screen load.
+  * If the worker finishes a newer version while the screen is open, clients show a **“New map available — click to refresh”** banner and reload on demand.
+* **Error reporting:**
+  * Broken imports or missing dependencies may mark affected nodes/edges in red.
+  * Map generation failures surface to users via Worker Failure UI and to admins via the Admin Dashboard.
+* **Privacy:**
+  * Maps are derived from project code but stored as metadata graphs; they follow the same project/team access controls as the source code.
+
 
 ---
 
@@ -445,26 +585,58 @@ Supports snippet, full-file, and multi-file.
 
 # 8. Client Platforms
 
+
+### Offline Mode Rules (Global)
+The following operations MUST NOT occur while offline:
+- Preview generation
+- Architecture Map generation or diffing
+- Component/file diffing
+- Device pairing
+- Billing checkout/session creation
+- Worker job submission
+Offline mode allows only cached, read-only operations.
+
 ## 8.1 Desktop (Electron)
 
 * Project browser
 * Code editor
 * AI docs panel
 * Comment panel
+* Architecture Map screen (with split view: map on left, file/quick-edit on right)
+* Event Flow Mode
+### Event Flow Mode Rules
+- Active only when Architecture Map is open AND preview initiated from map
+- Mobile/tablet sends tap/swipe/tilt/shake events
+- Desktop animates corresponding nodes
+- Terminates when leaving map or preview ends
+- Premium-only; lower tiers show upgrade modal
+ visualization (Premium only, when paired with sandbox previews)
 * Preview send modal
 * Settings, tier, help/FAQ
 * Acts as **local proxy** for plugins (when installed)
+* Basic offline mode:
+  * Read-only access to cached projects/maps.
+  * Clearly labeled offline banner; actions that require workers (preview, map generation, diff) are disabled.
+
 
 ## 8.2 Mobile (React Native)
 
 * Tabs: Files, AI Docs, Notifications, Tasks, Settings
-* Stateless preview runtime
+* Stateless preview runtime (Sandbox Interactive Preview System)
+* Architecture Map viewer (view-only; pinch-zoom, tap-to-focus)
 * Swipe-based comment panel
+* Upgrade prompts for gated features (maps, diffs, history) using external website links only
+* Offline behavior:
+  * Local read-only viewing of previously-synced files/maps.
+  * Offline banner when worker-dependent actions are blocked.
+  * On reconnect, tier and device state are refreshed via `/auth/me`.
 
 ## 8.3 iPad Enhanced UI
 
-* Split-screen + multi-panel layouts
-* Ideal for code review + preview
+* Split-screen + multi-panel layouts (e.g., Architecture Map + File Viewer)
+* Ideal for code review + map inspection + preview logs
+* Same sandbox preview + map viewer capabilities as mobile, with more screen real estate
+* Upgrade prompts and offline behavior identical to mobile
 
 ## 8.4 Editor Plugins
 
@@ -549,6 +721,14 @@ Proxy mode improves multi-file support.
 ---
 
 # 10. Admin System
+### Worker Failure Logging (Updated Requirement)
+Admin dashboard MUST log:
+- Worker crashes
+- Invalid preview bundles
+- Architecture Map extraction failures
+- Billing webhook validation failures
+- Sensor/camera permission-related preview failures
+
 
 Admin features:
 
@@ -594,6 +774,37 @@ Proxy Mode-specific:
 * Localhost-only proxy channel
 * Desktop handles JWT securely
 * Plugin can fail over safely
+
+---
+
+### 12.1 Account Lifecycle & Data Protection
+
+Account lifecycle must follow these rules:
+
+* **Account deletion (`DELETE /users/me`):**
+  * Requires password re-entry for Email/Password users, or recent re-authentication for Google/Apple.
+  * Marks the user as `pending_deletion` and enqueues a **Deletion Worker** job.
+  * The Deletion Worker:
+    * Purges personal profile data and OAuth links.
+    * Invalidates device tokens.
+    * Cleans up user-owned preview bundles and map versions in object storage.
+    * Triggers ownership transfer logic for any teams/projects the user owns.
+    * Cancels any active LemonSqueezy subscription for the account.
+* **Dormant account auto-deletion:**
+  * Backend tracks `last_active` for each user.
+  * A scheduled worker scans for:
+    * 12 months inactive → send warning email.
+    * 13 months inactive → run the same Deletion Worker pipeline as manual deletion.
+  * Team ownership transfer logic is invoked before destructive actions.
+* **GDPR-style data export (`GET /users/me/export`):**
+  * Returns a downloadable JSON bundle containing:
+    * Profile and settings.
+    * Linked OAuth provider metadata.
+    * High-level activity logs.
+    * Device list.
+  * Team-owned resources are excluded; only user-owned data is included.
+  * Operation is audited in the Admin system.
+
 
 ---
 
@@ -722,7 +933,10 @@ Admin controls thresholds.
 
 ---
 
-# 17. Replit Build Phase Rules (CRITICAL)
+# 17. Replit Build Phase Rules
+### Regeneration Scope Update
+Regenerate logic in Phases D, H, K, L, and N. No legacy logic may override these rules.
+ (CRITICAL)
 
 Phases A–O MUST:
 
@@ -778,6 +992,20 @@ Covers:
 * horizontal worker scaling
 * Robust fallback logic
 
+## 19.1 Legal & Policy Documents
+
+HiveSync must ship with the following written documents under `docs/legal/`:
+
+* `privacy_policy.md` — App Store–compliant privacy policy describing data collection, processing, and retention.
+* `terms_of_service.md` — Terms governing usage, limitations of liability, and acceptable use.
+* `data_handling_overview.md` — High-level description of data flows (auth, previews, architecture maps, logs, billing) required by Apple’s “Data Handling” review questions.
+* `account_lifecycle.md` — Human-readable summary of account deletion, dormant-account auto-deletion, and data export behavior.
+
+All clients (Desktop, Mobile, iPad, Web) must:
+
+* Link to these documents from Settings / Help.
+* Ensure wording is consistent with actual backend behavior described in this Master Specification.
+
 ---
 
 # 20. Summary
@@ -786,3 +1014,9 @@ This Master Specification is complete, merged, and authoritative.
 It includes all previously missing old-phase features, all new A–O content, and the restored Flexible Proxy Mode routing behavior.
 
 **This file governs the entire HiveSync build.**
+
+### Specification Pointer Map (Informational)
+- preview_system_spec.md
+- architecture_map_spec.md
+- ui_layout_guidelines.md
+- design_system.md

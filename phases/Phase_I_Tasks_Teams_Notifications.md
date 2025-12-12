@@ -23,6 +23,12 @@ Replit must read and rely on:
 * `/phases/Phase_F_Mobile_Tablet.md`
 * `/phases/Phase_G_Plugins.md`
 * `/docs/billing_and_payments.md`
+* `/docs/architecture_map_spec.md`
+* `/docs/preview_system_spec.md`
+* `/docs/design_system.md`
+* `/docs/cli_spec.md`
+* `/phases/Phase_L_Pricing_Tiers_and_Limits.md`
+
 
 These define all behaviors and UI expectations.
 
@@ -45,22 +51,53 @@ There are **two** roles, exactly:
 
 No extended role hierarchy exists (correct per recovered spec).
 
+### I.2.1.1 Ownership Transfer Rules (Required)
+
+When a project Owner deletes their account, becomes dormant, or loses eligibility (billing downgrade), the system MUST transfer ownership automatically using this order:
+
+1. The first invited member who has been active within the last 30 days.
+2. If none qualify, evaluate members in order of most recent activity.
+3. If no members remain, the project is deleted entirely.
+
+These rules are deterministic and MUST be logged in the Admin Dashboard.
+
+If the new Owner is on a Free tier and exceeds project limits, they must upgrade before generating new maps or previews.
+
 ## I.2.2 Team Permissions
 
-### Owner Can:
-
+**Owner Can:**
 * Invite users (via username or email)
 * Remove members
 * Delete project
 * Manage project settings
 
-### Members Can:
-
+**Members Can:**
 * View project
 * Edit tasks
 * Add comments
 * Request previews
 * Request AI Docs
+
+### I.2.2.1 Guest Mode Restrictions (Tier-Based)
+
+Free-tier users may join exactly **one** team and operate in **Guest Mode**:
+
+Guest Mode Capabilities:
+* View tasks
+* Add comments
+* View previews
+* View diffs
+* View notifications
+
+Guest Mode Restrictions:
+* Cannot generate architecture maps
+* Cannot request previews
+* Cannot edit code
+* Cannot upload large attachments (>5MB)
+* Cannot invite/remove team members
+
+If a guest user attempts a restricted action, clients MUST show an Upgrade Required modal.
+
 
 ## I.2.3 Invitation Flow
 
@@ -286,7 +323,6 @@ Admin-only notifications appear ONLY in Admin Dashboard.
 * Light display only (no heavy modals)
 * Plugins must surface preview_ready and ai_docs_ready as toast or banner notifications in the IDE environment for immediate visibility.
 
-
 ## I.4.8 Email & Slack Delivery (Optional)
 
 Using Resend and Slack API:
@@ -294,13 +330,34 @@ Using Resend and Slack API:
 * Admin receives alerts
 * Users may optionally opt-in (future improvement)
 
+### I.4.7 Architecture Map & External Resource Notifications (NEW)
+
+HiveSync MUST surface non-blocking notifications for Architecture Map diagnostics
+that relate to:
+
+1. **HTML/CSS Layer Extraction**
+* Notify the user if CIA could not compute influence lines due to malformed CSS.
+* Notify if selector muting could not be applied (Premium-only feature).
+
+2. **External Resource Reachability (Boundary Nodes)**
+The backend may include reachability metadata for external URLs.
+Notifications are informational and MUST NOT block editing.
+
+**Possible events:**
+* `external_resource_unreachable` – One or more Boundary Node URLs returned errors.
+* `external_resource_recovered` – URLs that previously failed are now reachable.
+* `external_resource_unchecked` – Reachability metadata unavailable (gray state).
+
+3. **Worker Limitations**
+Users MUST be informed when:
+* The worker falls back to AI parsing for unsupported languages.
+* CIA mode is downgraded due to tier limitations.
+
+All these notification types MUST be optional, non-intrusive, and dismissible.
+
 ---
 
-# -------------------------------
-
 # I.5. TIER LIMITS (Tasks, Teams, Notifications)
-
-# -------------------------------
 
 Replit must enforce tier behaviors:
 
@@ -322,9 +379,7 @@ Replit must enforce tier behaviors:
 ---
 
 # -------------------------------
-
 # I.6. Mapping 102 Feature Categories → Teams/Tasks/Notifications
-
 # -------------------------------
 
 This phase covers:

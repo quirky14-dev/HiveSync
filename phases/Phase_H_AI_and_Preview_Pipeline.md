@@ -20,10 +20,11 @@ Replit must read and rely on:
 * `/docs/backend_spec.md`
 * `/docs/security_hardening.md`
 * `/docs/deployment_bible.md`
-* `/docs/pricing_tiers.md`
+* `/phases/Phase_L_Pricing_Tiers_and_Limits.md`
 * `/phases/Phase_D_API_Endpoints.md`
 * `/phases/Phase_F_Mobile_Tablet.md`
 * `/phases/Phase_E_Desktop_Client.md`
+* `/docs/architecture_map_spec.md`  ← REQUIRED (HTML, CSS, CIA rules, parser modules, universal-language support)
 
 
 These define the required pipelines.
@@ -57,6 +58,15 @@ These define the required pipelines.
   * Token not expired
   * Worker ID authorized and active
 
+* Workers responsible for Architecture Map extraction MUST attach:
+
+* `parser_mode` field (`static` | `ai-assisted` | `mixed`)
+* `languages_detected`
+* `css_influence_mode` applied (`off` | `basic` | `deep`)
+
+This ensures backend/UI can correctly display metadata about parsing quality and mode.
+
+
 ### H.2.3 Tier-Based Routing
 
 * **Premium → GPU-enabled worker containers whenever beneficial**
@@ -65,11 +75,25 @@ These define the required pipelines.
 
 These routing rules apply to both **preview jobs** and **AI documentation jobs**, and must be enforced consistently by the backend/job dispatcher.
 
+### H.2.4 Tier-Based Multi-Device Limits (Required)
+
+Workers MUST expect that preview jobs may contain multiple device variants.
+
+Backend guarantees:
+* Free Tier → max 2 devices
+* Pro Tier → max 5 devices
+* Premium Tier → unlimited
+
+Workers MUST:
+* Handle a batch of device-context objects per preview job.
+* Produce one Layout JSON + asset set per device.
+* Never merge multiple devices into a single layout.
+
 ---
 
 ## H.3. Preview Pipeline (Sandbox Layout JSON Architecture)
 
-The Preview pipeline uses a **Sandbox Interactive Preview** model built on Layout JSON, snapshot assets, and a Local Component Engine (LCE) running on real devices.
+The Preview pipeline uses a **Sandbox Interactive Preview** model built on Layout JSON, snapshot assets, and a Local Component Engine (LCE: Local Component Engine) running on real devices.
 
 The pipeline consists of **five stages**:
 
@@ -112,7 +136,7 @@ This token is **stateless** and is later used by devices to fetch preview data (
 Worker containers **do not build bundles**. Instead, each worker:
 
 * Parses the relevant files and extracts React Native components.
-* Resolves styles into a **Layout JSON** representation compatible with Yoga/LCE.
+* Resolves styles into a **Layout JSON** representation compatible with Yoga/LCE (Local Component Engine).
 * Identifies non-mappable or complex components and renders them as **static snapshots** (PNG) stored in object storage.
 * Writes outputs to R2:
 
@@ -129,6 +153,193 @@ Worker containers **do not build bundles**. Instead, each worker:
   * Any relevant metadata (platform, tier, warnings)
 
 Workers MUST retry R2 uploads once on failure before marking the job as failed.
+
+### H.3.3.1 Preview Enhancements (Worker Responsibilities)
+
+Workers MUST support the expanded preview model introduced in Section 12:
+
+1. **Interpret device_context** from the preview job:
+   * model (virtual or real)
+   * DPR
+   * safe-area insets
+   * orientation
+   * viewport dimensions
+   * zoom-mode state
+   * platform
+
+2. **Honor sensor_flags**, but never execute real device logic:
+   * camera_available
+   * microphone_available
+   * accelerometer_available
+   * gyroscope_available
+   * gps_available  
+   Workers ONLY simulate behavior, never generate real sensor streams.
+
+3. **Multi-Device Rendering**
+   If a preview request includes multiple virtual devices:
+   * Worker must generate a separate `screen_id` per device.
+   * Layout JSON must include device-specific geometry.
+   * Each device’s output is stored independently in R2.
+
+4. **Event Flow Mode Awareness**
+   Workers must:
+   * Mark preview job as `eventflow_enabled` when passed via payload.
+   * Tag logs and final preview metadata accordingly.
+   * Store an empty eventflow session stub, filled later by mobile/tablet clients.
+
+### H.3.3.2 Architecture Map Worker Responsibilities (HTML, CSS, Any-Language Support)
+
+Workers responsible for Architecture Map extraction MUST support the expanded parsing and inference model defined in `architecture_map_spec.md`.
+
+#### 1. Universal Language Support
+Workers MUST:
+* Allow map requests for **any** project language.  
+* Use file extensions + lightweight scanning to determine which parser module to invoke.  
+* When no parser exists, return structured partial maps:
+  * File-level nodes
+  * Import/require heuristics
+  * Metadata flags indicating “inference mode”
+* Never block preview or build pipelines if a language is unsupported.
+
+AI-assisted parsing MUST be used only when:
+* Static parsing cannot determine relationships.
+* The requested file type is known (e.g., `.py`, `.go`, `.cs`) but parser module is incomplete.
+
+AI fallback MUST:
+* Stay bounded (max token + max lines).
+* Not execute code.
+* Only infer dependency relationships, not transformations.
+
+---
+
+#### 2. HTML Parsing Requirements
+Workers MUST statically extract:
+* HTML file nodes
+* Elements (tag names only, no DOM execution)
+* Class names
+* ID attributes
+* Asset references (`src`, `href`, `data-*`)
+* Script/link relationships for JS/CSS
+
+Workers MUST NOT:
+* Execute HTML  
+* Build DOM with layout/JS  
+* Fetch remote HTML  
+
+External HTML references MUST become boundary nodes.
+
+---
+
+#### 3. CSS Parsing Requirements
+Workers MUST statically extract:
+* Rule groups
+* Selectors
+* Properties
+* Specificity
+* Media queries
+* `@import` dependency graph
+
+Workers MUST return CSS → HTML influence edges when requested.
+
+Workers MUST NOT:
+* Execute CSS  
+* Resolve browser defaults  
+* Fetch remote CSS rulesets  
+
+External CSS URLs MUST become `css_external` nodes only.
+
+---
+
+#### 4. CSS Conflict & Lineage Analysis (CIA Mode)
+
+If the incoming worker job contains:
+`css_influence_mode: "basic" | "deep"`
+then workers MUST:
+
+**basic mode**
+* Generate edges for rule → HTML influence
+* Identify final applied rules (dominant after cascading + order)
+* Identify overridden rules (but without full lineage detail)
+
+**deep mode**
+* Compute full override lineage
+* Compute specificity dominance
+* Compute media-query conditions
+* Produce rule-level ancestry:
+  * inherited → overridden → dominant
+* Attach lineage metadata in graph output
+
+Tier rules (Phase L) MUST be enforced:
+* Free tier: `"off"` or `"basic"` only  
+* Pro tier: `"basic"`, `"deep"` optional  
+* Premium tier: full `"deep"` allowed  
+
+If a worker is passed `"deep"` without permission, worker MUST return:
+`error: TIER_UPGRADE_REQUIRED`
+
+---
+
+#### 5. Selector Muting Simulation (Optional Worker Mode)
+Workers MUST support selector-muting simulation hooks so that future endpoints may request:
+`muted_selectors: [...]`
+
+Workers MUST NOT modify user code; they only recompute lineage and influence metadata.
+
+---
+
+#### 6. Boundary Node Handling
+Workers MUST generate boundary nodes for:
+* External scripts (`https://cdn…`)
+* External CSS (`https://cdn…`)
+* HTML templates outside project (only record file path)
+
+Workers MUST NOT attempt to fetch or crawl external dependencies.
+
+---
+
+#### 7. Output Schema Requirements
+All extracted nodes MUST conform to the schema defined in `architecture_map_spec.md`:
+
+Node types to include:
+* `css_file`
+* `css_rule`
+* `css_selector`
+* `css_property`
+* `css_media`
+* `css_external`
+* `html_file`
+* `html_element`
+* ANY future language node types
+
+Edge types to include:
+* `css_import`
+* `css_applies_to`
+* `css_override`
+* `css_inherit`
+* `css_specificity`
+* `html_includes`
+* `html_references_asset`
+
+Workers MUST NOT invent new node/edge types beyond those defined in the spec.
+
+---
+
+#### 8. Performance Rules
+* CSS/HTML scanning MUST remain O(N) relative to file size.  
+* Deep CIA MUST be enabled only when requested.  
+* Workers MUST stop scanning CSS after a max rule threshold (configurable).
+
+---
+
+#### 9. Safety Rules
+Workers MUST:
+* Reject suspicious CSS (`url(javascript:…)`, malformed rules)  
+* Avoid following symbolic links outside project root  
+* Limit AI inference to safe contexts  
+
+No worker may fetch any external address during Architecture Map extraction.
+
+---
 
 ### **H.3.4 Stage 4 – Backend Validates Callback**
 
@@ -158,6 +369,233 @@ The HiveSync Mobile/iPad app:
 5. Streams **Preview Logs** (interactions, navigation events, warnings) back to the backend for later viewing in the Desktop/iPad Developer Diagnostics Panel.
 
 No device ever downloads a “bundle.zip” for this pipeline. Sandbox Interactive Preview is the **primary and only** preview mechanism planned in Phase H.
+
+### H.3.5.1 Event Flow Interaction Logging (Pipeline Requirements)
+
+The Event Flow logging pipeline must operate as follows:
+
+* Mobile/iPad POSTs interaction events to backend.
+* Backend writes events into:
+  * `eventflow_events` table  
+  * R2 logs under `logs/preview/{session_id}/{timestamp}.json`
+
+Workers MUST:
+* Treat Event Flow logs as read-only metadata.
+* Never attempt to validate event schema beyond JSON parse.
+* Never block preview completion due to Event Flow errors.
+
+Desktop/iPad Developer Diagnostics Panel relies on this data for live node animation.
+
+### H.3.6 Device Context Resolution (Real vs Virtual Mode)
+
+During Stage 5, the Mobile/iPad client MUST send a **device_context** object whenever it fetches Layout JSON or submits Sandbox Preview events.
+
+This context allows the backend and Worker Preview Job system to correctly log, diagnose, and interpret layout issues.
+
+#### H.3.6.1 Context Components
+
+The device_context MUST include:
+
+* `mode`: `"device"` or `"virtual"`.
+* `effective_device_model`:  
+  * `"iPhone 15"` for My Device mode  
+  * `"iPhone 14 Pro"` (or similar) when emulating a virtual preset.
+* `effective_os_version`:  
+  * Exact OS version used for layout, e.g., `"17.3"`.
+* `zoom_mode_enabled`:  
+  * Boolean flag when physical iOS device uses Display Zoom.
+* `viewport_width_px` / `viewport_height_px`:  
+  * The scaled virtual viewport dimensions after layout, not the physical screen size.
+* Optional debugging (pulled from settings):  
+  * Safe-area inset values  
+  * Pixel ratio  
+  * Aspect ratio  
+
+This device_context must be included in:
+
+* `GET /preview/screen/*` requests  
+* All `POST /preview/sandbox-event` logs  
+* Any optional preview-diagnostics endpoints
+
+#### H.3.6.2 Real Device Mode (Default Behavior)
+
+When the user has NOT chosen a virtual preset:
+
+* The Local Component Engine (LCE: Local Component Engine) uses the **physical device metrics** for layout:
+  * Physical resolution  
+  * Native pixel ratio  
+  * Actual safe areas (including dynamic island/notch/rounded corners)  
+  * Display Zoom flag (if applicable)
+* device_context MUST set:
+  * `mode = "device"`
+  * `effective_device_model` = detected hardware marketing name or model identifier  
+  * `effective_os_version` = actual iOS/Android build
+* Vertical panning is allowed if the rendered layout exceeds the visible viewport (no stretching, no letterboxing).
+
+#### H.3.6.3 Virtual Device Mode (Optional User Behavior)
+
+When the user selects a virtual preset on their Mobile/iPad:
+
+* LCE: Local Component Engine fetches the corresponding spec from the `device_specs` table.
+* Layout is computed using the **virtual device’s**:
+  * Logical resolution  
+  * Safe areas  
+  * Pixel ratio  
+  * Aspect ratio  
+  * Known OS version  
+* device_context MUST set:
+  * `mode = "virtual"`
+  * `effective_device_model` = virtual model name
+  * `effective_os_version` = resolved OS version (major/minor or "Auto")
+* Physical device determines:
+  * Width-scaling factor  
+  * Vertical panning offset (to reveal overflow)  
+  * Viewport shift when keyboard appears  
+  * Orientation changes (device rotates, virtual device reflows)
+
+Under no circumstances may the virtual device preview stretch or distort. The virtual frame MUST remain a 1:1 scaled representation of the real device’s layout space.
+
+#### H.3.6.4 Fallback Rules for Virtual Device Resolution
+
+When resolving virtual specs:
+
+1. Prefer exact match for brand + model + os_major + os_minor.  
+2. If missing, use the **most recent** spec for brand + model + os_major.  
+3. If still missing, fall back to the **generic hardware row** where OS fields are NULL.  
+4. Backend MUST NOT reject previews due to missing OS minor versions.
+
+The device_context MUST record the final resolved version used, including fallback, for accurate preview-diagnostics logs.
+
+#### H.3.6.5 Logging Requirements
+
+Every Sandbox event MUST include:
+
+{
+  "mode": "virtual",
+  "effective_device_model": "iPhone 14 Pro",
+  "effective_os_version": "17.3",
+  "zoom_mode_enabled": false
+}
+
+
+These logs appear in:
+
+* Developer Diagnostics Panel (Desktop / iPad)
+* Admin Dashboard device/session list
+* Worker preview session analysis logs
+
+This ensures that layout bugs can always be reproduced by selecting the same virtual device configuration.
+
+### H.3.6.6 Virtual Device Catalog Update Logic (New Required Section)
+
+When a real device submits layout metrics (safe areas, viewport dimensions, pixel ratio, OS version), the backend must update the `device_specs` table according to the following rules:
+
+---
+
+## 1. Uniqueness Key (Device Identity)
+A virtual-device catalog row is uniquely identified by:
+
+- `device_model`
+- `os_major`
+- `os_minor`
+
+This ensures one row per meaningful OS version where layout geometry may differ.
+
+---
+
+## 2. Behavior When a Matching Row *Already Exists*
+If a row exists where:
+
+- `device_model = incoming.model`
+- `os_major = incoming.os_major`
+- `os_minor = incoming.os_minor`
+
+Then:
+
+1. **Do NOT overwrite safe-area values if they already exist.**  
+2. **If safe-area fields are NULL, populate them** from the incoming values.  
+3. **If safe-area fields are NOT NULL**, compare values:  
+   - If difference < **4 px**, ignore (noise).  
+   - If > **4 px**, apply **rolling average**:  
+     ```
+     new_value = (existing_value * sample_count + incoming_value) / (sample_count + 1)
+     ```
+4. Increment `sample_count`.  
+5. Update `last_seen_timestamp = NOW()`.  
+
+---
+
+## 3. Behavior When NO Matching Row Exists (New Device or New OS Version)
+INSERT a new row only when:
+
+- Device model is not present, OR  
+- OS version (major/minor) unseen, OR  
+- Incoming safe areas differ > **8 px** from existing OS entries  
+
+New row fields populated from incoming device_context:
+
+- Safe areas  
+- Viewport dimensions  
+- Pixel ratio  
+- Aspect ratio  
+- Zoom mode  
+- sample_count = 1  
+- last_seen_timestamp = NOW()  
+
+---
+
+## 4. Android-Specific Handling
+- Start with NULL safe areas for all seeded Android devices.  
+- First real sample → populate all safe-area fields.  
+- Future samples → rolling average unless variance > threshold.  
+- New OS majors with significantly different geometry → new row.  
+
+---
+
+## 5. Conditions Where Updates Are IGNORED
+The backend must ignore updates when:
+
+- Device reports impossible values (e.g., safe_area_top=0 for a notched device).  
+- Differences exceed **50 px** from existing (likely faulty telemetry).  
+- Pixel ratio differs by > 0.5 (potential emulator).  
+
+This prevents catalog poisoning.
+
+---
+
+## 6. Summary of Behavior
+
+| Scenario | Action |
+|----------|--------|
+| Same model, same OS → stable geometry | Rolling average |
+| Same model, same OS → tiny delta (<4 px) | Ignore |
+| Same model, same OS → big delta (>8 px) | New row |
+| New OS major/minor | New row |
+| New hardware | New row |
+| Android variability | Average with thresholds |
+| Bad data | Ignored |
+
+This system keeps the device catalog small, correct, and self-improving without creating unnecessary rows.
+
+---
+
+### H.3.7 Visual Frame Consistency Rules (Glow, Notch, Outlines)
+
+Workers do not handle any of this, but the Mobile/iPad Preview Client MUST:
+
+* Draw a pulsing yellow/gold outline matching the **virtual device silhouette**:
+
+  * Outer rounded corners
+  * Notch or Dynamic Island outline
+  * Bottom gesture bar shape
+* Never draw outlines based on the physical phone shape when in Virtual mode.
+* Refresh outline pulse when:
+
+  * Switching device
+  * Rotating device
+  * Reloading preview
+
+This behavior is critical for visual correctness when emulating devices with different notches/cutouts than the physical hardware.
 
 ---
 
@@ -331,6 +769,53 @@ Backend MUST:
 * Validate preview token expiry before allowing access to Layout JSON or assets
 * Log all suspicious worker activity
 
+### H.8.1 External Resource Reachability – Worker vs Backend Responsibilities
+
+HiveSync supports optional reachability metadata for external resources (CSS, JS, HTML assets, fonts, images, JSON, remote APIs, or any absolute URL emitted as a Boundary Node in the Architecture Map).
+
+This feature MUST preserve the worker sandbox model:
+
+* Workers NEVER perform network requests for reachability.
+* ONLY the backend may run a safe, metadata-only HEAD check.
+
+**Worker Responsibilities:**
+
+Workers responsible for Architecture Map extraction MUST:
+
+* Parse external references statically.
+* Emit Boundary Nodes (e.g., `css_external`, `external_resource`) with URL and basic metadata only.
+* Never attempt HTTP requests, DNS lookups, or URL probing.
+* Treat reachability metadata as an optional field provided later by the backend.
+
+**Backend Responsibilities:**
+
+The backend MAY, for some or all Boundary Node URLs:
+
+* Perform an HTTPS `HEAD <url>` request.
+* Apply strict timeouts and global/user-level rate limits.
+* Avoid following redirects and avoid downloading bodies.
+* Store results as reachability metadata associated with the relevant Architecture Map version.
+
+Example metadata attached in map responses:
+
+```json
+"reachability": {
+  "https://cdn.example.com/main.css": {
+    "reachable": true,
+    "status_code": 200,
+    "checked_at": "2025-01-15T03:12:44Z"
+  }
+}
+````
+
+If no check is performed or if the result cannot be determined, backend MUST mark state as `"unknown"` or omit the URL from `reachability` entirely.
+
+**Security Constraints (Phase H Recap):**
+
+* No worker may call arbitrary URLs under any circumstances.
+* Only backend services may perform HEAD-only checks for external resources.
+* Backend MUST NOT execute, render, or parse content of external responses beyond basic headers.
+* This feature is diagnostic only and MUST NOT change routing, tier enforcement, or worker scheduling.
 
 ---
 

@@ -1,259 +1,379 @@
-# HiveSync CLI Specification (v1.0)
+# HiveSync CLI Specification (v1.1 — Locked)
 
-## Overview
-The HiveSync CLI provides a lightweight, scriptable interface for sending preview bundles
-to the HiveSync backend using the same Preview Pipeline defined in:
-
-- `/phases/Phase_H_Preview_AI_Pipeline.md`
-- `/docs/backend_spec.md`
-- `/docs/security_hardening.md`
-- `/docs/v3 Dir Structure Build & Production.md`
-
-The CLI is **not a replacement** for the Desktop Client.  
-It is an optional, developer-friendly trigger mechanism used by:
-
-- VSCode / JetBrains / Sublime plugins  
-- Terminal workflows  
-- CI pipelines  
-- Users who prefer command-line tooling  
-- Automated “Preview on Save” workflows  
-
-The CLI interacts *only* with existing backend API routes.  
-It introduces **no new backend endpoints**.
+> **Status:** Locked for backend / infra review
+>
+> This document defines the complete, supported scope of the HiveSync CLI. It supersedes v1.0 and incorporates backend‑oriented workflows, artifact capture/replay, and team‑safe usage patterns. It introduces **no new backend trust boundaries**.
 
 ---
 
-# 1. Installation
+## 0. Design Principles (Non‑Negotiable)
 
-The CLI will be distributed via NPM:
+* The CLI **does not execute user code**
+* The CLI **does not render UI**
+* The CLI **does not interpret frameworks**
+* The CLI **does not introduce new backend endpoints**
+* The CLI is a **stateless transport + orchestration client** with *local state for convenience only*
 
-```
+The CLI exists to:
+
+* collect project state
+* request preview authorization
+* upload preview inputs
+* capture, replay, and export client‑behavior artifacts
+
+All rendering, simulation, and execution occur in existing backend workers.
+
+---
+
+## 1. Installation
+
+Distributed via NPM:
+
+```bash
 npm install -g hivesync
 ```
 
-Executable entrypoint:
+Entrypoint:
 
-```
+```bash
 hivesync
 ```
 
 ---
 
-# 2. Command Structure
+## 2. Command Structure
 
-## 2.1 Base Command
-
-```
-hivesync <command> [options]
+```bash
+hivesync <command> [subcommand] [options]
 ```
 
-## 2.2 Available Commands
+CLI output defaults to human‑readable text. All commands support:
 
-### `preview`
-Sends a preview bundle of the current app/project directory.
+* `--json` (machine‑readable output)
+* deterministic exit codes
+
+---
+
+## 3. Authentication (Three Paths, Same Rules)
+
+> **Clarification for Builders (Replit):**
+> HiveSync intentionally separates *authentication surfaces* by responsibility. Daily work and collaboration (projects, teams, previews) occur in the **Desktop Client**. Security‑ and ownership‑level actions (API tokens, subscription status, account recovery) occur in a **Web Account Portal** (as defined in `docs/web_portal.md`). The CLI never performs interactive login; it authenticates only via Desktop Session Bridging or Personal API Tokens issued by the Web Account Portal. All surfaces share the same identity provider, user accounts, and backend auth rules.
+
+All CLI authentication follows existing provider and security rules. No CLI‑specific auth model exists.
+
+---
+
+### 3.1 Desktop Session Bridging (Default)
+
+Desktop Session Bridging is the **default** authentication path for the CLI.
+
+If the HiveSync Desktop Client is running, the CLI:
+
+* detects the local authenticated session
+* requests ephemeral preview permissions
+* performs all actions on behalf of the signed‑in user
+
+This requires no user input and no additional credentials.
+
+If Desktop Session Bridging is **not available**, the CLI MUST:
+
+* emit a clear, non‑fatal message
+* instruct the user to authenticate via a Personal API Token
+* provide a direct link to the Web Account Portal
+
+Example output:
+
+```
+No active HiveSync desktop session detected.
+Create a Personal API Token at:
+https://app.hivesync.dev/account/tokens
+```
+
+The CLI must not attempt interactive login flows.
+
+---
+
+### 3.2 Personal API Tokens
+
+Personal API Tokens are issued via the **Web Account Portal** and are used for:
+
+* CLI usage without the Desktop Client
+* CI / automation
+* headless environments
+
+Tokens:
+
+* are shown once at creation
+* are revocable instantly
+* inherit user tier limits
+* do not grant admin privileges
 
 Usage:
 
-```
+```bash
+export HIVESYNC_API_TOKEN=<token>
 hivesync preview .
 ```
 
-Optional arguments:
+CLI flag override:
 
-```
---path <dir>         Specify project directory
---token <api_token>  Use personal API token instead of desktop session
---silent             Minimal output
---json               Output machine-readable JSON
-```
-
----
-
-# 3. Authentication
-
-The CLI supports **two authentication methods**:
-
-## 3.1 Desktop Session Authentication (Preferred)
-If the HiveSync Desktop Client is running, the CLI will:
-
-- detect local session via localhost session endpoint  
-- retrieve temporary preview permissions  
-- use the desktop session to initiate preview  
-
-This mirrors how plugins authenticate.
-
-## 3.2 Personal API Token
-Users may generate an API token from the HiveSync dashboard.
-
-Environment variable:
-
-```
-HIVESYNC_API_TOKEN=<token>
-```
-
-CLI flag overrides env var:
-
-```
+```bash
 --token <value>
 ```
 
-Token permissions follow `/docs/security_hardening.md`.
+---
+
+### 3.3 CI / Non‑Interactive Mode
+
+```bash
+hivesync preview . --ci
+```
+
+CI mode disables:
+
+* QR output
+* spinners
+* interactive prompts
 
 ---
 
-# 4. Preview Flow (CLI → Backend → Worker → Device)
+## 4. Local State & History
 
-### Step 1 — CLI requests preview token  
-`POST /preview/token` (existing API)  
-The CLI sends:
-
-- project metadata  
-- user identity (via desktop session OR API token)
-
-The backend issues a **Preview Token** + **R2 presigned upload URL**.
-
-### Step 2 — CLI builds bundle  
-Bundle assembly is guided by:
-
-- project type  
-- layout analyzer rules (already defined in pipeline docs)  
-
-The CLI does **not** perform code execution.  
-It only collects files required for preview.
-
-### Step 3 — CLI uploads bundle to R2  
-Uses presigned URL from Step 1.
-
-### Step 4 — Worker renders preview  
-Worker callback posts to:
+The CLI maintains a **local registry** for usability only:
 
 ```
-/workers/callback
+~/.hivesync/
+  history.json
+  artifacts.json
 ```
 
-as defined in Phase H.
+Stored metadata includes:
 
-### Step 5 — Device fetches preview  
-Mobile/Tablets fetch via existing viewer flows.
+* preview ID
+* timestamp
+* label
+* git commit (if available)
+* environment
+* status
 
-### No new backend logic is required.
+This enables shorthand references:
+
+```bash
+--last
+--id <n>
+--label <text>
+```
+
+Manual token entry is always optional.
 
 ---
 
-# 5. Output Formats
+## 5. Core Commands
 
-## 5.1 Standard Output
-Human-readable:
+### 5.1 Preview
 
-```
-✔ Preview sent successfully!
-Scan this QR code to view on your device:
-<qr-code>
-Or open:
-https://app.hivesync.dev/preview/<token>
+```bash
+hivesync preview [path]
 ```
 
-## 5.2 JSON Output
-For plugins / CI systems:
+Options:
 
-```
-{
-  "status": "ok",
-  "previewToken": "...",
-  "expires": "...",
-  "qr": "base64string",
-  "url": "https://..."
-}
-```
+* `--path <dir>`
+* `--label <text>`
+* `--channel <device|profile>`
+* `--env <staging|prod|custom>`
+* `--diff‑only`
+* `--from git:<ref>`
+* `--since <preview|git‑ref>`
+* `--ci`
+* `--silent`
+* `--json`
+
+The CLI collects project state and uploads it via presigned URLs. It does not execute code.
 
 ---
 
-# 6. Plugin Integration
+### 5.2 Inspect (Dry‑Run)
 
-Plugins may invoke CLI:
-
-```
-hivesync preview <workspace_dir> --json
-```
-
-If CLI is missing, fall back to Desktop Proxy Mode.
-
-Plugin integration rules are added in:
-- `/phases/Phase_G_Plugin_Architecture.md`
-
----
-
-# 7. Desktop Integration (Optional)
-
-Desktop may:
-- read preview history  
-- detect CLI jobs  
-- show live preview list  
-
-The desktop-client spec update provides a small hook.
-
----
-
-# 8. Error Handling
-
-CLI must follow `/docs/security_hardening.md` rules.
-
-Common errors:
-- invalid API token  
-- missing desktop session  
-- upload failure  
-- presigned URL expired  
-- worker timeout  
-
-CLI should exit with code:
-- `0` success  
-- `1` general error  
-- `2` auth error  
-- `3` connection error  
-
----
-
-# 9. Logging
-
-CLI supports verbose mode:
-
-```
---debug
+```bash
+hivesync inspect [path]
 ```
 
 Outputs:
-- request metadata  
-- response times  
-- worker job ID  
-- callback verification status  
+
+* detected project types
+* included / ignored paths
+* estimated payload size
+* expected worker class
+* estimated latency tier
+
+Options:
+
+* `--json`
+* `--diff‑only`
+* `--bundle‑manifest`
 
 ---
 
-# 10. Versioning
+## 6. Artifacts (Backend‑Centric)
 
-CLI version must be included in:
+> **Artifact:** An immutable, replayable record of client behavior produced by a preview.
 
-- preview token request  
-- backend logs  
-- worker logs  
+### 6.1 Capture
 
-Field:
+```bash
+hivesync capture --last
+hivesync capture <preview‑id>
+```
+
+Freezes:
+
+* request / response behavior
+* timing
+* device profile
+* metadata
+
+---
+
+### 6.2 Replay
+
+```bash
+hivesync replay <artifact|preview‑id>
+```
+
+Options:
+
+* `--against <env>`
+* `--ci`
+
+---
+
+### 6.3 Diff
+
+```bash
+hivesync diff <artifact> --against <artifact|env>
+```
+
+Shows:
+
+* request shape drift
+* missing fields
+* enum changes
+* timing deltas
+
+---
+
+## 7. Export & Evidence
+
+```bash
+hivesync export <artifact|preview‑id>
+```
+
+Options:
+
+* `--format json`
+* `--attach logs`
+* `--attach requests`
+
+---
+
+## 8. Team & Sharing
+
+```bash
+hivesync share <artifact> --with backend
+hivesync share <artifact> --with frontend
+```
+
+Sharing grants visibility only. Artifacts remain immutable.
+
+---
+
+## 9. Architecture Mapping
+
+```bash
+hivesync map
+```
+
+Options:
+
+* `--json`
+* `--from <artifact|preview>`
+* `--focus backend`
+* `--focus requests`
+
+---
+
+## 10. Logs & Observability
+
+```bash
+hivesync logs <preview‑id>
+```
+
+Options:
+
+* `--requests`
+* `--timing`
+* `--errors`
+
+---
+
+## 11. Automation & CI
+
+```bash
+hivesync status <preview‑id>
+hivesync history
+```
+
+History supports:
+
+* `--json`
+
+---
+
+## 12. Exit Codes
+
+* `0` success
+* `1` general error
+* `2` authentication error
+* `3` connection error
+
+---
+
+## 13. Security Guarantees
+
+The CLI enforces:
+
+* no code execution
+* no filesystem access outside project root
+* no long‑lived auth material
+* tier‑based rate limiting
+* signed uploads only
+
+All security behavior aligns with `/docs/security_hardening.md`.
+
+---
+
+## 14. Versioning & Telemetry
+
+Each request includes:
 
 ```
-hivesync_cli_version: "1.0.x"
+hivesync_cli_version: "1.1.x"
 ```
 
----
-
-# 11. Security
-
-CLI must obey:
-- no code execution  
-- no arbitrary file reading outside project directory  
-- no long-lived authentication tokens  
-- rate limiting rules  
-- signing rules from `security_hardening.md`
+Logged in backend, workers, and audit trails.
 
 ---
 
-# End of CLI Spec (v1.0)
+## 15. Non‑Goals
+
+The CLI explicitly does **not**:
+
+* replace the Desktop Client
+* replace plugins
+* act as a UI debugging tool
+* provide framework‑specific execution
+
+---
+
+**End of HiveSync CLI Specification (v1.1 — Locked)**

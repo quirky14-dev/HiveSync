@@ -23,6 +23,11 @@ Replit must read and rely on:
 * `/docs/master_spec.md`
 * `/docs/billing_and_payments.md`
 * `/docs/architecture_overview.md`
+* `/docs/architecture_map_spec.md`
+* `/docs/preview_system_spec.md`
+* `/docs/ui_authentication.md`
+* `/docs/design_system.md`
+* `/phases/Phase_L_Pricing_Tiers_and_Limits.md`
 
 ---
 
@@ -168,11 +173,7 @@ Desktop and Mobile binaries must NEVER contain API keys or secrets; only public 
 
 ---
 
-# -------------------------------
-
 # N.4. DOCKER & DOCKER COMPOSE STRUCTURE
-
-# -------------------------------
 
 Replit must plan, but NOT generate yet:
 
@@ -198,11 +199,7 @@ Workers NOT included in compose.
 
 ---
 
-# -------------------------------
-
 # N.5. LINODE DEPLOYMENT MODEL
-
-# -------------------------------
 
 ### **N.5.1 Linode Server Requirements**
 
@@ -235,13 +232,42 @@ Allow:
 Start: 2GB → 4GB RAM server
 Upgrade later as usage grows.
 
+### **N.5.5 External Resource Reachability (Backend-Only Enforcement)**
+
+The generated backend MUST:
+
+* Implement optional HEAD-only reachability checks.
+* Never download external resource bodies.
+* Attach reachability metadata to Architecture Map responses.
+* Include: `reachable`, `status_code`, `checked_at`, `error`.
+
+The generated workers MUST:
+
+* NEVER perform reachability checks.
+* ONLY emit Boundary Nodes for external URLs based on static parsing.
+* Treat external URLs as opaque values.
+
+### **N.5.6 HTML/CSS Layers & CIA Requirements**
+
+The generated worker MUST:
+
+* Parse HTML nodes (element hierarchy, IDs, classes, attributes).
+* Parse CSS selectors, rule blocks, media queries.
+* Build influence edges from selectors → HTML elements.
+* Support:
+  - Basic CIA for all tiers.
+  - Deep CIA & selector muting for Premium.
+
+Workers MUST NOT:
+* Fetch external CSS/JS.
+* Execute JavaScript.
+* Evaluate inline event handlers.
+
+
+
 ---
 
-# -------------------------------
-
 # N.6. CLOUDFLARE WORKER DEPLOYMENT
-
-# -------------------------------
 
 ### **N.6.1 Workers to Deploy**
 
@@ -295,13 +321,26 @@ Workers MUST sign callbacks with HMAC:
 * Backend checks signature
 * Rejects mismatched timestamps
 
+### **N.6.5 Deployment Requirements (Required)**
+
+Deployments MUST ensure the backend and worker pipeline fully support the expanded Section 12 preview model:
+
+* Workers MUST have sufficient CPU/memory to handle multi-device preview batches.
+* R2 MUST store one artifact set per device variant under:
+  `previews/{job_id}/{device_id}/...`
+* Worker → Backend callbacks MUST include device_context and sensor_flags payloads.
+* Event Flow Mode MUST be supported in production:
+  * Event logs stored in `logs/preview/{job_id}/events/`
+  * Backend must accept `POST /events` calls from mobile/tablet.
+* NGINX or Cloudflare MUST NOT block SSE/WebSocket channels if Event Flow transitions to live streaming later.
+* Device-context validation errors MUST appear in production logs.
+* R2 lifecycle rules MUST apply separately to each device-specific output folder.
+
+These requirements ensure previews behave identically between local, Docker, and Linode deployments.
+
 ---
 
-# -------------------------------
-
 # N.7. DATABASE MIGRATIONS
-
-# -------------------------------
 
 ### **N.7.1 Tooling**
 
@@ -353,13 +392,18 @@ Cleanup routines must run in the backend only. Cloudflare Cron is not used in th
   * created_at
 * This cleanup requirement is enforced in Phase O as part of final guardrail checks.
 
+### N.7.5 New Tier Enforcement (HTML/CSS/CIA)
+
+Tier behavior MUST be preserved:
+* **Free Tier** — basic HTML/CSS nodes + Basic CIA.
+* **Pro Tier** — adds map diff + deeper history.
+* **Premium Tier** — Deep CIA + selector muting.
+
+Reachability indicators MUST be available for all tiers.
+
 ---
 
-# -------------------------------
-
 # N.8. NGINX / REVERSE PROXY REQUIREMENTS
-
-# -------------------------------
 
 Proxy /api/v1/preview/sandbox-event to backend. SSE or WebSocket upgrade must be allowed if implemented.
 Backend must enable CORS for Desktop and Plugin origins.
@@ -373,14 +417,9 @@ Replit must prepare config rules:
 
 SSL/TLS must be enforced end-to-end. In production behind Cloudflare, Cloudflare manages the public certificate at the edge; the origin NGINX instance should also use a valid certificate (e.g., Let’s Encrypt or a Cloudflare origin cert) so that Cloudflare → origin traffic is encrypted.
 
-
 ---
 
-# -------------------------------
-
 # N.9. SECRETS MANAGEMENT
-
-# -------------------------------
 
 * No secrets stored in repo
 * `.env` and `.env.production` must be ignored
@@ -390,11 +429,7 @@ SSL/TLS must be enforced end-to-end. In production behind Cloudflare, Cloudflare
 
 ---
 
-# -------------------------------
-
 # N.10. RELEASE ARTIFACTS
-
-# -------------------------------
 
 Replit must plan creation of:
 
@@ -409,11 +444,7 @@ But MUST NOT generate them yet.
 
 ---
 
-# -------------------------------
-
 # N.11. INSTALLATION & BOOTSTRAP
-
-# -------------------------------
 
 ### Backend bootstrap:
 
@@ -432,11 +463,7 @@ But MUST NOT generate them yet.
 
 ---
 
-# -------------------------------
-
 # N.12. CHECKS BEFORE Phase O (Final Guardrails)
-
-# -------------------------------
 
 Before moving to Phase O, Replit must confirm:
 
@@ -447,6 +474,13 @@ Before moving to Phase O, Replit must confirm:
 * Migration system scoped
 * All clients have deployment considerations
 * Docker + Linode + Cloudflare readiness established
+
+* Tier enforcement rules from Phase L confirmed in deployment:
+  * Preview device-limit caps applied (2 / 5 / unlimited)
+  * Architecture Map generation restricted per tier
+  * Diff/History restricted per tier
+  * Guest Mode limitations enforced
+  * Upgrade-required responses configured correctly for production
 
 Only after all these conditions are met should Phase O begin.
 

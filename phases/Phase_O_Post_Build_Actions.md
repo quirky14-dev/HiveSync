@@ -144,6 +144,70 @@ No skipping.
 Replit must not output the entire codebase in one shot.
 It must produce code chunk‑by‑chunk, module‑by‑module.
 
+### O.2.19 Section 12 Preview System Guardrails (Required)
+
+Replit MUST implement the preview system exactly as defined in:
+
+* `/docs/preview_system_spec.md`
+* `/phases/Phase_D_API_Endpoints.md`
+* `/phases/Phase_F_Mobile_Tablet.md`
+* `/phases/Phase_E_Desktop_Client.md`
+* `/phases/Phase_H_AI_and_Preview_Pipeline.md`
+* `/phases/Phase_L_Pricing_Tiers_and_Limits.md`
+
+Strict rules:
+
+1. Backend MUST accept and validate `device_context`.
+2. Backend MUST accept and validate `sensor_flags`.
+3. Workers MUST generate one preview output per device variant.
+4. Workers MUST NOT collapse multiple devices into a single layout.
+5. Clients MUST NOT omit required device_context fields.
+6. No real sensor data may ever be uploaded — only UI simulation flags.
+7. Multi-device limits must be strictly enforced:
+   * Free = 2 devices
+   * Pro = 5 devices
+   * Premium = unlimited
+8. Event Flow Mode MUST be supported end-to-end (Map → Desktop → Mobile → Backend → Worker → Admin Logs).
+
+Replit MUST NOT simplify, shorten, or partially implement any part of Section 12.
+
+### O.2.20 Authentication Provider Guardrail (Required)
+
+Replit MUST implement ONLY the following authentication providers:
+
+* Email + Password  
+* Google Sign-In  
+* Apple Sign-In  
+
+Replit MUST NOT generate endpoints, UI buttons, flows, or integrations for:
+
+* GitHub  
+* Twitter  
+* Facebook  
+* Microsoft  
+* Any OAuth provider not explicitly listed above
+
+### O.2.21 Tier Enforcement Guardrails (Required)
+
+Replit MUST enforce all tier restrictions exactly as defined in:
+
+* `/phases/Phase_L_Pricing_Tiers_and_Limits.md`
+
+Tier restrictions include:
+
+* Multi-device preview limits  
+* Architecture Map access limits  
+* Diff/History access limits  
+* Guest-mode read-only restrictions  
+* AI generation limits  
+* Notification/task restrictions (where applicable)
+
+Backend MUST return structured `UPGRADE_REQUIRED` errors when limits are exceeded.
+
+Workers MUST size workloads based on tier.
+
+Clients MUST NOT unlock premium-tier behaviors unless tier = Premium.
+
 ---
 
 # -------------------------------
@@ -184,6 +248,31 @@ Backend must include:
 * `backend/app/workers/*.py` (local stubs)
 * `backend/app/security/*.py`
 * `backend/app/utils/*.py`
+
+### O.3.1 Architecture Map Guardrails (Required)
+
+Replit MUST implement the Architecture Map system exactly as defined in:
+
+* `/docs/architecture_map_spec.md`
+* `/phases/Phase_D_API_Endpoints.md`
+* `/phases/Phase_H_AI_and_Preview_Pipeline.md`
+* `/phases/Phase_L_Pricing_Tiers_and_Limits.md`
+
+Rules:
+
+1. Map extraction MUST occur in workers, not backend.
+2. Incremental graph updates MUST be implemented.
+3. Map JSON schema MUST match the spec exactly.
+4. Map diffing MUST be implemented for Premium tier.
+5. Broken imports / missing files MUST appear as error nodes.
+6. Workers MUST version maps correctly and push to R2.
+7. Backend MUST return correct map versions and diffs.
+
+Replit MUST NOT:
+* invent node/edge types  
+* alter schema fields  
+* merge map with preview layout  
+* omit incremental updates  
 
 ---
 

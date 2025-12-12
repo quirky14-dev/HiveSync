@@ -22,10 +22,16 @@ Replit must read and internalize, without modifying:
 * `/docs/deployment_bible.md`
 * `/docs/security_hardening.md`
 * `/docs/admin_dashboard_spec.md`
-* `/docs/pricing_tiers.md`
 * `/docs/faq_entries.md`
 * `/docs/alerting_and_monitoring.md`
 * `/kickoff/kickoff_rules.md`
+* `/docs/architecture_map_spec.md`
+* `/docs/preview_system_spec.md`
+* `/docs/design_system.md`
+* `/docs/ui_authentication.md`
+* `/docs/onboarding_ux_spec.md`
+* `/docs/billing_and_payments.md`
+* `/docs/cli_spec.md`
 
 Replit should treat these as **authoritative design documents**.
 
@@ -168,6 +174,11 @@ Replit must ensure that **all of the following feature categories** are implemen
 * Clear errors for unsupported preview types.
 * Single automatic retry for timeouts.
 * Optional preview "safe mode" for degraded output.
+* Architecture Map–aware previews and Event Flow Mode for eligible tiers.
+* Use of `device_context` (model, DPR, safe-area insets, orientation) for accurate layout.
+* Multi-device preview support (carousel and grid) with tier-based device limits.
+* Optional sensor-driven UI simulation for previews (camera, microphone waveform, accelerometer, gyroscope, GPS), without ever running user code on real sensor data.
+
 
 ### A.5.4 Plugins & Desktop Behavior
 
@@ -189,6 +200,7 @@ Replit must ensure that **all of the following feature categories** are implemen
 * Suspicious login detection & alert.
 * Device sessions list & session invalidation.
 * Tier-based API rate-limits (numeric thresholds defined later).
+* Authentication provider restriction: only Email + Password, Google Sign-In, and Apple Sign-In are allowed; no other OAuth providers.
 
 ### A.5.7 Pricing & Tiers
 

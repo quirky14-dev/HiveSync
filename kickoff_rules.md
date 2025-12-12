@@ -1,283 +1,282 @@
-# Kickoff Rules for Replit Build (HiveSync)
+# kickoff_rules.md
 
-> **These rules MUST be read by Replit BEFORE Phase A begins.**
-> They define how Replit behaves during the entire build and prevent hallucination, skipped steps, or incorrect directory writes.
-> These rules apply globally across all phases.
+This document contains the **kickoff_rules.md** written to:
 
----
-
-# 1. General Behavior Rules
-
-1. **Do NOT generate any application code until a Phase instructs you to.**
-2. **Follow phases in exact order: A → B → C → … → O.**
-3. After completing a phase, **stop output** and wait for the user to type `next`.
-4. **Use ONLY information contained in:**
-
-   * `/phases/` directory
-   * `/docs/` directory
-   * `/env_templates/` directory
-   * `/kickoff/` directory
-5. **Never infer or invent missing functionality.** If something is unclear, state the ambiguity instead of guessing.
-6. **All architecture decisions in `/docs/` override assumptions.**
-7. **All implementation details in `/phases/` override `/docs/`.**
-8. If `/docs/` and `/phases/` conflict, **ask the user before proceeding.**
+* incorporate ALL new systems (HTML/CSS layers, CIA, selector muting)
+* incorporate external resource reachability (backend-only HEAD checks)
+* correctly divide backend vs worker responsibilities
+* enforce non-overwrite rules
+* direct Replit through the full multi-phase build
+* explicitly reference `/docs` and `/phases` as canonical
+* prevent any destructive file regeneration
+* include final Phase N constraints
 
 ---
 
-# 2. Directory Write Rules
+# HiveSync Kickoff Rules (Final, Unified Build Contract)
 
-Replit MUST obey the following constraints:
+Authoritative instructions for Replit/GPT during multi-phase HiveSync code generation.
 
-### Allowed write directories DURING BUILD:
+These rules DEFINE and RESTRICT:
 
-* `/backend/` (only after Phase D)
-* `/worker/` (only after Phase H)
-* `/desktop/` (only after Phase E)
-* `/mobile/` and `/ipad/` (only after Phase F)
-* `/plugins/` (only after Phase G)
-* `/admin/` (only after Phase J)
+* what Replit may generate
+* what Replit may overwrite
+* how phases execute
+* how the architecture map, CIA, reachability, preview system, auth, billing, diff, teams, and deletion flows MUST behave
+* where worker vs backend responsibilities lie
+* all HTML/CSS/CIA and Reachability behavior
 
-### Forbidden before their phases:
-
-* Do NOT create or modify `/backend/` before Phase D.
-* Do NOT create or modify `/desktop/` before Phase E.
-* Do NOT create or modify `/mobile/` or `/ipad/` before Phase F.
-* Do NOT create or modify `/plugins/` before Phase G.
-* Do NOT create or modify `/worker/` before Phase H.
-* Do NOT create or modify `/admin/` before Phase J.
-
-### ALWAYS allowed:
-
-* `/phases/` (read-only)
-* `/docs/` (read-only)
-* `/env_templates/` (read-only)
-* `/kickoff/` (read-only)
-
-### NEVER allowed:
-
-* Overwriting phase files
-* Altering documentation files
-* Altering kickoff files
-* Creating files outside the allowed directories
-
-## 2.1 Overwrite Protection & Version-Aware Write Rules
-
-To ensure the build remains stable, deterministic, and non-destructive,  
-Replit MUST obey the following overwrite protection rules:
-
-### 2.1.1 Existing File Protection
-Replit must NOT overwrite any existing file unless the phase explicitly includes the instruction:
-
-> “Regenerate this file completely.”
-
-If regeneration is not explicitly requested:
-- Existing files must be treated as authoritative.
-- User-modified files must be preserved exactly.
-- Updates must be appended or inserted only in the specific sections the phase directs.
-
-### 2.1.2 Allowed Write Behavior (When Updating Existing Files)
-If a phase instructs modifying a file:
-- Modify ONLY the specified section.
-- Do NOT reformat the rest of the file.
-- Do NOT reorganize imports, headings, or comments outside the target section.
-- Do NOT rewrite the entire file unless explicitly told to.
-
-### 2.1.3 Forbidden Behaviors
-Replit must NEVER:
-- overwrite files by assumption,
-- “improve” or “refactor” existing code or docs,
-- auto-expand placeholders,
-- auto-complete missing logic,
-- reinterpret ambiguous instructions,
-- reflow markdown or reorder content not described in the phase.
-
-### 2.1.4 Path Safety Enforcement
-Replit must NOT:
-- create new directories outside the allowed list in Section 2,
-- move or rename files,
-- delete any file,
-- collapse folder structure,
-unless the current phase contains explicit instructions authorizing it.
-
-### 2.1.5 Version Awareness
-Replit must behave as if all existing files were created by previous successful phase runs.  
-Therefore, Replit must:
-- assume all files are valid unless the phase says otherwise,
-- preserve all content unless a targeted update is provided,
-- consider user edits as final and not subject to regeneration.
-
-### 2.1.6 No Implicit File Generation
-Replit must NOT generate:
-- “missing files,”
-- “helpful additional files,”
-- “support files,”
-- “common patterns,”
-unless the phase explicitly instructs such file creation.
-
-Only files that the phase commands should be created.
-
+Replit MUST treat these rules as **law**.
 
 ---
 
-# 3. Technology Stack Enforcement
+# 1. GLOBAL AUTHORITATIVE SOURCES
 
-Replit must use the following exact technologies:
+1.1 `/docs/` and `/phases/` are the **canonical source of truth** for ALL logic, including:
 
-### Backend
+* Authentication (Email/Google/Apple only)
+* Billing and tier enforcement
+* Worker pipelines (map, preview, deletion, dormant cleanup)
+* Architecture Map (code, HTML, CSS, CIA, selector muting)
+* External Resource Reachability
+* UI flows across Desktop/Mobile/Plugin
+* Security hardening
+* Preview pipeline & Event Flow mode
+* Logs/analytics/observability
 
-* **Python 3.12+**
-* **FastAPI**
-* **PostgreSQL**
-* **Redis**
-* **R2 object storage** (Cloudflare)
-* **Resend** for email
+1.2 If ANY other file contradicts the `/docs` folder, `/docs` overrides.
 
-### Desktop
+1.3 If ANY ambiguity exists, Replit must **NOT invent or infer** missing logic. It MUST:
 
-* **Electron**
-* Local desktop API server on `127.0.0.1:{dynamic_port}`
-* Plugin installer (included, optional during desktop client installation)
-
-### Workers
-
-* Python 3.12 worker containers (CPU and optional GPU variants)
-* Handle Preview Pipeline (Layout JSON + snapshot rendering) and AI Documentation jobs
-* Communicate with backend via signed HTTPS callbacks using WORKER_CALLBACK_SECRET
-* Use Cloudflare R2 for Layout JSON, snapshot assets, and AI artifacts
-
-### Mobile/iPad
-
-* React Native (HiveSync-managed RN app; no Expo client required)
-* HiveSync Local Component Engine (Yoga-based Sandbox Preview renderer)
-* iPad includes enhanced development panels (Developer Diagnostics Panel)
-
-
-### Editor Plugins
-
-* **VS Code**, **JetBrains**, **Sublime**, **Vim**
+* follow the docs exactly
+* or halt and wait for clarification
 
 ---
 
-# 4. System Architecture Rules
+# 2. NON‑OVERWRITE RULES (CRITICAL)
 
-1. **Backend lives on Linode** (production model).
-2. **Workers run as Python containers (CPU/GPU) deployed on Linode/AWS/GCP and communicate with the backend via signed HTTPS callbacks (HMAC using WORKER_CALLBACK_SECRET).**
-3. **Sandbox Interactive Preview (Layout JSON + snapshot assets) is the primary, fully stateless preview system.**
-4. **Plugins must prefer Proxy Mode** (Plugin → Desktop → Backend).
-5. **Mobile/iPad always talk directly to backend.**
-6. **Desktop is the canonical UX for large features.**
-7. **Admin dashboard is served by backend.**
+2.1 Replit MUST NOT regenerate any file unless the active phase contains the EXACT instruction:
 
----
+```
+Regenerate this file completely.
+```
 
-# 5. Security Rules
+2.2 Without that literal phrase, the file is **read-only**.
 
-1. **No WebSockets. Use SSE for streaming.**
-2. **JWT-based auth only.**
-3. **Stateless preview tokens must be used.**
-4. **Workers authenticate callbacks using WORKER_CALLBACK_SECRET (HMAC). No other worker secret names are permitted.**
-5. **Never log object storage credentials.**
-6. **Do not output secrets into code comments.**
-7. **Use tier rules from Phase L for access control.**
+2.3 When regenerating:
+
+* Discard ALL previous content
+* Rebuild from `/docs`, `/phases`, and these kickoff rules
+* DO NOT merge or preserve placeholder code
+
+2.4 Replit MUST NOT refactor, optimize, restructure, reorder, or rename files unless explicitly instructed.
+
+2.5 Replit MUST NOT “improve UX” or “fix patterns” unless the phase specifies it.
 
 ---
 
-# 6. Pricing Tier Rules
+# 3. PHASE EXECUTION RULES
 
-Replit must:
+3.1 Phases MUST execute sequentially:
+A → B → C → … → N → O.
 
-1. Implement Free, Pro, Premium tiers.
-2. Apply tier-based limits defined in Phase L.
-3. Route Premium preview snapshot-rendering tasks to GPU-enabled workers when applicable.
-4. Apply queue priority rules:
+3.2 Phases MUST NOT be skipped, merged, or reordered.
 
-   * Premium → highest
-   * Pro → medium
-   * Free → lowest
-5. Enforce tier-based job size/timeouts.
+3.3 Each phase may:
 
----
+* create files
+* apply targeted patches
+* request regenerations
+* validate behavior
 
-# 7. Refactor + AI Documentation Rules
-
-1. **Multi-file refactor = sequential single-file jobs** (client batching).
-2. Backend receives ONE file per job.
-3. Workers process each file independently.
-4. Desktop/Plugins aggregate results.
-5. AI jobs run on worker containers and use the configured AI provider (OpenAI or local model).
-6. Tier-based logic must apply.
+3.4 Replit MUST implement the EXACT output states described in the phase it is executing.
 
 ---
 
-# 8. Preview Pipeline Rules
+# 4. BACKEND RULES (INCLUDING REACHABILITY & CIA)
 
-1. Preview jobs run on HiveSync Worker containers (CPU/GPU), not Cloudflare Workers.
-2. The primary preview system is Sandbox Interactive Preview:
-   - Workers generate Layout JSON.
-   - Workers produce snapshot images for unsupported custom components.
-   - Backend issues short-lived preview tokens granting access to JSON + assets.
-   - Mobile/iPad render UI using the Local Component Engine and Yoga.
-3. Premium tier may route snapshot rendering to GPU-enabled workers for faster turnaround.
-4. Workers must post callbacks to `/api/v1/worker/callback` with HMAC signatures using WORKER_CALLBACK_SECRET.
-5. Backend validates callback signatures and enforces tier-based limits (JSON size, snapshot count, recomposition rate).
+4.1 Replit MUST follow all backend behaviors defined in:
 
+* `backend_spec.md`
+* `architecture_map_spec.md`
+* `preview_system_spec.md`
+* `billing_and_payments.md`
+* `dormant_account_and_user_deletion.md`
+* `security_hardening.md`
 
----
+4.2 Backend MUST:
 
-# 9. Alerting Rules
+* implement optional **HEAD-only** reachability checks for Boundary Nodes
+* never download external resources
+* never follow redirects
+* never execute/interpret external HTML/CSS/JS
+* attach reachability metadata to map results when checks are enabled
+* enforce tier limits for map, CIA, scan depth, preview
+* expose complete API routes exactly as defined in Phase D
 
-Replit must implement (details in Phases L & M):
+4.3 Backend MUST NOT:
 
-* Slack alerts for admin-critical events
-* Email alerts (Resend) for user/account events
-* FAQ auto-response fallback → alert admin
-
----
-
-# 10. Phase Execution Rules
-
-### Replit MUST:
-
-1. Read each phase file in order.
-2. Generate only what the phase instructs.
-3. Stop and wait for "next" each time.
-4. Never jump ahead to future phases.
-5. Not modify previously completed phases.
-6. Follow EXACT file and directory instructions inside the phases.
+* perform GET/POST/PATCH to external URLs for map generation
+* attempt any dynamic rendering
+* allow worker-originated network calls
 
 ---
 
-# 11. Final Output Guarantee
+# 5. WORKER RULES (SANDBOX GUARANTEES)
 
-By Phase N, Replit must generate:
+5.1 Workers MUST obey all constraints from:
 
-* Backend
-* Workers
-* Desktop client
-* Mobile/iPad apps
-* Editor plugins
-* Admin dashboard
-* Documentation where required
+* Phase H
+* Phase K (Security Rules)
+* architecture_map_spec
 
-By Phase O, Replit must:
+5.2 Workers MUST:
 
-* Perform cleanup
-* Perform validation
-* Produce deployment-ready output
+* perform ONLY static parsing of code/HTML/CSS
+* generate DOM-free, non‑executed HTML/CSS nodes
+* compute CIA (basic or deep) without running CSS
+* generate selector muting results (Premium only)
+* extract influence edges (selector → element)
+* emit Boundary Nodes for all external URLs
+
+5.3 Workers MUST NEVER:
+
+* probe, fetch, or HEAD external URLs
+* download content
+* load remote CSS/JS/images/fonts
+* execute JavaScript
+* construct or evaluate a DOM
+* render HTML
+* fetch @import targets
+
+5.4 Workers MUST remain completely isolated except for:
+
+* receiving job payloads from backend
+* sending results to backend callback URL
+* logging as defined in Phase M
 
 ---
 
-# 12. Conflict Resolution Rules
+# 6. FRONTEND RULES (DESKTOP / MOBILE / PLUGINS)
 
-If at ANY time:
+HiveSync includes the following client surfaces in addition to Desktop, Mobile, and Plugins:
 
-* `/docs/` conflicts with `/phases/` → **Phases win**
-* `/docs/` conflicts with `/kickoff/` → **Ask user**
-* A technology choice seems inconsistent → **Use the final architecture**
-* Something appears missing → **Ask user before generating code**
+* **HiveSync CLI**
+  - Headless client for automation, CI, backend workflows, and artifact operations
+  - Authenticates via session-bridging or Personal API Tokens
+  - Behavior is fully defined in `cli_spec.md`
+
+* **Web Account Portal**
+  - Minimal authenticated web surface
+  - Used exclusively for account-level security actions
+  - Issues and revokes Personal API Tokens
+  - Displays read-only subscription status
+  - Behavior is fully defined in `web_portal.md`
+
+These surfaces MUST be implemented as specified and MUST NOT be inferred, merged, or omitted.
+
+
+6.1 Clients MUST obey all rules in:
+
+* `ui_layout_guidelines.md`
+* `ui_architecture_map_viewer.md`
+* `ui_authentication.md`
+* preview specs
+
+6.2 Clients MUST:
+
+* show reachability indicators if metadata exists
+* NEVER perform their own URL checks
+* support all HTML/CSS layer visuals
+* support Basic/Deep CIA tiers
+* support selector muting (Premium)
+* enforce map/diff/tier gating rules
+
+6.3 Clients MUST NOT:
+
+* execute external resources
+* generate network checks
+* modify code during selector muting
 
 ---
 
-# 13. NO GENERATION RULE
+# 7. DIRECTORY + FILE HANDLING
 
-**Replit is forbidden from generating ANY code until the phase explicitly instructs it.**
+7.1 Replit MUST maintain directory layout EXACTLY as defined.
+
+7.2 Replit MUST NOT:
+
+* move files
+* rewrite folder structures
+* rename directories
+* combine files
+
+7.3 All generated code MUST be placed exactly in:
+
+* `/backend/`
+* `/workers/`
+* `/desktop/`
+* `/mobile/`
+* `/plugins/`
+* `/shared/`
+
+as defined by Phase N and earlier phases.
+
+---
+
+# 8. TIER ENFORCEMENT RULES
+
+8.1 Replit MUST obey tier rules for:
+
+* Architecture Map depth
+* CIA depth
+* selector muting
+* multi-device preview limits
+* diff modes (file / component / architecture)
+* task/team permissions
+* history limits
+
+8.2 Premium features MUST NOT be generated for Free or Pro tiers.
+
+---
+
+# 9. SECURITY RULES
+
+Personal API Tokens:
+- MUST be issued and revoked exclusively via the Web Account Portal
+- MUST be stored hashed and never logged or re-displayed
+- MAY be used by the HiveSync CLI and CI environments only
+- MUST inherit user tier limits
+
+No other surface (Desktop, Plugins, Backend, Admin) may create or manage API tokens.
+
+
+9.1 Replit MUST enforce ALL security constraints from Phase K.
+
+9.2 Replit MUST NOT generate code that:
+
+* performs external network access from workers
+* violates OAuth requirements
+* violates dormant/deletion flows
+
+9.3 When ambiguity occurs, Replit MUST defer to `/docs/security_hardening.md`.
+
+---
+
+# 10. FINAL VALIDATION RULES
+
+10.1 Replit MUST perform a consistency check at the end of each phase.
+
+10.2 If ANY contradiction is detected between:
+
+* `/docs`
+* `/phases`
+* kickoff rules
+
+the phase MUST STOP and request clarification.
+
+10.3 Replit MUST reject incomplete instructions.
+
+---
+
+# END OF kickoff_rules.md

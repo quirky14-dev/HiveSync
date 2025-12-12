@@ -22,6 +22,12 @@ Replit must read and rely on:
 * `/phases/Phase_E_Desktop_Client.md`
 * `/phases/Phase_F_Mobile_Tablet.md`
 * `/phases/Phase_G_Plugins.md`
+* `/docs/architecture_map_spec.md`
+* `/docs/preview_system_spec.md`
+* `/docs/design_system.md`
+* `/docs/ui_authentication.md`
+* `/docs/billing_and_payments.md`
+* `/phases/Phase_L_Pricing_Tiers_and_Limits.md`
 
 ---
 
@@ -58,7 +64,18 @@ Replit must read and rely on:
 
 ### K.3.4 Optional MFA-Ready Structure
 
-Backend must support adding MFA later (TOTP/SMS/app-based) without schema changes.
+* Backend must support adding MFA later (TOTP/SMS/app-based) without schema changes.
+
+### K.3.5 Authentication Provider Restriction (Required)
+
+HiveSync MUST support only:
+* Email + Password  
+* Google Sign-In  
+* Apple Sign-In  
+
+No other OAuth providers are permitted.  
+Backend MUST reject login attempts from unsupported identity providers.  
+Clients MUST NOT display additional OAuth buttons.
 
 ---
 
@@ -75,6 +92,10 @@ Backend must enforce:
 * Project membership verification
 
 Errors MUST NOT leak internal details.
+
+* Tier Enforcement is a security rule:  
+  Backend MUST reject requests exceeding tier limits (maps, previews, multi-device limits, diff/history).  
+  These rejections MUST use structured errors such as `UPGRADE_REQUIRED` and MUST be logged.
 
 ---
 
@@ -126,6 +147,39 @@ Workers must:
 * Objects names must NOT contain user-provided strings
 * R2 bucket policies: deny public access
 * User-supplied strings must never be used directly as R2 object keys. Backend must sanitize, prefix, or hash all object paths.
+
+### K.6.3 Section 12 Preview Security Requirements
+
+Workers and backend MUST enforce:
+
+1. **No access to real sensors.**  
+   Clients may declare sensor availability only; backend/workers never read hardware.
+
+2. **Camera Simulation Security.**  
+   Mobile/tablet may display real camera feed locally but MUST NOT upload or transmit images.  
+   Workers treat all camera fields as simulation flags only.
+
+3. **Microphone Simulation Security.**  
+   Mobile/tablet may compute a waveform visualization locally but MUST NEVER transmit raw audio.
+
+4. **GPS/Orientation Security.**  
+   Only mock or user-selected coordinates are allowed.  
+   Real GPS coordinates MUST NOT be logged or stored.
+
+5. **device_context Validation.**  
+   Backend MUST validate:
+   * DPR  
+   * safe-area insets  
+   * orientation  
+   * model identifier  
+   Workers MUST reject malformed or missing device_context payloads.
+
+6. **Multi-Device Rendering Security.**  
+   Workers MUST sandbox each device’s output independently.  
+   No device output may overwrite another’s artifacts.
+
+7. **Event Flow Mode Isolation.**  
+   Event Flow interaction events MUST NOT include sensitive data (PII or raw sensor output).
 
 ---
 
@@ -185,6 +239,11 @@ Admin logs:
 
 * Never include full tokens
 * Must hide user emails unless necessary
+
+Admin MUST be able to audit all tier-enforcement rejections, including:
+* preview device-count limit violations
+* map generation blocked for Free/Pro tiers
+* guest-mode edit attempts
 
 ---
 
