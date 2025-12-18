@@ -17,7 +17,7 @@ Replit must read and rely on:
 
 * `/docs/security_hardening.md`
 * `/docs/backend_spec.md`
-* `/docs/admin_dashboard_spec.md`
+* `/docs/admin_dashboard.md`
 * `/phases/Phase_H_AI_and_Preview_Pipeline.md`
 * `/phases/Phase_E_Desktop_Client.md`
 * `/phases/Phase_F_Mobile_Tablet.md`

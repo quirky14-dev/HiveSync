@@ -6,7 +6,15 @@
 
 ---
 
-## 0. Design Principles (Non‑Negotiable)
+## Implementation Notes (Builder Instructions)
+
+- The HiveSync CLI MUST be implemented in **Go**.
+- The CLI source code MUST be generated as a standalone Go module.
+- The CLI MUST compile to a single binary named `hsync`.
+- The CLI MUST NOT depend on a runtime (Node, Python, JVM).
+- Cross-platform compatibility (macOS, Linux, Windows) MUST be preserved.
+
+## Design Principles (Non‑Negotiable)
 
 * The CLI **does not execute user code**
 * The CLI **does not render UI**
@@ -23,6 +31,24 @@ The CLI exists to:
 
 All rendering, simulation, and execution occur in existing backend workers.
 
+## Capability Refresh & CLI Command Availability
+
+**Capabilities fetch MUST be rate-limited client-side (no more than once per minute) even on repeated errors.**
+
+The CLI MUST fetch `GET /api/v1/capabilities`:
+- at CLI startup
+- after successful authentication
+- periodically on a timer (default: every 10 minutes)
+
+The CLI MUST use the capabilities response to:
+- hide or disable unavailable commands
+- explain unavailability (tier-gated, disabled, unsupported server version)
+
+Failure behavior:
+- If capabilities fetch fails, the CLI MUST fall back to the last known payload.
+- If no cached payload exists, the CLI MUST expose only a minimal safe set:
+  `auth`, `status`, `help`.
+
 ---
 
 ## 1. Installation
@@ -30,13 +56,13 @@ All rendering, simulation, and execution occur in existing backend workers.
 Distributed via NPM:
 
 ```bash
-npm install -g hivesync
+npm install -g hsync
 ```
 
 Entrypoint:
 
 ```bash
-hivesync
+hsync
 ```
 
 ---
@@ -44,7 +70,7 @@ hivesync
 ## 2. Command Structure
 
 ```bash
-hivesync <command> [subcommand] [options]
+hsync <command> [subcommand] [options]
 ```
 
 CLI output defaults to human‑readable text. All commands support:
@@ -60,6 +86,39 @@ CLI output defaults to human‑readable text. All commands support:
 > HiveSync intentionally separates *authentication surfaces* by responsibility. Daily work and collaboration (projects, teams, previews) occur in the **Desktop Client**. Security‑ and ownership‑level actions (API tokens, subscription status, account recovery) occur in a **Web Account Portal** (as defined in `docs/web_portal.md`). The CLI never performs interactive login; it authenticates only via Desktop Session Bridging or Personal API Tokens issued by the Web Account Portal. All surfaces share the same identity provider, user accounts, and backend auth rules.
 
 All CLI authentication follows existing provider and security rules. No CLI‑specific auth model exists.
+
+## CLI Command Registry
+
+HiveSync CLI command availability is controlled by a backend-owned registry.
+The CLI MUST NOT assume all commands are enabled.
+
+### Registry Format
+The registry MUST be represented as JSON and include:
+- `version`
+- list of commands
+- per-command metadata (tier requirements, stability, deprecation)
+
+Example (illustrative only):
+
+```json
+{
+  "version": "1.0",
+  "commands": [
+    { "name": "auth", "min_tier": "free", "stability": "stable" },
+    { "name": "map", "min_tier": "free", "stability": "stable" },
+    { "name": "preview", "min_tier": "pro", "stability": "stable" },
+    { "name": "inspect", "min_tier": "pro", "stability": "stable" },
+    { "name": "ci", "min_tier": "pro", "stability": "beta" }
+  ]
+}
+````
+
+### Rules
+
+* CLI MUST fetch the registry and hide/disable unavailable commands.
+* If registry fetch fails, CLI MUST fall back to a minimal safe set (`auth`, `status`, `help`) and explain why.
+* Command availability MUST respect tier limits and server-side authorization.
+
 
 ---
 
@@ -112,7 +171,7 @@ Usage:
 
 ```bash
 export HIVESYNC_API_TOKEN=<token>
-hivesync preview .
+hsync preview .
 ```
 
 CLI flag override:
@@ -126,7 +185,7 @@ CLI flag override:
 ### 3.3 CI / Non‑Interactive Mode
 
 ```bash
-hivesync preview . --ci
+hsync preview . --ci
 ```
 
 CI mode disables:
@@ -142,7 +201,7 @@ CI mode disables:
 The CLI maintains a **local registry** for usability only:
 
 ```
-~/.hivesync/
+~/.hsync/
   history.json
   artifacts.json
 ```
@@ -173,7 +232,7 @@ Manual token entry is always optional.
 ### 5.1 Preview
 
 ```bash
-hivesync preview [path]
+hsync preview [path]
 ```
 
 Options:
@@ -196,7 +255,7 @@ The CLI collects project state and uploads it via presigned URLs. It does not ex
 ### 5.2 Inspect (Dry‑Run)
 
 ```bash
-hivesync inspect [path]
+hsync inspect [path]
 ```
 
 Outputs:
@@ -222,8 +281,8 @@ Options:
 ### 6.1 Capture
 
 ```bash
-hivesync capture --last
-hivesync capture <preview‑id>
+hsync capture --last
+hsync capture <preview‑id>
 ```
 
 Freezes:
@@ -238,7 +297,7 @@ Freezes:
 ### 6.2 Replay
 
 ```bash
-hivesync replay <artifact|preview‑id>
+hsync replay <artifact|preview‑id>
 ```
 
 Options:
@@ -251,7 +310,7 @@ Options:
 ### 6.3 Diff
 
 ```bash
-hivesync diff <artifact> --against <artifact|env>
+hsync diff <artifact> --against <artifact|env>
 ```
 
 Shows:
@@ -266,7 +325,7 @@ Shows:
 ## 7. Export & Evidence
 
 ```bash
-hivesync export <artifact|preview‑id>
+hsync export <artifact|preview‑id>
 ```
 
 Options:
@@ -280,8 +339,8 @@ Options:
 ## 8. Team & Sharing
 
 ```bash
-hivesync share <artifact> --with backend
-hivesync share <artifact> --with frontend
+hsync share <artifact> --with backend
+hsync share <artifact> --with frontend
 ```
 
 Sharing grants visibility only. Artifacts remain immutable.
@@ -291,7 +350,7 @@ Sharing grants visibility only. Artifacts remain immutable.
 ## 9. Architecture Mapping
 
 ```bash
-hivesync map
+hsync map
 ```
 
 Options:
@@ -306,7 +365,7 @@ Options:
 ## 10. Logs & Observability
 
 ```bash
-hivesync logs <preview‑id>
+hsync logs <preview‑id>
 ```
 
 Options:
@@ -320,8 +379,8 @@ Options:
 ## 11. Automation & CI
 
 ```bash
-hivesync status <preview‑id>
-hivesync history
+hsync status <preview‑id>
+hsync history
 ```
 
 History supports:
@@ -358,7 +417,7 @@ All security behavior aligns with `/docs/security_hardening.md`.
 Each request includes:
 
 ```
-hivesync_cli_version: "1.1.x"
+hsync_cli_version: "1.1.x"
 ```
 
 Logged in backend, workers, and audit trails.

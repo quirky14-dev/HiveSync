@@ -1,535 +1,252 @@
-# Phase O – Final Guardrails & Code Generation Rules
+# Phase O – Post-Build Actions, Validation, Verification & Hardening
 
 > **Purpose of Phase O:**
 >
-> * Establish the *absolute*, non‑negotiable guardrails Replit must follow when generating code.
-> * Prevent hallucination, missing features, missing files, renaming, restructuring, or combining components.
-> * Ensure that every phase A → N is honored *strictly*.
-> * Ensure Replit generates a complete, safe, deterministic, secure, reproducible HiveSync codebase.
->
-> **Phase O is the single most critical phase for build correctness.**
->
-> Replit MUST read **every phase A–N**, understand them, obey them, and follow these guardrails.
-> **Replit MUST NOT improvise.**
+> * Perform **verification and hardening only** after Phase N has fully completed.
+> * Validate that all generated code complies with every requirement from Phases A–N.
+> * Enforce system-wide invariants related to safety, trust, billing, data protection, and reliability.
+> * Perform sanity checks, smoke checks, and readiness confirmation.
+> * Prepare the project for initial deployment and controlled go-live.
+> * **NO new product features or architectural redesigns occur in this phase.**
 
 ---
 
-## O.1. Inputs for This Phase
+## 🔒 Phase O Execution Rules (Authoritative)
 
-Replit MUST read and rely on:
-
-* All files in `/phases/`
-* All files in `/docs/`
-* The entire final repository file tree
-* All UI guidelines
-* All security + tier rules
-* Deployment Bible
-* Backend Spec
-* Master Spec
-* All planning phases (A–N)
-
-Everything written before Phase O is authoritative.
+* Phase O MUST NOT begin unless the user explicitly says:
+  **"BEGIN PHASE O"**
+* Phase O MUST NOT redesign architecture or introduce new features.
+* Phase O MUST NOT add new vendors or external dependencies.
+* Phase O MUST NOT refactor code except where required for correctness, safety, or invariant enforcement.
+* Phase O MAY generate reports, checklists, validation summaries, and **targeted corrective patches** required to satisfy the invariants below.
 
 ---
 
-# -------------------------------
+## O.1 Build Completion Verification
 
-# O.2. HARD GUARDRAILS (NON‑NEGOTIABLE)
+Confirm that Phase N produced the following:
 
-# -------------------------------
+### Core Systems
 
-These are the strict rules Replit MUST obey:
+* Backend (FastAPI) fully implemented
+* Database models and Alembic migrations present
+* Python job worker system implemented
+* Cloudflare Workers:
 
-### **O.2.1 Do NOT generate phases or docs again**
+  * `worker_callback_relayer`
+  * `healthcheck_worker`
 
-Replit must generate **only the actual production codebase**, not markdown, not planning files.
+### Clients
 
-### **O.2.2 Do NOT rename directories or files**
+* Admin Web Dashboard
+* Desktop client (Electron)
+* Mobile / iPad client (React Native)
+* HiveSync CLI
+* IDE Plugins
 
-The file tree defined in earlier phases is final.
+### Deployment Artifacts
 
-### **O.2.3 Do NOT merge components**
-
-* Desktop is separate
-* Mobile/iPad is separate
-* Plugins are separate
-* Backend is separate
-* Workers are separate
-
-### **O.2.4 Do NOT omit any file required by earlier phases**
-
-All components listed MUST be created.
-
-### **O.2.5 Do NOT simplify or reduce scope**
-
-If a feature was defined in any phase, Replit MUST implement it.
-
-### **O.2.6 Do NOT add "placeholder" or "TODO" comments**
-
-Every function must be implemented.
-
-### **O.2.7 Do NOT implement features that were never specified**
-
-No extra features.
-
-### **O.2.8 Do NOT rewrite or change APIs**
-
-All APIs defined in Phase D + Backend Spec MUST be exactly implemented.
-
-### **O.2.9 Do NOT change database schema**
-
-Phase C schema is final.
-
-### **O.2.10 Do NOT generate unplanned infrastructure files**
-
-Only the Docker + Wrangler + Compose defined in Phase N.
-
-### **O.2.11 All secrets must be environment variables**
-
-Hardcoding secrets is forbidden.
-
-### **O.2.12 Code must be deterministic**
-
-No randomness except where allowed (e.g., job IDs using UUID).
-
-### **O.2.13 No front-end UI invention**
-
-UI must follow the exact layouts in:
-
-* UI layout guidelines
-* Desktop spec
-* Mobile/iPad spec
-* Plugin spec
-
-### **O.2.14 Security rules MUST be applied everywhere**
-
-From Phase K:
-
-* Token handling
-* HMAC for callbacks
-* Storage access rules
-* R2 bucket protections
-* Rate limiting
-* PII redaction
-* Tier enforcement
-
-### **O.2.15 Logging rules MUST be followed**
-
-From Phase M:
-
-* JSON only
-* No PII
-* Structured format
-
-### **O.2.16 Deployment prep rules MUST be followed exactly**
-
-From Phase N.
-
-### **O.2.17 Code must be generated IN ORDER**
-
-Replit must follow this build sequence:
-
-1. Backend
-2. Database migrations
-3. Workers
-4. Desktop
-5. Mobile/iPad
-6. Plugins
-7. Deployment files
-
-No skipping.
-
-### **O.2.18 Replit must STOP after each major output**
-
-Replit must not output the entire codebase in one shot.
-It must produce code chunk‑by‑chunk, module‑by‑module.
-
-### O.2.19 Section 12 Preview System Guardrails (Required)
-
-Replit MUST implement the preview system exactly as defined in:
-
-* `/docs/preview_system_spec.md`
-* `/phases/Phase_D_API_Endpoints.md`
-* `/phases/Phase_F_Mobile_Tablet.md`
-* `/phases/Phase_E_Desktop_Client.md`
-* `/phases/Phase_H_AI_and_Preview_Pipeline.md`
-* `/phases/Phase_L_Pricing_Tiers_and_Limits.md`
-
-Strict rules:
-
-1. Backend MUST accept and validate `device_context`.
-2. Backend MUST accept and validate `sensor_flags`.
-3. Workers MUST generate one preview output per device variant.
-4. Workers MUST NOT collapse multiple devices into a single layout.
-5. Clients MUST NOT omit required device_context fields.
-6. No real sensor data may ever be uploaded — only UI simulation flags.
-7. Multi-device limits must be strictly enforced:
-   * Free = 2 devices
-   * Pro = 5 devices
-   * Premium = unlimited
-8. Event Flow Mode MUST be supported end-to-end (Map → Desktop → Mobile → Backend → Worker → Admin Logs).
-
-Replit MUST NOT simplify, shorten, or partially implement any part of Section 12.
-
-### O.2.20 Authentication Provider Guardrail (Required)
-
-Replit MUST implement ONLY the following authentication providers:
-
-* Email + Password  
-* Google Sign-In  
-* Apple Sign-In  
-
-Replit MUST NOT generate endpoints, UI buttons, flows, or integrations for:
-
-* GitHub  
-* Twitter  
-* Facebook  
-* Microsoft  
-* Any OAuth provider not explicitly listed above
-
-### O.2.21 Tier Enforcement Guardrails (Required)
-
-Replit MUST enforce all tier restrictions exactly as defined in:
-
-* `/phases/Phase_L_Pricing_Tiers_and_Limits.md`
-
-Tier restrictions include:
-
-* Multi-device preview limits  
-* Architecture Map access limits  
-* Diff/History access limits  
-* Guest-mode read-only restrictions  
-* AI generation limits  
-* Notification/task restrictions (where applicable)
-
-Backend MUST return structured `UPGRADE_REQUIRED` errors when limits are exceeded.
-
-Workers MUST size workloads based on tier.
-
-Clients MUST NOT unlock premium-tier behaviors unless tier = Premium.
-
----
-
-# -------------------------------
-
-# O.3. BACKEND-GENERATION GUARDRAILS
-
-# -------------------------------
-
-These apply WHEN backend code is generated in the actual build run.
-
-Backend must include:
-
-* FastAPI
-* JWT auth
-* All endpoints in Phase D
-* All models in Phase C
-* All security rules in Phase K
-* All tier logic in Phase L
-* All logging rules in Phase M
-* Admin endpoints in Phase J
-* Preview/AI job endpoints in Phase H
-* Tasks/Teams/Notifications endpoints in Phase I
-
-Backend must NOT:
-
-* Invent endpoints
-* Combine endpoints
-* Skip endpoints
-* Remove validation layers
-* Skip audit logging
-
-Backend must include:
-
-* `backend/app/main.py`
-* `backend/app/api/*.py`
-* `backend/app/models/*.py`
-* `backend/app/services/*.py`
-* `backend/app/workers/*.py` (local stubs)
-* `backend/app/security/*.py`
-* `backend/app/utils/*.py`
-
-### O.3.1 Architecture Map Guardrails (Required)
-
-Replit MUST implement the Architecture Map system exactly as defined in:
-
-* `/docs/architecture_map_spec.md`
-* `/phases/Phase_D_API_Endpoints.md`
-* `/phases/Phase_H_AI_and_Preview_Pipeline.md`
-* `/phases/Phase_L_Pricing_Tiers_and_Limits.md`
-
-Rules:
-
-1. Map extraction MUST occur in workers, not backend.
-2. Incremental graph updates MUST be implemented.
-3. Map JSON schema MUST match the spec exactly.
-4. Map diffing MUST be implemented for Premium tier.
-5. Broken imports / missing files MUST appear as error nodes.
-6. Workers MUST version maps correctly and push to R2.
-7. Backend MUST return correct map versions and diffs.
-
-Replit MUST NOT:
-* invent node/edge types  
-* alter schema fields  
-* merge map with preview layout  
-* omit incremental updates  
-
----
-
-# -------------------------------
-
-# O.4. WORKER GENERATION GUARDRAILS
-
-# -------------------------------
-
-## **O.4. WORKER GENERATION GUARDRAILS (CORRECTED)**
-
-Workers must follow **Phase H + Phase N** exactly.
-
-### **O.4.1 Worker Type**
-
-HiveSync uses **Python job workers**, not Cloudflare Workers, for:
-
-* Preview execution (sandbox preview generation)
-* Snapshot rendering
-* AI documentation jobs
-* Layout validation
-* R2 uploads
-* Tier-aware workload management
-
-A single lightweight Cloudflare Worker (`worker_callback_relayer`) **may be used only** to forward Worker → Backend callbacks.
-
-### **O.4.2 Job Workers MUST:**
-
-* Run as separate Python processes / services (not inside Cloudflare)
-* Use correct R2 client bindings (AWS S3-compatible)
-* Upload preview outputs to R2
-* Validate preview payload sizes
-* Validate snapshot fallback limits
-* Perform layout.json validation
-* Sign callbacks using HMAC with `WORKER_CALLBACK_SECRET`
-* Enforce all rate-limit and tier rules from backend_spec
-* Produce structured JSON logs (Phase M)
-* Never include secrets in code (env-only)
-
-### **O.4.3 Job Workers MUST NOT:**
-
-* Be Cloudflare Worker scripts
-* Access Cloudflare R2 bindings (those are Cloudflare-only)
-* Run preview builds inside Cloudflare
-* Perform AI processing inside Cloudflare
-* Contact backend without HMAC signatures
-* Access object storage with user-supplied keys
-* Skip validation layers
-* Log PII
-
-### **O.4.4 Cloudflare Worker Limitation**
-
-The **only** Cloudflare Worker allowed:
-
-```
-worker_callback_relayer
-```
-
-Its responsibilities:
-
-* Validate the presence of required headers (method/path/HMAC)
-* Forward the callback to the backend callback endpoint
-* Never interact with R2
-* Never execute preview or AI logic
-* Never store data
-
----
-
-# -------------------------------
-
-# O.5. DESKTOP CLIENT GUARDRAILS
-
-# -------------------------------
-
-Desktop must:
-
-* Use Electron + React
-* Honor Proxy Mode rules
-* Include all screens:
-
-  * Projects
-  * Tasks
-  * Teams
-  * Notifications
-  * Preview
-  * AI Docs
-  * Settings
-* Store no secrets
-* Communicate only with backend
-* Fall back to plugin proxy mode
-
-Desktop must NOT:
-
-* Invent UI layouts
-* Combine screens
-* Store user credentials improperly
-
----
-
-# -------------------------------
-
-# O.6. MOBILE/IPAD GUARDRAILS
-
-# -------------------------------
-
-Mobile/iPad must:
-
-* Use React Native
-* Follow all UI layout rules
-* Keep preview-token-only model
-* Support iPad split mode
-* Respect tier restrictions
-
-Mobile/iPad must NOT:
-
-* Invent flows or screens not defined
-* Access backend without auth
-* Store secrets
-
----
-
-# -------------------------------
-
-# O.7. PLUGIN GUARDRAILS
-
-# -------------------------------
-
-Plugins must:
-
-* Follow Phase G exactly
-* Use lightweight features
-* Forward requests to backend (or desktop if installed)
-
-Plugins must NOT:
-
-* Read full project tree directly from filesystem
-* Store tokens
-* Generate previews locally
-
----
-
-# -------------------------------
-
-# O.8. DEPLOYMENT FILE GUARDRAILS
-
-# -------------------------------
-
-Deployment files must include:
-
-* `Dockerfile`
-* `docker-compose.yml`
-* `wrangler.toml`
+* Dockerfile
+* docker-compose.yml
+* wrangler.toml
 * `.env.example`
-* `alembic/` migrations
+* Alembic migration folder
 
-Deployment files must NOT:
-
-* Include hardcoded secrets
-* Change ports except as defined
-* Invent new directories
+If **ANY** item is missing, Phase O MUST halt and report the deficiency.
 
 ---
 
-# -------------------------------
+## O.2 Static Validation Checks
 
-# O.9. STRICT BUILD ORDER
+Replit MUST verify:
 
-# -------------------------------
-
-Replit MUST follow this order:
-
-### **O.9.1 Phase 1: Backend**
-
-* Build entire FastAPI backend
-
-### **O.9.2 Phase 2: Database**
-
-* Build Alembic + migrations
-
-### **O.9.3 Phase 3: Workers**
-
-* Build Cloudflare Worker scripts
-
-### **O.9.4 Phase 4: Desktop Client**
-
-* Build Electron app
-
-### **O.9.5 Phase 5: Mobile/iPad**
-
-* Build React Native app
-
-### **O.9.6 Phase 6: Plugins**
-
-* Build VS Code / JetBrains / Sublime integrations
-
-### **O.9.7 Phase 7: Deployment Files**
-
-* Build Dockerfiles, Compose, wrangler.toml, env examples
-
-Replit must STOP and WAIT between each of these.
+* No TODOs, placeholders, or stub implementations remain
+* No hardcoded secrets exist
+* All referenced environment variables are documented
+* All APIs specified in Phase D exist and compile
+* Database schema matches Phase C exactly
+* Tier enforcement logic is present everywhere required
 
 ---
 
-# -------------------------------
+## O.3 Security & Compliance Review
 
-# O.10. VERIFICATION RULES
+Validate enforcement of Phase K rules:
 
-# -------------------------------
-
-Replit must verify:
-
-* All endpoints exist
-* All models exist
-* All UI components exist
-* All Worker scripts exist
-* All Deployment files exist
-* All features match Phases A–N
-* Code compiles in each subsystem
-
-Replit must NOT proceed if files are missing.
+* JWT validation on all protected endpoints
+* HMAC verification for worker callbacks
+* Rate limiting on authentication, billing, and heavy endpoints
+* RBAC enforcement
+* No secret leakage to clients
+* Secure R2 access patterns
+* Least-privilege secrets for workers and services
 
 ---
 
-# -------------------------------
+## O.4 Logging & Observability Review
 
-# O.11. FINAL BUILD COMPLETENESS CHECKLIST
+Confirm Phase M compliance:
 
-# -------------------------------
+* Structured JSON logs only
+* No PII in logs
+* Correct log levels
+* Worker, backend, and admin logs present
+* Correlation / request IDs propagated across:
 
-The build is only valid if ALL of the following exist:
-
-* Full backend
-* Full workers
-* Full desktop
-* Full mobile + iPad
-* Full plugins
-* Full deployment files
-* Full migrations
-* Environment templates
-* No placeholders, stubs, or TODOs
+  * API requests
+  * workers
+  * webhook handlers
 
 ---
 
-## O.12. No Code Generation Reminder
+## O.5 Deployment Readiness Checklist
 
-During Phase O, Replit must NOT generate any code.
-This phase defines the guardrails for the upcoming code generation process.
+Confirm readiness for:
+
+### Local
+
+* `docker compose up` succeeds
+
+### Linode
+
+* SSL termination ready
+* Firewall rules correct
+* Backend reachable
+
+### Cloudflare
+
+* Workers deployable
+* R2 lifecycle rules configured
 
 ---
 
-## O.13. End of Phase O
+## O.6 Smoke Test Scenarios (Manual)
 
-At the end of Phase O, Replit must:
+Document expected behavior for:
 
-* Understand all guardrails
-* Honor all previous phases
-* Generate code ONLY when explicitly instructed in a separate build prompt
+* User signup & login
+* Project creation
+* Preview generation
+* Multi-device preview
+* Tier upgrade, downgrade, and cancellation
+* Admin visibility and overrides
 
-> When Phase O is complete, stop.
-> The planning system A–O is now fully complete.
+(No automated execution required here.)
+
+---
+
+## O.7 System Invariants & Hardening (Post-Build Enforcement)
+
+### O.7.1 No Silent Failures
+
+* Any user-facing failure MUST return a clear error message with a next step.
+* UI MUST NOT fail silently (no dead buttons, infinite spinners, or empty screens without explanation).
+
+### O.7.2 Safe Defaults
+
+* On entitlement or tier ambiguity, default to the **lower entitlement** without data loss.
+* System must remain usable in reduced functionality mode.
+
+### O.7.3 Idempotency (Critical)
+
+* All webhook handlers MUST be idempotent.
+* All create / generate / checkout-style endpoints MUST be safe against retries and duplicate submissions.
+
+---
+
+## O.8 Billing & Subscription Safety (LemonSqueezy)
+
+* Frontends MUST NEVER communicate directly with LemonSqueezy.
+* All billing URLs MUST be generated by the backend after authentication.
+* Webhooks MUST be verified and replay-safe.
+* Subscription state MUST be derived from webhook-confirmed backend records.
+
+### Cancellation & Downgrade Guarantees
+
+* Cancellation MUST require explicit user confirmation in the Web Account Portal.
+* Cancellation MUST NOT delete user data.
+* Access MUST persist until the end of the paid period unless revoked for policy violations.
+* Downgrades apply at next renewal unless explicitly configured otherwise.
+* Founder or discounted pricing forfeiture on cancellation MUST be enforced server-side.
+
+---
+
+## O.9 Entitlements, Limits & Trust UX
+
+* All limits MUST be enforced server-side.
+* When limits block an action, backend MUST return:
+
+  * stable error code
+  * user-facing explanation
+  * clear next action (upgrade, wait, retry)
+* No surprise paywalls or silent limit failures are permitted.
+
+---
+
+## O.10 Data Safety & Integrity
+
+* No user-generated data may be auto-deleted due to billing changes.
+* All destructive actions require explicit user confirmation.
+* Backups MUST exist for databases and object storage.
+* Multi-step writes must be transactional or compensating.
+* Audit fields (`created_at`, `updated_at`, etc.) must exist for key entities.
+
+---
+
+## O.11 Workers, Queues & Reliability
+
+* Worker jobs MUST have bounded retries with exponential backoff.
+* Permanent failures MUST be observable (failed-job or dead-letter visibility).
+* Jobs MUST be idempotent.
+* Concurrency, timeout, and circuit-breaker limits must exist.
+
+---
+
+## O.12 Rate Limiting, Abuse & Cost Controls
+
+* Rate limits MUST exist for auth, billing session creation, AI-heavy endpoints, and preview rendering.
+* Hard caps on AI usage MUST be enforced server-side.
+* Admin emergency kill-switches must exist for high-cost features.
+
+---
+
+## O.13 UI & Client Hardening
+
+* All clients MUST comply with `docs/asset_contract.md`.
+* Missing assets MUST degrade gracefully with placeholders.
+* Offline or degraded backend states MUST surface clear messaging.
+* Pricing, limits, and copy must be backend-driven to avoid client redeploys.
+
+---
+
+## O.14 Release, Rollback & Emergency Readiness
+
+* Feature flags must be server-controlled and reversible.
+* Database migrations must have rollback or forward-only recovery plans.
+* A minimal emergency playbook must exist covering:
+
+  * disabling expensive features
+  * pausing new signups
+  * restoring from backups
+  * safely reprocessing failed webhooks
+
+---
+
+## O.15 Go-Live Authorization
+
+Phase O completes ONLY when:
+
+* All checks above pass
+* All invariants are satisfied
+* User explicitly approves deployment
+
+At completion:
+
+* STOP
+* Do NOT proceed further unless instructed
+
+---
+
+## End of Phase O
+
+Phase O is complete when the system is verified, hardened, and ready for controlled launch.

@@ -1,335 +1,377 @@
-# HiveSync Troubleshooting Guide (Merged & Complete)
+# HiveSync Troubleshooting Guide
 
-This guide merges:
-- All troubleshooting content from old phases
-- All new errors and recovery flows from A–O
-- Modern stateless preview failure cases
-- Worker, object storage, AI pipeline, repo sync, authentication, plugin, desktop, and mobile failure modes
+This guide helps users, developers, and administrators diagnose and resolve common HiveSync issues.
 
-This is the **canonical troubleshooting guide** for users, developers, admins, and support.
+It reflects the **final HiveSync architecture**, including:
+
+* Stateless, sandboxed previews (no code execution)
+* Backend-mediated preview access
+* Worker-isolated processing
+* Explicit client roles (Desktop, Mobile, Plugins)
+
+If a problem persists after following these steps, consult the Admin Dashboard or contact support.
 
 ---
-# 1. Preview Issues
-The preview pipeline is the most common failure area.
 
-## 1.1 "Preview Failed"
-Possible Causes:
-- Worker crashed
-- Timeout exceeded
-- Invalid preview token
-- Object storage upload failure
+## 1. Preview Issues
 
-Fix:
-- Re-request preview
-- Check file list (desktop)
-- Verify network (mobile)
-- If persistent → admin checks worker logs
+The preview pipeline is the most common source of user-visible problems.
 
-## 1.2 "Preview Token Expired"
-Cause:
-- Token older than ~10 minutes
-Fix:
-- Request a new preview
+### 1.1 “Preview Failed”
 
-## 1.3 "Failed to Download Bundle"
-Causes:
-- Presigned URL expired
-- Object storage outage
-- Incorrect permissions
+**Possible causes:**
 
-Fix:
-- Retry preview
-- Admin verifies bucket health
+* Preview worker crashed or restarted
+* Preview job timed out
+* Invalid or expired preview token
+* Object storage upload failure
 
-## 1.4 "Device Not Linked"
-Cause:
-- Manual entry required
-Fix:
-- Re-enter username/email in send-preview modal
+**What to do:**
 
-## 1.5 "Bundle Too Large"
-Cause:
-- Project size exceeds tier limit
-Fix:
-- Remove unnecessary files
-- Upgrade tier (optional)
+* Re-send the preview from Desktop
+* Confirm the correct files are selected
+* Check network connectivity on Mobile
+* If the issue persists, an admin should inspect worker logs
 
-## 1.6 Architecture Map Shows Red/Gray External Nodes (Reachability)
+---
 
-**Symptom:** Some nodes in the Architecture Map appear with red or gray dots.
+### 1.2 “Preview Token Expired”
+
+**Cause:**
+
+* Preview tokens are short-lived for security
+
+**What to do:**
+
+* Re-send the preview to generate a new token
+
+---
+
+### 1.3 Preview Stuck on “Preparing” or “Building”
+
+**Possible causes:**
+
+* Large project scan
+* Worker queue congestion
+* Temporary backend slowdown
+
+**What to do:**
+
+* Wait up to 10 seconds
+* Cancel and re-send the preview
+* If frequent, admin should check queue metrics
+
+---
+
+### 1.4 “Device Not Linked”
+
+**Cause:**
+
+* Device pairing not completed
+
+**What to do:**
+
+* Open Mobile → Linked Devices
+* Re-link the device using your username or email
+
+---
+
+### 1.5 Preview Looks Incorrect
+
+**Possible causes:**
+
+* Layout inference limitations
+* Unsupported runtime-only behavior
+
+**Important note:**
+HiveSync previews do **not** execute application code. Differences between preview and runtime behavior are expected for logic-driven UI.
+
+---
+
+### 1.6 Architecture Map External Nodes (Reachability)
+
+**Symptom:**
+Boundary nodes appear with colored indicators.
 
 **Meaning:**
-- Red → HiveSync could not reach an external URL your project references.
-- Gray → HiveSync did not attempt a reachability check.
 
-**Common Causes:**
-- CDN outage
-- Wrong or outdated external URL
-- DNS or TLS errors
-- The external resource was removed or renamed
+* **Green** — backend successfully reached the URL
+* **Red** — backend could not reach the URL
+* **Gray** — no reachability check attempted
 
-**Fixes:**
-- Verify the external URL manually in a browser.
-- Update the reference in your project if it is no longer valid.
-- If the resource is optional, ignore the indicator.
+**What to do:**
+
+* Verify the external URL manually
+* Update or remove invalid references
 
 **Important:**
-- HiveSync never downloads or executes external code.
-- Workers never make network requests.
-- This feature is informational only.
+
+* Workers never make network requests
+* External code is never downloaded or executed
+* Reachability checks are informational only
 
 ---
 
-# 2. AI Documentation Issues
+## 2. AI Documentation Issues
 
-## 2.1 "AI Job Failed"
-Causes:
-- Worker timeout
-- GPU queue unavailable (premium)
-- API key invalid (OpenAI/local)
+### 2.1 “AI Job Failed”
 
-Fix:
-- Retry
-- Admin checks AI job logs
+**Possible causes:**
 
-## 2.2 "AI Job Stuck in Queue"
-Cause:
-- Worker saturation
-Fix:
-- Admin increases worker count
+* Worker timeout
+* Queue saturation
+* Invalid AI provider configuration
 
-## 2.3 "AI Response Too Large"
-Cause:
-- Massive input selection
-Fix:
-- Reduce selected code
+**What to do:**
+
+* Retry the job
+* Reduce the size of selected input
+* Admin should inspect AI worker logs
 
 ---
-# 3. Authentication Problems
 
-## 3.1 "Invalid Token"
-Cause:
-- Expired JWT
-Fix:
-- Log in again
+### 2.2 AI Job Stuck in Queue
 
-## 3.2 "Too Many Login Attempts"
-Cause:
-- Rate limit triggered
-Fix:
-- Wait 60 seconds
-- Check for typo in password
+**Cause:**
 
-## 3.3 "User Not Found"
-Cause:
-- Incorrect username/email
-Fix:
-- Verify credentials
+* Insufficient worker capacity
+
+**What to do:**
+
+* Wait briefly and retry
+* Admin may increase worker count
 
 ---
-# 4. Team & Permissions Issues
 
-## 4.1 "You Don’t Have Access"
-Cause:
-- Attempting to access project without membership
-Fix:
-- Request team invitation
+## 3. Authentication Problems
 
-## 4.2 Cannot Assign Tasks
-Cause:
-- Insufficient role
-Fix:
-- Team admin adjusts role
+### 3.1 “Invalid Token”
 
----
-# 5. Notifications Issues
+**Cause:**
 
-## 5.1 Not Receiving Preview Ready Notifications
-Causes:
-- Notifications muted
-- Device offline
-Fix:
-- Check settings
-- Ensure mobile app is foregrounded
+* Session or device token expired
 
-## 5.2 AI Notifications Not Appearing
-Cause:
-- AI job incomplete
-Fix:
-- Refresh notifications panel
+**What to do:**
+
+* Log in again
+* Re-link device if necessary
 
 ---
-# 6. Desktop Client Issues
 
-## 6.1 Offline Queue Won’t Send
-Cause:
-- Desktop is offline
-Fix:
-- Reconnect to internet
-- HiveSync auto-retries
+### 3.2 “Too Many Login Attempts”
 
-## 6.2 Editor Panel Not Updating
-Cause:
-- Re-render bug or stale state
-Fix:
-- Reload window
+**Cause:**
 
-## 6.3 Preview Modal Stuck on "Preparing"
-Cause:
-- Large project tree scanning
-Fix:
-- Wait up to 5–10s
-- Reopen modal if stuck longer
+* Rate limit triggered
+
+**What to do:**
+
+* Wait 60 seconds
+* Verify credentials
 
 ---
-# 7. Mobile App Issues
 
-## 7.1 "Unable to Connect"
-Cause:
-- Network error
-Fix:
-- Switch Wi-Fi / mobile data
+## 4. Team & Permission Issues
 
-## 7.2 "Invalid Preview Token"
-Cause:
-- Expired token
-Fix:
-- Re-send preview
+### 4.1 “You Don’t Have Access”
 
-## 7.3 White Screen During Preview
-Cause:
-- Runtime crash
-Fix:
-- Force-close and reopen app
+**Cause:**
+
+* Project belongs to a team you are not a member of
+
+**What to do:**
+
+* Request an invitation from a team admin
 
 ---
-# 8. Plugin Issues (VS Code, JetBrains, Sublime)
 
-## 8.1 "HiveSync: Cannot Authenticate"
-Cause:
-- Token not in keychain
-Fix:
-- Re-login
+### 4.2 Cannot Assign Tasks
 
-## 8.2 Cannot Send Preview from Plugin
-Causes:
-- Wrong file path
-- Project not linked
+**Cause:**
 
-Fix:
-- Use desktop for initial project link
+* Insufficient role permissions
 
-## 8.3 AI Docs Panel Not Appearing
-Cause:
-- Plugin conflict or auth issue
-Fix:
-- Disable conflicting plugins
+**What to do:**
+
+* Ask a team owner or admin to adjust your role
 
 ---
-# 9. Admin Dashboard Troubleshooting
 
-## 9.1 Worker Offline
-Cause:
-- Heartbeat not received
-Fix:
-- Restart worker container
-- Check server load
+## 5. Notifications Issues
 
-## 9.2 GPU Queue Frozen
-Cause:
-- GPU worker down
-Fix:
-- Restart GPU node
-- Admin adjusts scaling
+### 5.1 Not Receiving Notifications
 
-## 9.3 High Preview Failure Rates
-Causes:
-- Worker crash loop
-- Object storage outage
-Fix:
-- Inspect callback logs
+**Possible causes:**
 
-## 9.4 Rate Limit Storm
-Cause:
-- Malicious user or misbehaving client
-Fix:
-- Inspect rate-limit triggers
-- Apply user flag
+* Notifications muted
+* Device offline
+
+**What to do:**
+
+* Check notification settings
+* Ensure Mobile app is running
 
 ---
-# 10. Server / Deployment Issues
 
-## 10.1 "Backend Won’t Start"
-Causes:
-- Bad env vars
-- Missing DB
-Fix:
-- Check logs
-- Validate env files
+## 6. Desktop Client Issues
 
-## 10.2 "Workers Not Connecting"
-Cause:
-- Wrong `WORKER_SHARED_SECRET`
-Fix:
-- Update worker env
+### 6.1 Offline Queue Won’t Send
 
-## 10.3 Database Migrations Failing
-Fix:
+**Cause:**
+
+* Desktop is offline
+
+**What to do:**
+
+* Reconnect to the internet
+* HiveSync retries automatically
+
+---
+
+### 6.2 UI Not Updating
+
+**Cause:**
+
+* Stale client state
+
+**What to do:**
+
+* Reload the Desktop app
+
+---
+
+## 7. Mobile App Issues
+
+### 7.1 “Unable to Connect”
+
+**Cause:**
+
+* Network connectivity problem
+
+**What to do:**
+
+* Switch networks
+* Restart the app
+
+---
+
+### 7.2 White Screen During Preview
+
+**Cause:**
+
+* Preview renderer error
+
+**What to do:**
+
+* Force-close and reopen the app
+* Re-send the preview
+
+---
+
+## 8. Plugin Issues
+
+### 8.1 Plugin Cannot Authenticate
+
+**Cause:**
+
+* Missing or expired token
+
+**What to do:**
+
+* Re-authenticate the plugin
+
+---
+
+### 8.2 Cannot Send Preview from Plugin
+
+**Cause:**
+
+* Project not linked or unsupported operation
+
+**What to do:**
+
+* Use Desktop for initial linking and preview
+
+---
+
+## 9. Admin-Only Troubleshooting
+
+### 9.1 Worker Offline
+
+**Cause:**
+
+* Missed heartbeat
+
+**What to do:**
+
+* Restart worker container
+* Inspect backend logs
+
+---
+
+### 9.2 High Preview Failure Rates
+
+**Cause:**
+
+* Worker crash loop
+* Object storage outage
+
+**What to do:**
+
+* Inspect callback and error logs
+* Verify object storage health
+
+---
+
+## 10. Deployment Issues
+
+### 10.1 Backend Won’t Start
+
+**Possible causes:**
+
+* Invalid environment variables
+* Database unavailable
+
+**What to do:**
+
+* Check logs
+* Validate environment configuration
+
+---
+
+### 10.2 Database Migration Failures
+
+**What to do:**
+
 ```
 alembic upgrade head
 ```
-Check schema consistency.
-
-## 10.4 Object Storage Permission Error
-Cause:
-- Incorrect S3 keys
-Fix:
-- Regenerate access key/secret
-
----
-# 11. Repo Sync (If Enabled)
-
-## 11.1 Git Sync Fails
-Cause:
-- SSH key not configured
-Fix:
-- Re-add deploy key
-
-## 11.2 Callback Missing
-Cause:
-- Worker not calling sync endpoint
-Fix:
-- Check worker config
 
 ---
 
-# 12. General Debugging Tools
-- `docker logs backend`
-- `docker logs worker`
-- `redis-cli monitor`
-- Admin → Error Stream
-- Admin → Callback Monitor
+## 11. General Debugging Tools
 
-### 12.1 Inspecting Reachability Metadata
+* Admin Dashboard → Error Stream
+* Admin Dashboard → Worker Health
+* Container logs (`docker logs backend`, `docker logs worker`)
+* Redis monitoring tools
 
-
-To debug external-resource issues in your project:
-
-1. Open Desktop → Architecture Map.
-2. Click any Boundary Node (external URL).
-3. Inspect its metadata panel:
-- Reachable: Yes / No / Unknown
-- Status Code
-- Last Checked
-- Error (if any)
-
-**Useful for diagnosing:**
-- Missing CDN files
-- Removed assets
-- Intermittent external API outages
-
-
-If you suspect HiveSync is misreporting something, an admin can check backend logs to see recent reachability attempts.
 ---
-# 13. Summary
-This Troubleshooting Guide is the complete, unified reference for diagnosing and fixing issues in HiveSync across backend, workers, clients, and deployment environm
+
+## 12. When to Contact Support
+
+Contact support if:
+
+* Issues persist across retries
+* Multiple projects are affected
+* You suspect a platform-wide outage
+
+Provide:
+
+* Error message
+* Approximate time
+* Affected project
+
+---
+
+*This is the authoritative troubleshooting guide for HiveSync.*

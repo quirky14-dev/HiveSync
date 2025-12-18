@@ -155,6 +155,8 @@ v
 
 # 3. Core Components
 
+* All UI assets are governed by docs/asset_contract.md; code must reference assets exclusively via logical keys defined therein.
+
 HiveSync consists of the following major systems:
 
 ### Backend (FastAPI)

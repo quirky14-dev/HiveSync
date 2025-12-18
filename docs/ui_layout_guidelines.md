@@ -28,10 +28,206 @@ This file ensures all platforms behave consistently.
 > 3. LemonSqueezy checkout in browser
 > Backend billing is authoritative; UI must only display upgrade options, tier notices, and open the website when required.
 
+## 1.1 Keyboard Shortcuts, Toolbar Actions, and Command Palette
+
+Only keyboard shortcuts explicitly defined in this section are supported.
+All other shortcuts are intentionally undefined and MUST NOT be inferred
+or implemented.
+
+**Destructive Action Confirmation Rules**
+
+Any action that may discard, overwrite, or invalidate:
+- Generated documentation
+- Pending or approved patches
+- AI-generated analysis
+- Unsaved project state
+
+MUST require explicit user confirmation before execution.
+
+Confirmations MUST:
+- Clearly state what will be lost
+- Offer Cancel as the default action
+- Never be bypassed by keyboard shortcut repetition
+
+---
+
+### 1. Core File & Session Commands
+
+| Action               | Shortcut (Win/Linux) | Shortcut (macOS) | Toolbar | Confirm? |
+| -------------------- | -------------------- | ---------------- | ------- | -------- |
+| Open Project         | Ctrl+O               | Cmd+O            | ✔       |          |
+| Close Project        | Ctrl+W               | Cmd+W            | ✔       | Yes      |
+| Reload Project       | Ctrl+Shift+R         | Cmd+Shift+R      | ✔       | Yes      |
+| Save Generated Docs  | Ctrl+S               | Cmd+S            | ✔       | Yes      |
+| Save All Outputs     | Ctrl+Shift+S         | Cmd+Shift+S      | ✔       | Yes      |
+| Export Docs (MD/ZIP) | —                    | —                | ✔       |          |
+
+---
+
+### 2. Documentation Generation & Review
+
+| Action              | Shortcut     | Toolbar | Confirm? |
+| ------------------- | ------------ | ------- | -------- |
+| Generate Docs       | Ctrl+G       | ✔       |          |
+| Regenerate Selected | Ctrl+Shift+G | ✔       | Yes      |
+| Pause Generation    | Ctrl+Alt+P   | ✔       |          |
+| Cancel Generation   | Esc (hold)   | ✔       | Yes      |
+| View Generation Log | Ctrl+L       | ✔       |          |
+
+---
+
+### 3. Patch / Diff / Apply Workflow
+
+| Action                 | Shortcut         | Toolbar | Confirm? |
+| ---------------------- | ---------------- | ------- | -------- |
+| View Diff              | Ctrl+D           | ✔       |          |
+| Accept Patch           | Ctrl+Enter       | ✔       |          |
+| Reject Patch           | Ctrl+Backspace   | ✔       | Yes      |
+| Accept All Patches     | Ctrl+Shift+Enter | ✔       | Yes      |
+| Revert to Original     | Ctrl+Alt+Z       | ✔       | Yes      |
+| Toggle Inline Comments | Ctrl+/           | ✔       |          |
+
+---
+
+### 4. Command Palette
+
+| Action               | Shortcut                   |
+| -------------------- | -------------------------- |
+| Open Command Palette | Ctrl+Shift+P / Cmd+Shift+P |
+| Run Last Command     | Ctrl+Shift+L               |
+
+The Command Palette exposes every toolbar action and is the canonical
+entry point for command discovery.
+
+---
+
+### 5. Navigation & Panels
+
+| Action               | Shortcut |
+| -------------------- | -------- |
+| Toggle Sidebar       | Ctrl+B   |
+| Toggle Preview Panel | Ctrl+\   |
+| Toggle Logs Panel    | Ctrl+`   |
+| Focus Editor         | Ctrl+1   |
+| Focus Preview        | Ctrl+2   |
+| Focus Comments       | Ctrl+3   |
+| Cycle Panels         | Ctrl+Tab |
+
+---
+
+### 6. Live Preview / Device Preview
+
+| Action              | Shortcut     | Toolbar |
+| ------------------- | ------------ | ------- |
+| Send to Device      | Ctrl+Shift+D | ✔       |
+| Refresh Preview     | Ctrl+R       | ✔       |
+| Toggle Device Frame | Ctrl+Alt+F   | ✔       |
+| Screenshot Preview  | Ctrl+Alt+S   | ✔       |
+
+---
+
+### 7. Architecture / Visual Tools
+
+| Action                | Shortcut        | Toolbar |
+| --------------------- | --------------- | ------- |
+| Open Architecture Map | Ctrl+M          | ✔       |
+| Zoom In / Out         | Ctrl++ / Ctrl+- | ✔       |
+| Reset View            | Ctrl+0          | ✔       |
+| Highlight Dependency  | Ctrl+Alt+H      | ✔       |
+| Export Diagram        | Ctrl+Alt+M      | ✔       |
+
+---
+
+### 8. AI Interaction & Control
+
+| Action                 | Shortcut   | Toolbar | Confirm? |
+| ---------------------- | ---------- | ------- | -------- |
+| Ask AI About Selection | Ctrl+Alt+? | ✔       |          |
+| Explain File           | Ctrl+Alt+E | ✔       |          |
+| Suggest Refactor       | Ctrl+Alt+R | ✔       |          |
+| Stop AI Response       | Esc        | ✔       | Yes      |
+
+---
+
+### 9. Search & Analysis
+
+| Action                | Shortcut     |
+| --------------------- | ------------ |
+| Search Across Project | Ctrl+Shift+F |
+| Search in File        | Ctrl+F       |
+| Jump to File          | Ctrl+P       |
+| Jump to Symbol        | Ctrl+Shift+O |
+
+---
+
+### 10. Collaboration & Teams (Optional)
+
+| Action          | Shortcut   |
+| --------------- | ---------- |
+| Add Comment     | Ctrl+Alt+C |
+| Resolve Comment | Ctrl+Alt+R |
+| Mention User    | @          |
+
+---
+
+### 11. View & Accessibility
+
+| Action     | Shortcut |
+| ---------- | -------- |
+| Reset Zoom | Ctrl+0   |
+
+---
+
+### 12. Debug & Advanced (Optional)
+
+| Action                | Shortcut   | Confirm? |
+| --------------------- | ---------- | -------- |
+| Show Internal State   | Ctrl+Alt+I |          |
+| Dump Session Metadata | Ctrl+Alt+D |          |
+| Reconnect Backend     | Ctrl+Alt+R | Yes      |
+| Clear Local Cache     | Ctrl+Alt+X | Yes      |
+
+---
+
+### 13. Explicitly Unsupported
+
+The following are intentionally NOT supported unless explicitly added:
+
+- Printing (Ctrl+P)
+- Custom macro recording
+- User-defined shortcuts
+- OS-global overrides
+- File system writes outside the project root
+
+---
+
+### Toolbar Design Rules
+
+Toolbar buttons MUST:
+- Map 1:1 to Command Palette actions
+- Never introduce functionality without a keyboard shortcut
+- Always be discoverable via the Command Palette
+
+
+## Capability Refresh & Surface Consistency
+
+All client surfaces (Desktop, Mobile, Plugins) MUST treat `/api/v1/capabilities` as the
+canonical source of runtime feature availability.
+
+Clients MUST fetch capabilities:
+- at startup
+- after authentication completes
+- periodically (default: every 10 minutes)
+
+Clients MUST:
+- cache the last known capabilities payload
+- refetch when `version` changes
+- degrade gracefully to safe defaults when capabilities are missing or unavailable
 
 ---
 
 # 2. Desktop Client UI
+
 
 ## 2.1 Main Layout
 **Note:** Authentication UI MUST follow `ui_authentication.md` (Email, Google, Apple only).
@@ -66,21 +262,135 @@ Fields:
 * Preview type (normal / GPU if Premium)
 * Status timeline: Preparing → Sending → Ready / Failed
 
-## 2.3 Desktop Installer (UPDATED)
+### Device Target Selector Modal
 
-During installation, Desktop prompts:
+#### Purpose
+Defines how preview targets (physical and virtual devices) are selected,
+managed, and refreshed in HiveSync. This modal is the sole authoritative
+interface for preview targeting.
 
-* "Install HiveSync Plugins?"
+#### Scope
+- Desktop clients only (controller role)
+- Applies to all preview send / refresh actions
+- Governs physical and virtual device fan-out
 
-  * VS Code
-  * JetBrains
-  * Sublime
-  * Vim
+#### Modal Invocation
+The Device Target Selector is opened via:
+- Toolbar dropdown → “Choose Target Devices…”
+- Keyboard shortcut: Ctrl/Cmd + Alt + D
 
-If user checks these:
+#### Modal Responsibilities
+The Device Target Selector modal MUST:
+- Display all reachable physical devices
+- Display all desktop-owned virtual devices
+- Allow multi-selection of target devices
+- Allow creation and removal of virtual devices (desktop only)
+- Allow mapping of virtual previews to physical devices
+- Persist the selected targets for the active preview session
 
-* Plugins are installed automatically
-* Desktop registers itself as the local proxy endpoint
+#### Device Categories
+Devices are grouped into the following categories:
+
+1. Physical Devices
+   - Mobile phones
+   - Tablets
+   - Status: online / offline / busy / last seen
+
+2. Virtual Devices
+   - Server-rendered preview targets
+   - Created and destroyed by desktop clients only
+   - Not selectable from mobile or tablet clients
+
+#### Physical Device Requirement for Virtual Previews
+
+Virtual devices are not standalone preview targets.
+
+At least one physical device (mobile or tablet) MUST be selected in order
+to display virtual device previews.
+
+If a user selects one or more virtual devices without selecting a
+physical device, HiveSync MUST prompt the user to select a physical
+device before allowing the preview session to start.
+
+HiveSync MUST NOT:
+- Start a preview session with only virtual devices selected
+- Implicitly choose a physical device without user confirmation
+
+#### Target Mapping Rules
+Virtual devices are rendered server-side and MAY be mirrored to one or
+more selected physical devices.
+
+Physical devices MAY receive:
+- Their own native preview
+- One or more virtual device previews
+- Combined preview streams as defined in Phase H
+
+#### Session Ownership & Lifecycle
+The active preview session is owned by the desktop client that initiated it.
+
+Stopping or terminating the preview session from the desktop client MUST:
+- Terminate all virtual device previews
+- Disconnect all associated physical preview streams
+- Release all preview-related server resources
+
+#### Save & Apply Behavior
+Upon confirmation, the selected target configuration becomes the active
+preview target set.
+
+Subsequent “Send to Device” or “Refresh Preview” actions reuse this
+configuration without reopening the modal.
+
+#### Explicit Restrictions
+Mobile and tablet clients MUST NOT:
+- Create virtual devices
+- Select virtual devices
+- Modify target mappings
+- Initiate multi-device fan-out
+
+#### Confirmation Rules
+The Device Target Selector modal does not require confirmation unless:
+- A currently active preview session will be terminated
+- Target changes will discard an active preview state
+
+### Send to Device Controls
+
+Toolbar:
+- Primary action: “Refresh Preview”
+- Secondary action (dropdown): “Choose Target Devices…”
+
+Keyboard shortcuts:
+- Ctrl/Cmd + Shift + D → Refresh preview to all active targets
+- Ctrl/Cmd + Alt + D → Open Device Target Selector modal
+
+## 2.3 Live Coding Sessions (Read-Only)
+
+HiveSync supports live coding sessions that allow authenticated observers
+to view a real-time, read-only stream of source code.
+
+Live coding sessions:
+- MUST be explicitly started and ended by the Desktop client
+- Are visible only to invited observers
+- Allow observers to select and copy code
+- MUST NOT allow observers to modify files or apply patches
+- Are separate from preview, device rendering, and documentation systems
+
+Live coding sessions do not imply collaborative editing, shared cursors,
+merge semantics, or file system access.
+
+### 2.3.1 Live Coding File Focus Behavior
+
+During a live coding session, the presenter’s active editor file
+determines the source file streamed to observers.
+
+When the presenter switches files:
+- Observers automatically follow to the new file
+- The streamed file context updates in real time
+
+Observers:
+- May scroll independently
+- May select and copy text
+- MUST NOT change files, modify content, or alter session focus
+
 
 ## 2.4 Desktop ↔ Plugin Routing (NEW)
 
@@ -88,9 +398,37 @@ Desktop UI **does not show mode switching**.
 Proxy Mode is silent.
 No indicators or toggles.
 
-## 2.5 Onboarding Components (New)
+## 2.5 Onboarding Components
+
+### Sample Project Indicator
+
+When a sample project is open, the Desktop client MUST display a clear,
+persistent indicator that the project is read-only.
+
+The indicator MUST:
+- Be visible in the project header area
+- State that the project is a sample
+- Indicate that changes require forking
+
+The indicator MUST NOT:
+- Appear in forked copies
+- Block preview or inspection actions
 
 These components are required to support the onboarding flow described in `/docs/onboarding_ux_spec.md`.
+
+### Fork Sample Project
+
+When a sample project is open, the Desktop client MUST provide an explicit
+“Fork” action that creates a writable copy of the sample in the user’s
+project space.
+
+Forking:
+- Copies the current sample contents into a new user-owned project
+- Removes all sample-specific restrictions
+- Does not modify the original sample
+
+The fork action MUST be explicit and user-initiated.
+
 
 ### 1. Welcome Banner
 - Uses Design System *Subtle Notice* style  
@@ -132,6 +470,30 @@ All onboarding elements MUST use tokens and spacing from the Design System and M
 ---
 
 # 3. Mobile App UI
+
+## 3.0 Screenshot Capture & Image Sharing (Export Only)
+
+HiveSync supports screenshot capture for preview and visualization
+surfaces, including mobile previews, tablet previews, and architecture
+maps.
+
+Screenshot capture produces a static image file only and does not create
+links, live previews, or HiveSync-hosted resources.
+
+After capture, users MAY:
+- Save the image locally
+- Invoke the operating system’s native share sheet via a “Share Image…”
+  action
+
+The “Share Image…” action shares only the generated image file and does
+not expose project state, session identifiers, tokens, or URLs.
+
+HiveSync MUST NOT automatically upload, publish, or generate links for
+captured screenshots.
+
+Optional visual branding MAY be added to exported screenshots (e.g.
+HiveSync logo or tagline), provided it contains no embedded identifiers,
+links, or tracking metadata.
 
 ## 3.1 Tabs
 
@@ -277,6 +639,53 @@ When previewing in Virtual Device Mode:
 ---
 
 ### **3.5.2 Local Component Engine (LCE)**
+
+#### Supported Component Registry
+
+* Supported UI component types are defined in a canonical, data-driven registry owned by the backend.
+Clients (Desktop, Mobile, Plugins) MUST NOT hardcode component support lists.
+
+* These components form the complete rendering surface of the preview engine.
+Listed registry components are mapped to these primitives or fall back to static or placeholder rendering.
+
+* Registry entries do not imply native availability of the component within HiveSync clients.
+
+##### Registry Format
+- The registry MUST be represented as JSON.
+- The registry MUST include a version identifier.
+- Each entry defines a component name, support level, and optional platform constraints.
+
+Example structure (illustrative only):
+
+```json
+{
+  "version": "1.0",
+  "components": {
+    "View": {
+      "support": "full"
+    },
+    "Text": {
+      "support": "full"
+    },
+    "FlatList": {
+      "support": "partial"
+    },
+    "WebView": {
+      "support": "static",
+      "platforms": ["ios", "android"]
+    },
+    "ActionSheetIOS": {
+      "support": "full",
+      "platforms": ["ios"]
+    },
+    "BackHandler": {
+      "support": "partial",
+      "platforms": ["android"]
+    }
+  }
+}
+
+```
 
 The preview UI is constructed using HiveSync-owned React Native components packaged within the mobile app:
 
@@ -619,6 +1028,10 @@ If a language is not fully supported for map extraction:
 
 # 4. iPad UI (Enhanced)
 
+## 4.0 Screenshot Capture & Image Sharing (Export Only)
+
+- HiveSync screenshot capture applies to tablet systems as described in section 3.0 above.
+
 ## 4.1 Multi-Panel Layout
 
 * Left: File Tree
@@ -670,14 +1083,22 @@ No errors shown solely for mode switching.
 
 ## 5.4 Send Preview (Plugin)
 
-If Desktop is active:
+Plugins do not perform device targeting or preview orchestration.
 
-* Plugin asks Desktop for filesystem metadata
-* Desktop performs hashing
+When the user invokes "Send Preview" from a plugin:
+
+If Desktop is active:
+- Plugin sends a preview request to the Desktop client
+- Desktop resolves the request against the active preview session
+- Desktop performs any required filesystem inspection or hashing
+- Desktop handles all device targeting and preview fan-out
 
 If Desktop is not active:
+- The plugin MUST NOT initiate preview delivery
+- The plugin MUST report that no desktop-controlled preview session
+  is available and defer the action
+- No device preview, virtual device creation, or backend fan-out occurs
 
-* Plugin sends raw file list to backend
 
 ---
 

@@ -330,6 +330,18 @@ iPad app shares much of the mobile code but adds:
 
 Admin actions (like triggering maintenance) primarily occur via Desktop or web admin; iPad is for quick monitoring.
 
+### F.5.3 Live Coding Observation (Mobile & Tablet)
+
+Mobile and tablet clients may observe live coding sessions in a read-only
+mode.
+
+Observed sessions:
+- Display real-time source updates
+- Allow text selection and copying
+- Do not allow edits, cursor control, or session management
+
+Mobile and tablet clients cannot initiate or control live coding sessions.
+
 ---
 
 ## F.6. Preview Handling (Mobile & iPad)
@@ -412,6 +424,9 @@ HiveSync includes a **local, interactive, non-executable mobile preview mode** t
 5. **Fallback Snapshot Rendering** for unsupported UI components
 
 This section defines how the device must render, animate, and interact with Sandbox Previews.
+
+Mobile and tablet clients render previews for both physical and virtual
+devices but do not determine which virtual devices are active.
 
 ---
 

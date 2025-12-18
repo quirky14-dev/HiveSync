@@ -454,7 +454,56 @@ Read-only access for debugging missing-file or sync issues.
 * If the artifact expired or was rotated, show a safe message:
   “Artifact no longer available.”
 
-## 10.6 Additional Support Tools
+## 10.6 Admin Diagnostic Tools — GitHub Import
+
+**Purpose:**  
+Allow administrators to import public GitHub repositories into the HiveSync analysis pipeline for diagnostic, testing, and parser validation purposes.
+
+#### Access
+- Visible to **Admin users only**
+- Not visible to standard users or teams
+
+#### Inputs
+- Public GitHub repository URL (required)
+- Optional:
+  - branch name
+  - commit hash (recommended for reproducibility)
+
+#### Behavior
+- Repository is fetched read-only
+- Contents are snapshotted at the specified commit
+- Imported code is processed using the **same pipeline** as user projects:
+  - parsing
+  - architecture map generation
+  - preview analysis
+
+#### Output
+- Results are displayed in the Admin architecture map viewer
+- Artifacts are tagged:
+  - `source: admin_import`
+  - `read_only: true`
+- Imported repositories:
+  - are not saved as user projects
+  - do not appear in user project lists
+  - do not consume billing quota
+  - are not persisted beyond admin use
+
+#### Restrictions
+- Public repositories only
+- No authentication tokens stored
+- No write-back to GitHub
+- No collaboration features enabled
+
+#### Diagnostics (optional)
+When enabled, parser diagnostics may be displayed:
+- file path
+- parser stage
+- failure reason
+- confidence score (if available)
+
+
+
+## 10.7 Additional Support Tools
 **Preview System Integration:** All preview-related admin tools MUST follow `preview_system_spec.md`, including device context, virtual device settings, Event Flow events, and Section 12 preview diagnostics.
 
 

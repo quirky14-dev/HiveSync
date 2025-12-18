@@ -791,7 +791,7 @@ Used by the Cloudflare Pages frontend after following the session-token link.
 
 ---
 
-## **GET /user/me** (UPDATED)
+## **GET /user/me** 
 
 **Purpose:**
 Return full user profile with subscription information.
@@ -816,6 +816,87 @@ Return full user profile with subscription information.
 
 * These fields must mirror DB schema from Phase C.
 * Tier values must not be inferred from email or heuristics.
+
+---
+
+## **GET /api/v1/registries/languages**
+
+**Purpose:**
+Return the canonical Language Capability Registry defining supported languages,
+parser depth, feature availability, and confidence profiles.
+
+```
+GET /api/v1/registries/languages
+```
+- Returns the Language Capability Registry JSON
+- Backend-owned source of truth
+- Read-only
+- Cacheab
+
+---
+
+## **GET /api/v1/capabilities**
+
+**Purpose:**
+Return the canonical, backend-owned capability flags that define feature availability
+across HiveSync surfaces (preview, CLI, and other runtime-controlled features).
+
+```md
+GET /api/v1/capabilities
+```
+- Returns capability and feature-availability flags
+- Backend-owned source of truth
+- Read-only
+- Cacheable
+
+### Example: CLI Capabilities Payload (Illustrative)
+
+```json
+{
+  "version": "1.0",
+  "preview": {
+    "live_interactive": true,
+    "static_fallback": true,
+    "eventflow_enabled": true,
+    "sensor_effects_enabled": true,
+    "max_timeout_ms": 8000
+  },
+  "cli": {
+    "commands": [
+      {
+        "name": "auth",
+        "min_tier": "free",
+        "stability": "stable"
+      },
+      {
+        "name": "status",
+        "min_tier": "free",
+        "stability": "stable"
+      },
+      {
+        "name": "map",
+        "min_tier": "free",
+        "stability": "stable"
+      },
+      {
+        "name": "preview",
+        "min_tier": "pro",
+        "stability": "stable"
+      },
+      {
+        "name": "inspect",
+        "min_tier": "pro",
+        "stability": "stable"
+      },
+      {
+        "name": "ci",
+        "min_tier": "pro",
+        "stability": "beta"
+      }
+    ]
+  }
+}
+```
 
 ---
 
@@ -872,13 +953,13 @@ Replit must ensure each route group has:
 
 ---
 
-## D.6. Mapping 102 Feature Categories → API Endpoints
+## D.6. Mapping Feature Categories → API Endpoints
 
 Replit must confirm that:
 
 * Admin & Maintenance → `/api/v1/admin/*`
 * Tasks & Teams → `/api/v1/projects/{id}/tasks`, `/team`
-* Preview System → `/api/v1/projects/{id}/previews`, `/workers/callback`
+* Preview System → `/api/v1/projects/{id}/previews`, `/api/v1/workers/callback`
 * Architecture Map System → `/api/v1/projects/{id}/architecture/*`  
   * MUST support projects in any language.  
   * If language-specific map extraction is not yet implemented, only this feature degrades with `LANGUAGE_NOT_SUPPORTED`; the rest of HiveSync remains fully functional.

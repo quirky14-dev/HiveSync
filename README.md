@@ -1,310 +1,157 @@
-# **HiveSync**
+# HiveSync
 
-### *The unified code-assistant platform for real-device previews, refactoring, documentation, and multi-client development.*
+HiveSync is a cross-platform development companion for **real-device previews**, **AI-assisted documentation**, and **team collaboration** — designed to help developers understand, preview, and evolve complex codebases without running or deploying them.
 
----
-
-# 🚀 **Core Capabilities (The Real Value of HiveSync)**
+HiveSync works across **desktop, mobile, tablet, editor plugins, and CLI**, with a secure backend and worker pipeline that emphasizes safety, determinism, and clarity.
 
 ---
 
-# **1. Real-Device Mobile App Preview — Now Upgraded With Interactive Sandbox Mode**
+## What HiveSync Does
 
-### *Instant layout rendering, native-feeling UI behavior, zero installs, zero provisioning*
+HiveSync helps you:
 
-HiveSync originally provided a full build → device workflow, but the entire system has now been upgraded with a **next-generation Sandbox Interactive Preview Engine**:
+* Preview application layouts on **real devices** without executing your code
+* Visualize project structure with an interactive **Architecture Map**
+* Generate AI-powered documentation and analysis
+* Collaborate with teammates using tasks, comments, and notifications
+* Work across Desktop, Mobile, iPad, Plugins, CLI, and Web Portal
 
-## **🔥 New: “Sandbox Interactive Preview” (iOS & Android)**
-
-A safe, instant, App-Store-compliant preview mode powered by HiveSync’s own **Local Component Engine (LCE)**.
-
-### What it means for you:
-
-### **✔ See your app UI on your real phone/tablet instantly**
-
-No builds. No provisioning. No profiles. No QR codes. No expo client.
-Just **edit → real-device preview**.
-
-### **✔ FEELS like a real app**
-
-Buttons press. Inputs focus. Scroll views scroll. Navigation transitions animate.
-Everything looks and moves like your actual app UI.
-
-### **✔ SAFE: user code never runs**
-
-The preview is powered by layout JSON, not executable code.
-Totally App-Store compliant.
-
-### **✔ Powered by HiveSync’s on-device native component library**
-
-UI is rendered via internal HS_* components:
-
-```
-HS_View, HS_Text, HS_Button, HS_Input,
-HS_Scroll, HS_List, HS_Image, HS_SafeArea,
-HS_NavContainer, HS_NavScreen, HS_Spacer,
-HS_Overlay, HS_ImageSnapshot
-```
-
-### **✔ Automatic fallback for custom user components**
-
-If a component can’t be mapped to native LCE primitives, HiveSync **auto-snapshots** it and inserts an `HS_ImageSnapshot` node—preserving layout and visuals exactly.
-
-### **✔ Console overlay for suppressed actions**
-
-When a user presses a button with real logic behind it, HiveSync shows:
-
-```
-Sandbox: "handleSubmit" triggered. User code not executed.
-```
-
-### **✔ Navigation simulation**
-
-A press that leads to navigation fetches the next screen’s Layout JSON and transitions instantly.
-
-### **✔ Works on iOS & Android with identical behavior**
-
-No platform differences. No special cases.
-
-### **Why developers love this**
-
-It's the first preview system that:
-
-* Feels real
-* Is instant
-* Never breaks
-* Is always allowed on the App Store
-* Works on any device
-* Handles custom UI gracefully
-
-### **The original “full build preview” still exists**
-
-If needed, HiveSync supports traditional artifact-based previews (Phase H workers)—but the **Sandbox Preview** now covers 95% of use cases faster and safer.
+HiveSync is intentionally **read-first and preview-first**, not a runtime or deployment platform.
 
 ---
 
-# **2. AI-Powered Refactoring (Safe, Localized, One-File/One-Block Scope)**
+## Key Concepts
 
-HiveSync’s refactor engine is built for **control, stability, and predictability**, not giant diff bombs.
+### Sandbox Previews (No Code Execution)
 
-* Targeted refactors
-* Variable/class renames
-* Cleanup passes
-* Inline suggestions
-* Zero global rewrites unless requested
-* Clear before/after diff views
+HiveSync previews are generated using **sandboxed layout data and static assets only**.
 
-This is **surgical, developer-driven refactoring**, not a rewrite lottery.
+* User code is **never executed** during previews
+* No compiled preview bundles are created
+* No external code is downloaded or run
+* All preview access is mediated by the backend
 
----
-
-# **3. Multi-Client Development (Desktop + Mobile + Plugin + Web)**
-
-Your workflow adapts to whatever device you're using.
-
-### **Desktop App**
-
-* Full code preview + diff UI
-* Notifications
-* Project explorer
-* Upgrade modal
-* Proxy Mode (plugins use Desktop as secure tunnel)
-
-### **Mobile / iPad**
-
-* Portable editor
-* Live Sandbox Preview
-* Browsing + commenting
-* Session-token login for browser upgrades
-
-### **IDE Plugins (VS Code, JetBrains, etc.)**
-
-* Inline suggestions
-* Inline docs
-* AI refactor commands
-* Preview requests
-* Uses Desktop for secure proxy mode (when available)
-
-### **Command-Line Preview (Optional but Recommended)**
-
-HiveSync includes a lightweight CLI:
-
-```
-npm install -g hivesync
-```
-
-Use it to send previews instantly:
-
-```
-hivesync preview .
-```
-
-If the Desktop Client is running:
-- CLI uses desktop session for authentication.
-
-If running in CI:
-- Set `HIVESYNC_API_TOKEN` for authentication.
+This makes previews fast, deterministic, and safe.
 
 ---
 
-# **4. Deep Code Understanding & Documentation (Inline + Diff-Aware)**
+### Architecture Map
 
-HiveSync reads your code like a real engineer:
+The Architecture Map provides a visual graph of your project, including:
+
+* Files and modules
+* UI components
+* Routes and APIs
+* HTML pages and elements
+* CSS selectors and rule groups
+* External references (shown as boundary nodes)
+
+It helps answer questions like:
+
+* “Where is this behavior coming from?”
+* “What depends on this file?”
+* “Which CSS rules actually affect this element?”
+
+Optional reachability indicators may show whether external URLs respond to a safe `HEAD` request.
+
+---
+
+### AI Documentation
+
+HiveSync can generate:
 
 * Inline explanations
-* Automated summaries
-* “Explain this change”
-* Cross-file awareness
-* Comment merging
-* Diff-aware documentation
+* File-level documentation
+* Multi-file summaries
+* Architecture narratives
+
+AI features assist understanding but do not replace human review.
 
 ---
 
-# **5. “Proxy Mode” for Editor Plugins**
+## Supported Clients
 
-Plugins auto-detect Desktop:
+* **Desktop (Electron)** — primary control surface
+* **Mobile (iOS / Android)** — preview runtime + notifications
+* **Tablet (iPad)** — split-view preview + map
+* **Editor Plugins** — VS Code, JetBrains, Sublime, Vim
+* **CLI** — automation and CI workflows
+* **Web Portal** — account and token management
 
-* If Desktop exists → plugins route through Desktop
-* If Desktop doesn’t exist → plugins use a restricted direct backend connection
-
-This makes setup instant and keeps tokens off local machines.
-
----
-
-# **6. Unified Tasks, Teams & Notifications**
-
-HiveSync replaces your task tracker and comment tools.
-
-* Tasks with labels, attachments, dependencies
-* Flat comment threads
-* Notifications across desktop, mobile, plugins
-* Tier-aware delivery (WebSocket for Premium)
-
-Supports:
-
-* Unlimited projects
-* Team sharing
-* Per-project roles
-* Activity feeds
-* File-level discussions
+Each client has a clearly defined role and limited permissions.
 
 ---
 
-# **7. Live-Coding Sessions (Real-Time Sharing)**
+## Teams & Collaboration
 
-Broadcast your edits to anyone—in real time.
+HiveSync supports team-based workflows:
 
-* Great for teaching, demos, onboarding
-* Viewers join via QR code
-* They see your edits instantly on Desktop, Mobile, iPad, or plugins
-* Secure short-lived tokens
-* Read-only viewing ensures safety
+* Owners, admins, members, and guests
+* Shared projects
+* Task assignment and comments
+* Real-time notifications
 
----
-
-# ⚙️ **Tech Stack Overview**
-
-### **Backend**
-
-* FastAPI
-* PostgreSQL
-* Redis
-* Celery
-* Cloudflare R2
-* LemonSqueezy
-* JWT / secure cookies
-* Docker (Linode or any provider)
-
-### **Clients**
-
-* Electron Desktop
-* React Native iOS/Android
-* Cloudflare Pages Web
-* VS Code / JetBrains plugins
-
-### **AI**
-
-* OpenAI & Local models
-* Tier-based limits
-* Stateless workers
+Permissions are enforced server-side.
 
 ---
 
-# 🔒 **Authentication Model (Unified & Session-Token Driven)**
+## Subscription Tiers
 
-HiveSync uses a unified login model:
+HiveSync offers Free, Pro, and Premium tiers.
 
-### **Session-token login flow**
+Tiers control:
 
-Mobile/desktop generates a one-time session token → browser logs in automatically → user upgrades tiers via web → all clients update instantly.
+* Preview concurrency
+* AI job size and priority
+* Advanced analysis features (e.g. Deep CIA)
 
-No app store billing.
-No plugin-side secrets.
-No unsafe flows.
-
----
-
-# 🧩 **Architecture at a Glance**
-
-* Stateless preview tokens
-* Worker autoscaling
-* Per-tier limits
-* Distributed job queue
-* Secure plugin proxy mode
-* Unified project model
-* Multi-client consistency
-* **Interactive Sandbox Preview Engine (NEW)**
-* **Layout JSON pipeline (NEW)**
-* **Fallback snapshot rendering (NEW)**
-* **Local Component Engine on device (NEW)**
+All tier enforcement is handled by the backend.
 
 ---
 
-# 💳 **Pricing & Billing (Web-Only, LemonSqueezy)**
+## Security & Privacy
 
-### **Free**
+HiveSync is designed with strict boundaries:
 
-* Limited previews
-* Basic AI documentation
-* Standard queue
+* No execution of user code
+* Sandboxed workers
+* Backend-enforced permissions
+* Encrypted transport
+* Minimal data retention
 
-### **Pro**
-
-* Faster previews
-* More refactors
-* Higher limits
-* Priority queue
-
-### **Premium**
-
-* Highest limits
-* GPU priority
-* Team collaboration
-* Advanced AI tools
-* High-fidelity snapshots (Sandbox Preview)
-
-### **Upgrade flow**
-
-1. Tap Upgrade
-2. HiveSync generates a one-time login token
-3. Browser opens and logs user in
-4. User completes checkout
-5. Webhook updates backend
-6. All clients update tier instantly
+See `privacy_policy.md` and `security_hardening.md` for details.
 
 ---
 
-# 🎉 **Ready to Build**
+## Getting Started
 
-HiveSync is the first platform to unify:
+1. Create an account
+2. Install the Desktop app
+3. Install the Mobile app
+4. Create or import a project
+5. Link your device
+6. Send your first preview
 
-* Real-device preview
-* AI refactors
-* Documentation
-* Multi-client workflows
-* Teaching tools
-* Project collaboration
-
-…and now with the **Sandbox Interactive Preview Engine**, developers finally get the preview system the industry *should* have built years ago.
+See `onboarding_guide.md` for a full walkthrough.
 
 ---
+
+## Repository Structure
+
+This repository contains:
+
+* `/docs` — canonical specifications and guides
+* `/phases` — build and planning phases
+* Client and backend source directories (generated in Phase N)
+
+Documentation under `/docs` is authoritative.
+
+---
+
+## License
+
+HiveSync is proprietary software.
+
+---
+
+*This README reflects the final, sandboxed-preview architecture of HiveSync.*

@@ -120,6 +120,58 @@ Plugins must:
 * Allow leaving project
 * Owner-only: remove member
 
+## I.2.6 Team Membership vs Tier Entitlements
+
+Teams in HiveSync define **authorization, visibility, and collaboration scope** only.
+
+Teams are NOT billing entities and do NOT convey tier entitlements.
+
+### Core Rules
+
+- Team membership controls:
+  - Which users can view and edit a project
+  - Which artifacts are visible to team members
+  - Which previews, maps, and diagnostics are shared
+
+- Tier entitlements control:
+  - Which actions a user may initiate
+  - How often resource-intensive jobs may be created
+  - The depth, frequency, and priority of backend processing
+
+### Visibility vs Creation
+
+Artifacts created by any team member (architecture maps, previews, AI docs, diagnostics) are:
+
+- Visible to all authorized team members
+- Read-only unless explicitly editable by design
+
+However:
+
+- The ability to **create or regenerate** artifacts is governed strictly by the initiating user’s tier
+- Team membership MUST NOT grant additional generation rights
+
+### Example: Architecture Maps
+
+- Free-tier users:
+  - May VIEW any number of architecture maps created by their team
+  - May GENERATE at most the Free-tier allowed number of maps for a project
+
+- Pro/Premium users:
+  - May generate maps according to their tier limits
+  - Maps they generate are visible to the entire team
+
+### Enforcement Requirements
+
+Backend MUST:
+- Evaluate tier entitlements per initiating user
+- Evaluate visibility permissions per project/team membership
+- Never escalate a user’s tier based on team composition
+
+Clients MUST:
+- Show shared artifacts regardless of viewer tier
+- Gate “Create / Regenerate” actions based on the viewer’s tier
+- Display Upgrade Wall only when a tier-restricted action is attempted
+
 ---
 
 # -------------------------------

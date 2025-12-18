@@ -316,7 +316,64 @@ Then billing links become active because user is authenticated.
 
 ---
 
-# 11. Final Notes
+## 11. Billing Provider Authority & Webhook-Driven Tier State (LemonSqueezy)
+
+### Billing Authority
+
+LemonSqueezy is the billing provider of record.
+Subscription state changes MUST be accepted exclusively via provider webhooks.
+
+Clients MUST NOT:
+- set or override tier state,
+- submit “upgrade” data to the API as proof of payment,
+- bypass billing by manipulating local storage or request payloads.
+
+> Cross-reference: Phase L defines tier semantics (Free/Pro/Premium) and how upgrades/downgrades affect limits; backend_spec defines runtime enforcement and webhook processing.
+
+### Webhook-Driven Flow (High-Level)
+
+1. LemonSqueezy sends a signed webhook event to the backend.
+2. Backend verifies signature + idempotency.
+3. Backend resolves the billing subject (user or team/org).
+4. Backend maps provider plan/variant to internal tier (Free/Pro/Premium).
+5. Backend persists billing state and invalidates entitlements caches.
+6. Clients learn about tier changes via normal API responses and refresh entitlements when required.
+
+### Upgrade Timing
+
+Upgrades take effect as soon as LemonSqueezy confirms the new tier.
+Active sessions must refresh entitlements.
+In-flight jobs are not retroactively killed mid-run; new limits apply on subsequent requests.
+
+### Downgrade Timing
+
+Downgrades take effect when the downgrade becomes effective (per provider state).
+New, lower limits apply to future tier-sensitive actions.
+Existing stored data is not immediately deleted; cleanup policy is governed elsewhere (backend_spec + admin tooling).
+
+### Plan → Tier Mapping
+
+Backend maintains a server-side mapping table from LemonSqueezy product/variant identifiers to internal tier.
+This mapping MUST NOT be configurable from the client.
+
+### Refunds, Chargebacks, and Payment Failures
+
+If provider state indicates non-payment / cancellation / expiry:
+- backend transitions the billing subject to the appropriate reduced tier (typically Free),
+- enforcement changes apply immediately to subsequent tier-sensitive actions.
+
+### Auditing & Support
+
+Backend stores enough billing receipt metadata to:
+- explain current tier,
+- trace last known provider event,
+- support customer service disputes,
+without exposing sensitive provider payloads to end users.
+
+
+---
+
+# 12. Final Notes
 
 * All billing logic is backend-only.
 * The marketing website hosted on Cloudflare Pages does NOT handle billing.
@@ -332,7 +389,3 @@ Then billing links become active because user is authenticated.
 **billing_and_payments.md — HiveSync Billing System**
 Version 1.0
 
-
-## Phase Regeneration Requirement
-
-Billing-related backend code MUST be regenerated in Phases D, H, L, and N according to this specification. No legacy billing logic may override these rules.

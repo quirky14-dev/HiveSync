@@ -7,7 +7,9 @@
 > * Ensure stateless preview tokens, callback validation, tier enforcement, storage layout, GPU routing, and retry logic.
 > * **No code generation** – no Worker scripts, no backend code yet.
 >
-> Replit MUST NOT create or modify any `/worker/` files during Phase H.
+> Replit MUST NOT create or modify any `/workers/` or `/worker/` files during Phase H.
+
+Preview behavior is defined in `preview_system_spec.md` and is not duplicated here.
 
 
 ---
@@ -49,7 +51,7 @@ These define the required pipelines.
 * Workers NEVER call users or external third-party services.
 * Workers only POST back to the backend via:
 
-  * `POST /api/v1/worker/callback`
+  * `POST /api/v1/workers/callback`
 
 * Backend validates on every callback:
 
@@ -93,11 +95,23 @@ Workers MUST:
 
 ## H.3. Preview Pipeline (Sandbox Layout JSON Architecture)
 
+Preview fan-out, virtual device rendering, and physical device mirroring
+operate under the Device Target Selector rules defined in
+`docs/ui_layout_guidelines.md`.
+
+The preview pipeline MUST support multi-target delivery as defined by
+the active preview session owned by the initiating desktop client.
+
+
 The Preview pipeline uses a **Sandbox Interactive Preview** model built on Layout JSON, snapshot assets, and a Local Component Engine (LCE: Local Component Engine) running on real devices.
 
 The pipeline consists of **five stages**:
 
-### **H.3.1 Stage 1 – Desktop/Plugin/Mobile Initiates Request**
+### **H.3.1 Stage 1 – Desktop/Plugin/Tablet Initiates Request**
+
+Virtual device previews are rendered server-side and delivered only via
+a selected physical device endpoint, as defined by the active desktop-
+owned preview session.
 
 * Request includes:
 
@@ -600,6 +614,17 @@ This behavior is critical for visual correctness when emulating devices with dif
 ---
 
 ## H.4. AI Documentation Pipeline
+
+### **H.4.0 Applying AI-Generated Changes**
+
+When an AI documentation or refactor job affects multiple files, all proposed modifications are grouped into a **single reviewable change set**.
+
+AI-generated changes are never applied automatically. After reviewing the results, the user must explicitly approve the change set.
+
+Once approved, the Desktop client provides a **single, user-initiated action** to apply the entire change set to the local project. This operation writes all approved changes to disk for all affected files at once.
+
+Partial application, silent writes, or background modification of user files are strictly prohibited.
+
 
 ### **H.4.1 Stage 1 – Desktop/Plugin Requests AI Docs**
 

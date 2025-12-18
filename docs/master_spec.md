@@ -1,7 +1,7 @@
 # HiveSync Master Specification (Merged, Updated, Authoritative — With Plugin ↔ Desktop Flexible Proxy Mode)
 
 > **Design System Compliance:**  
-> All UI layout, components, colors, typography, spacing, and interaction patterns in this document MUST follow the official HiveSync Design System (`design_system.md`).  
+> All UI layout, components, colors, typography, spacing, and interaction patterns in this document MUST follow the official HiveSync Design System (`/docs/design_system.md`).  
 > No alternate color palettes, spacing systems, or component variations may be used unless explicitly documented as an override in the design system.  
 > This requirement applies to desktop, mobile, tablet, web, admin panel, and IDE plugin surfaces.
 
@@ -33,11 +33,29 @@ Core components:
 * **iPad Enhanced App**
 * **Editor Plugins** (VS Code, JetBrains, Sublime, Vim)
 * **Admin Dashboard**
-* **HiveSync CLI** — Headless interface for automation, CI workflows, artifact capture/replay, and preview triggering.  
-  Specification: `cli_spec.md`
+* **HiveSync CLI** — Headless interface for automation, CI workflows, artifact capture/replay, and preview triggering - Specification: `/docs/cli_spec.md`
+* **Web Account Portal** — Minimal authenticated web surface for account security, API token management, and subscription visibility - Specification: `/docs/web_portal.md`
 
-* **Web Account Portal** — Minimal authenticated web surface for account security, API token management, and subscription visibility.  
-  Specification: `web_portal.md`
+## Data-Driven Registries
+
+HiveSync uses backend-owned JSON registries for:
+- Supported UI components
+- Language/parser capabilities
+- Preview capabilities
+- CLI command availability
+
+Clients MUST fetch these registries at runtime and MUST NOT hardcode these lists.
+
+Env vars are operator-only settings and are not editable via the admin dashboard. Runtime behavior changes are delivered via /capabilities and registries.
+
+## Versioning Strategy
+
+HiveSync uses layered versioning:
+- API versions (`/api/v1`, `/api/v2`) for breaking changes only
+- Registry and capability versions for runtime behavior changes
+- Client binary versions for new rendering or protocol logic
+
+Most feature changes MUST be delivered via registry version updates, not API version bumps.
 
 ---
 
@@ -50,6 +68,20 @@ Core components:
 * Clients hold no plaintext secrets
 * Replit-friendly deterministic build instructions
 * Flexible Proxy Mode for editor plugins
+
+## System Invariants & Authority Rules
+
+The following rules apply globally to all HiveSync components and phases. They are non-negotiable and must not be overridden or reinterpreted by individual features.
+
+- **Authority Order:** Local filesystem → HiveSync Desktop → HiveSync backend → Mobile/Web clients.
+- **Explicit Application Only:** HiveSync never applies changes to user files automatically. Writing changes to disk is always a deliberate, user-initiated action.
+- **Bulk Change Sets:** Multi-file AI or Quick Edit operations are grouped into a single reviewable change set and applied in one explicit operation.
+- **No Silent Writes:** Background or implicit modification of user files is strictly prohibited.
+- **No Version Control Ownership:** HiveSync does not commit, push, merge, or manage branches. Version control remains the user’s responsibility.
+- **Sync Scope:** HiveSync synchronizes project state, analysis results, and approved change intent across devices—not raw filesystem state.
+- **Graceful Degradation:** HiveSync subsystems operate independently. Temporary failure of one feature does not imply system-wide failure.
+- **External Change Awareness:** If local files change outside HiveSync, the project must be refreshed before applying new changes.
+- **Undo Expectation:** Applied changes are reversible via standard version control tools. HiveSync does not maintain its own rollback history for written files.
 
 ---
 
@@ -114,6 +146,7 @@ No other OAuth providers are allowed. All flows MUST follow `ui_authentication.m
 >  
 > The frontend MUST NOT communicate directly with LemonSqueezy.  
 > All billing actions must flow through the backend following the rules defined in `billing_and_payments.md`.
+> Tier state is derived exclusively from backend persistent storage updated via billing webhooks; it is never inferred from request headers, tokens, or client claims. Rate limits are keyed by billing subject + action type, not by device, IP, or session alone.
 
 All endpoints standardized using JSON envelopes.
 
@@ -585,8 +618,7 @@ Authoritative details live in `docs/architecture_map_spec.md`. At a high level:
 
 # 8. Client Platforms
 
-
-### Offline Mode Rules (Global)
+## Offline Mode Rules (Global)
 The following operations MUST NOT occur while offline:
 - Preview generation
 - Architecture Map generation or diffing
@@ -604,6 +636,7 @@ Offline mode allows only cached, read-only operations.
 * Comment panel
 * Architecture Map screen (with split view: map on left, file/quick-edit on right)
 * Event Flow Mode
+
 ### Event Flow Mode Rules
 - Active only when Architecture Map is open AND preview initiated from map
 - Mobile/tablet sends tap/swipe/tilt/shake events

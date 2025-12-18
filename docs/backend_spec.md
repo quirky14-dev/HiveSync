@@ -3,6 +3,8 @@
 > **Important:** This file is a full replacement for your existing `docs/backend_spec.md`.
 > It merges the earlier backend spec **plus** the new **Plugin ↔ Desktop Flexible Proxy Mode** behavior, with corrected and consistent numbering.
 
+Preview behavior is defined in `preview_system_spec.md` and is not duplicated here.
+
 ---
 
 ## 1. Purpose of This Document
@@ -61,6 +63,9 @@ The backend provides:
 * Rate-limit rules and violation handling
 * Health checks
 * Optional repo sync (mirror model)
+
+
+**Backend MUST cancel jobs only for explicit user cancellation or fatal validation errors, never solely due to tier change.**
 
 ---
 
@@ -503,10 +508,6 @@ Backend behavior is identical in both modes.
 
 ---
 
-
-
----
-
 ## 12. Preview Pipeline (Backend)
 
 **Parsing Dependency:**  
@@ -537,7 +538,7 @@ Backend:
 
 ### 12.2 Worker Callback
 
-`POST /api/v1/worker/callback`
+`POST /api/v1/workers/callback`
 Body:
 
 * job_id
@@ -1320,6 +1321,18 @@ Repo sync uses a **mirror model** to avoid tampering.
 ## 16. Rate Limiting
 **Tier Enforcement:** All preview, AI, map generation, and repo-sync operations MUST enforce tier limits as defined in Phase L (Pricing & Limits). Out-of-tier requests MUST be rejected with a structured `429 LIMIT_REACHED` error.
 
+### **Tier Enforcement Authority**
+
+The backend is the **sole runtime authority** for tier enforcement.
+
+All numeric limits, feature gates, and access checks are enforced server-side.
+Clients MUST NOT enforce tier limits independently.
+
+Tier semantics originate from `Phase_L_Pricing_Tiers_and_Limits.md`.
+Subscription state is resolved by `billing_and_payments.md`.
+
+If a conflict exists, backend enforcement takes precedence.
+
 
 Backend enforces limits for:
 
@@ -1477,7 +1490,7 @@ Presigned URLs are used for Layout JSON, snapshot assets, AI docs, and logs.
 Workers must send:
 
 ```json
-POST /api/v1/worker/callback
+POST /api/v1/workers/callback
 
 {
   "job_id": "...",
@@ -1560,13 +1573,231 @@ tier_upgrade_required
 ```
 
 Client handles UI.
+
 ---
 
+## 23. Transactional Email Events
 
+HiveSync sends transactional emails for security, account, team, and billing events.
+Marketing or promotional emails are explicitly out of scope. 
+Transactional email types are defined in backend logic, while email content MUST be 
+loaded from external templates to allow copy changes without code modification.
+
+### Account & Security
+- Account verification
+- Password reset
+- Account recovery
+- Security-sensitive changes (email, auth provider)
+
+### Team & Collaboration
+- Team invitations
+- Role changes
+- Guest access granted or revoked
+
+### Billing
+- Subscription created
+- Subscription cancelled
+- Payment failure
+- Billing issues requiring user action
+
+### Rules
+- Emails MUST be transactional only
+- No marketing or newsletter emails
+- Emails MUST include minimal data and no secrets
+- Email sending MUST be idempotent
+- Failure to send email MUST NOT block the core action
+
+---
+
+### Transactional Email Templates
+
+- Template variables MUST NOT include secrets, tokens, or credentials.
+- Email templates MUST be stored in the backend repository under:
+```
+
+/backend/emails/
+
+```
+
+#### Template Naming
+- Each transactional email type MUST have a corresponding template file.
+- Template filenames MUST follow the pattern:
+```
+
+<email_type>.(html|txt)
+
+```
+- Example:
+```
+
+team_invite.html
+team_invite.txt
+password_reset.html
+password_reset.txt
+billing_issue.html
+
+```
+
+#### Rendering Rules
+- Templates MAY include variable placeholders (e.g. `{{user_name}}`, `{{team_name}}`).
+- Variable interpolation MUST be handled server-side before sending.
+
+#### Fallback Behavior
+- If an HTML template is missing, the plaintext template MUST be used.
+- If no template is found, the email MUST NOT be sent and the event MUST be logged.
+- Failure to send an email MUST NOT block the underlying action.
+
+#### Available Template Variables
+- The following variables MUST always be available to templates when applicable.
+
+Templates may reference the following variables, depending on email type:
+
+**Global**
+- {{product_name}}        // "HiveSync"
+- {{base_url}}            // https://hivesync.dev (or env BASE_URL)
+- {{support_email}}       // support@…
+- {{current_year}}        // for footer
+
+**User**
+- {{user_id}}
+- {{user_email}}
+- {{user_name}}           // full name if available, else email prefix
+
+**Actor / Initiator**
+- {{actor_id}}            // who triggered the event
+- {{actor_name}}
+- {{actor_email}}
+
+**Team**
+- {{team_id}}
+- {{team_name}}
+- {{team_slug}}
+- {{role_name}}           // e.g. Admin, Member, Guest
+
+**Invites & Access**
+- {{invite_url}}          // signed, single-use
+- {{invite_expires_at}}   // human-readable
+
+**Auth & Security**
+- {{reset_url}}           // password reset link
+- {{reset_expires_at}}
+- {{recovery_url}}        // account recovery
+- {{security_event}}      // short description ("Email changed", etc.)
+- {{ip_address}}          // if available
+- {{user_agent}}          // if available
+
+**Billing**
+- {{plan_name}}           // Pro, Premium
+- {{billing_interval}}    // monthly / yearly
+- {{amount}}
+- {{currency}}
+- {{subscription_id}}
+- {{billing_portal_url}}  // LemonSqueezy customer portal
+- {{next_renewal_date}}
+
+**System**
+- {{event_id}}            // internal event reference
+- {{timestamp}}           // when the event occurred
+
+
+---
+
+## 24. Billing Webhooks & Entitlements Enforcement (LemonSqueezy)
+
+> Cross-reference: Phase L defines tier semantics and upgrade/downgrade outcomes; backend_spec defines enforcement behavior and runtime mechanics.
+> See Phase L Tier Authority + L.12 Billing, Upgrades & Downgrades.
+
+### Principles (Non-Negotiable)
+
+1. Webhooks are the sole authority for subscription state changes.
+2. Clients MUST NOT be allowed to set/override tier state.
+3. Tier changes MUST be applied server-side and reflected via normal API responses.
+4. In-flight jobs MUST NOT be retroactively killed on tier change; new limits apply on subsequent requests.
+
+### Required Endpoints
+
+Backend MUST implement:
+
+- `POST /billing/webhook/lemonsqueezy`
+  - Receives LemonSqueezy events.
+  - Performs signature verification, idempotency, state reconciliation, and entitlement invalidation.
+
+- `GET /auth/entitlements` (or equivalent existing entitlement endpoint)
+  - Returns current tier + computed entitlements for the authenticated actor (user/team).
+  - Returns an `entitlements_version` (monotonic integer or opaque hash) for client caching.
+
+> Note: exact route names may differ if already defined; requirements apply regardless of naming.
+
+### Webhook Validation
+
+For each webhook request:
+- Verify request authenticity using LemonSqueezy’s recommended signature scheme.
+- Reject invalid signatures with 401/403 (do not leak verification details).
+- Enforce strict JSON parsing; reject malformed payloads with 400.
+
+### Idempotency & Replay Safety
+
+Backend MUST:
+- Compute a stable idempotency key from the provider event identifier (or a stable payload field).
+- Store processed event IDs in persistent storage or Redis with a long TTL (e.g., 30–90 days).
+- Treat duplicate events as success (200) with no repeated side-effects.
+
+### Event Handling: State Machine Inputs
+
+Backend MUST handle, at minimum, subscription lifecycle events corresponding to:
+- subscription created
+- subscription updated (plan change, renewals, pauses)
+- subscription cancelled
+- subscription expired / ended
+- payment failed (if LemonSqueezy sends a distinct event)
+
+For each event:
+- Resolve the target “billing subject”:
+  - user subscription (default), or
+  - team/org subscription (if teams are supported)
+- Map the LemonSqueezy product/variant/plan to internal `tier` (Free/Pro/Premium) using a server-side mapping table.
+- Update persistent billing state:
+  - `tier`
+  - `billing_status` (active / past_due / cancelled / expired / trialing, etc.)
+  - `current_period_end` (if provided)
+  - `provider_customer_id`, `provider_subscription_id`
+  - `last_billing_event_id`, `last_billing_event_at`
+
+### Entitlements Cache Invalidation
+
+After applying a valid billing update:
+- Increment the billing subject’s `entitlements_version`.
+- Invalidate any cached entitlements in Redis (by user/team ID).
+- Invalidate rate-limit buckets if they are tier-keyed (or naturally roll on next request).
+
+Backend MUST NOT:
+- Force-log-out all sessions.
+- Broadcast tier state changes directly to devices as “billing push” (optional UX notifications can exist, but tier enforcement must be pull-based and backend-authoritative).
+
+### Session Staleness & Client Refresh
+
+Backend MUST support safe refresh without forcing re-auth:
+- Each authenticated response SHOULD include `entitlements_version`.
+- Clients MAY cache entitlements_version and refresh when it changes.
+- If a request is made with stale entitlements (or missing entitlements), backend responds normally but with:
+  - either a response header signaling refresh required, and/or
+  - a structured error code such as `ENTITLEMENTS_REFRESH_REQUIRED` for actions that depend on tier.
+
+Tier-sensitive operations (preview jobs, AI jobs, heavy map generation, etc.) MUST re-check entitlements server-side at execution time.
+
+### Consistency With Rate Limits / Queues
+
+When tier changes:
+- Queue priority for newly created jobs MUST reflect the new tier.
+- Existing jobs MAY complete under the tier that created them (do not retroactively reprioritize unless explicitly designed).
+
+### Abuse & Safety Requirements
+
+- Webhook endpoint MUST be rate-limited and protected against request floods.
+- All webhook processing MUST be server-side; no worker should accept “tier updates” from untrusted sources.
+- All changes MUST be auditable (store raw provider event metadata or a minimal receipt record for traceability).
+
+
+---
 
 **End of backend_spec.md**
-
-
-## Phase Regeneration Requirement
-
-Backend code MUST be regenerated in Phases D, H, L, and N according to this specification. No legacy backend behavior may override or conflict with these rules.

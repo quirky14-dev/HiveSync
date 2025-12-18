@@ -18,9 +18,8 @@ Replit must read and rely on:
 * `/docs/backend_spec.md`
 * `/docs/architecture_overview.md`
 * `/docs/security_hardening.md`
-* `/docs/admin_dashboard_spec.md`
+* `/docs/admin_dashboard.md`
 * `/docs/faq_entries.md`
-* `/docs/alerting_and_monitoring.md`
 * `/phases/Phase_A_Overview.md`
 * `/phases/Phase_L_Pricing_Tiers_and_Limits.md`
 * `/docs/architecture_map_spec.md`

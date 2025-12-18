@@ -1,318 +1,294 @@
-# HiveSync Onboarding Guide (Merged & Complete)
+# HiveSync Onboarding Guide
 
-This guide merges:
-- Old onboarding steps from the original multi-phase plan
-- The new device-link + stateless preview system
-- Updated UI flows (desktop, mobile, plugins)
-- Modern best practices for first-time HiveSync users
-- Team and project onboarding flow
+Welcome to HiveSync. This guide walks you through HiveSync from first signup to confidently using previews, AI documentation, and collaboration tools. It is written for **real users**, not as a checklist — the goal is to help you understand *how HiveSync works* and *why it behaves the way it does*.
 
-This is the **official onboarding guide** for new users.
+HiveSync is a **preview-first, read-first development companion**. It helps you understand and visualize your project and preview layouts on real devices **without executing your code**.
 
 ---
-# 1. Welcome to HiveSync
-HiveSync helps developers:
-- Preview mobile apps instantly on real devices
-- Generate AI documentation
-- Collaborate via teams, tasks, and comments
-- Sync across desktop, mobile, iPad, and editor plugins
 
-This guide walks you through everything needed to begin using the platform.
+## 1. What HiveSync Is (and Is Not)
+
+Before getting started, it’s important to understand HiveSync’s philosophy.
+
+HiveSync **does**:
+
+* Preview application layouts safely on real devices
+* Analyze project structure and dependencies
+* Visualize architecture, HTML, CSS, and relationships
+* Generate AI-assisted documentation and explanations
+* Support collaboration through teams, tasks, and notifications
+
+HiveSync **does not**:
+
+* Execute your application code
+* Act as an emulator or simulator
+* Replace your runtime, debugger, or deployment tools
+
+Previews are generated from **sandboxed layout data and static assets only**, making them deterministic, fast, and safe.
 
 ---
-# 2. Account Setup
 
-## 2.1 Create an Account
-You can sign up with:
-- Email
-- Username
-- Password
+## 2. Creating Your Account
+
+To begin using HiveSync, you’ll first create an account.
+
+You can sign up using:
+
+* Email and password
+* Google Sign-In
+* Apple Sign-In
 
 After registration:
-- You are logged in automatically
-- A starter project may be created (optional)
 
-## 2.2 Login
-Use email/username + password.
-If password is forgotten:
-- Use password reset (time-limited token)
+* You are logged in automatically
+* Your account starts on the Free tier
+* You can immediately create projects and link devices
 
----
-# 3. Install Clients
-
-## 3.1 Desktop App
-Download and install the HiveSync Desktop client (Electron).
-This is where you:
-- Manage projects
-- Edit files
-- Send previews
-- Trigger AI documentation
-- Manage tasks and notifications
-
-## 3.2 Mobile App
-Install the mobile app (React Native) from:
-- App Store
-- Google Play
-
-Mobile is your **preview runtime** and **notification hub**.
-
-## 3.3 iPad App
-Optimized for split-view preview + editing.
-
-## 3.4 Editor Plugins
-Available for:
-- VS Code
-- JetBrains IDEs
-- Sublime
-- Vim
-
-Plugins allow:
-- AI docs
-- Send preview
-- Quick navigation
-
-## 3.5 Optional: HiveSync CLI
-Advanced users may install the HiveSync CLI for automation, CI, and backend workflows.
+If you forget your password later, HiveSync provides secure, time-limited reset links.
 
 ---
-# 4. Creating Your First Project
 
-## 4.1 From Desktop
-1. Open desktop
-2. Click **New Project**
-3. Enter project name
-4. Choose team (optional)
+## 3. Installing HiveSync Clients
 
-## 4.2 From Existing Code
-You can import an existing folder.
+HiveSync works across several clients, each with a specific role. Understanding these roles helps everything make sense.
 
-## 4.3 Project Structure
+### 3.1 Desktop App (Primary Control Surface)
+
+The Desktop app is the **center of HiveSync**.
+
+From Desktop, you can:
+
+* Create and manage projects
+* Send previews to devices
+* Generate AI documentation
+* Explore the Architecture Map
+* Create tasks and view notifications
+
+You should think of Desktop as the “command center.” Most actions begin here.
+
+---
+
+### 3.2 Mobile App (Preview Device)
+
+The Mobile app is used to **render previews and receive notifications**.
+
+Important things to know:
+
+* The mobile app never executes your code
+* It renders sandboxed preview layouts only
+* It does not need access to your source files
+
+This separation keeps previews safe and predictable.
+
+---
+
+### 3.3 Tablet (iPad)
+
+The iPad app is optimized for:
+
+* Split-view previews
+* Architecture Map exploration
+* Reviewing tasks and comments
+
+It’s especially useful for reviewing large projects visually.
+
+---
+
+### 3.4 Editor Plugins (Optional)
+
+HiveSync plugins integrate with popular editors such as:
+
+* VS Code
+* JetBrains IDEs
+* Sublime
+* Vim
+
+Plugins allow you to:
+
+* Trigger previews
+* Generate AI documentation
+* Jump to Architecture Map nodes
+
+Plugins are convenience tools — they defer all enforcement to the backend.
+
+---
+
+### 3.5 CLI (Optional)
+
+Advanced users may use the HiveSync CLI for automation, CI workflows, or scripted analysis.
+
+The CLI does not replace the Desktop app for interactive previews.
+
+---
+
+## 4. Creating Your First Project
+
+Once Desktop is installed, you can create your first project.
+
+From Desktop:
+
+1. Click **New Project**
+2. Choose a project name
+3. Select a team (optional)
+
+You may also import an existing folder.
+
 HiveSync stores:
-- File metadata
-- Project info
-- Comments
-- Tasks
 
-Your actual file content stays in your local development environment.
+* Project metadata
+* Analysis results
+* Tasks and comments
+
+Your actual source files remain in your local development environment.
 
 ---
-# 5. Linking Your Device
-Linking a device is required for preview.
 
-## 5.1 Manual Linking (Recommended)
-1. Open mobile app
+## 5. Linking a Device for Previews
+
+Before you can send previews, you need to link a device.
+
+### Manual Linking (Recommended)
+
+1. Open the Mobile app
 2. Navigate to **Linked Devices**
-3. On desktop → click **Send Preview**
-4. Enter your username/email
-5. Confirm on mobile
+3. In Desktop, click **Send Preview**
+4. Enter your username or email
+5. Confirm the pairing on your mobile device
 
-### Recent Recipients
-Next time, you can select from your recent list.
-
----
-# 6. Sending Your First Preview
-
-## 6.1 Steps
-1. Open a project in desktop
-2. Click **Send Preview**
-3. Select target device
-4. HiveSync builds a preview bundle
-5. Mobile downloads + renders it
-
-## 6.2 Common Messages
-- **Preparing**: scanning files
-- **Sending**: uploading bundle
-- **Ready**: mobile renders
-- **Failed**: see troubleshooting section
-
----
-# 7. AI Documentation
-
-## 7.1 How to Generate Docs
-1. Select code
-2. Click **AI Docs** or use plugin command
-3. Choose doc type (snippet/full/multi-file)
-4. Worker processes job
-5. Results appear in AI Docs panel
-
-## 7.2 AI Docs Best Practices
-- Use meaningful variable names
-- Generate snippet docs often
-- Use full-file docs before pull requests
-
----
-# 8. Tasks & Collaboration
-
-## 8.1 Creating Tasks
-1. Open **Tasks** panel
-2. Click **New Task**
-3. Assign to yourself or a teammate
-
-## 8.2 Commenting on Tasks
-Tasks support threaded comments.
-
-## 8.3 Notifications
-You’ll receive notifications when:
-- Someone assigns you a task
-- Someone mentions you
-- Preview or AI job completes
-
----
-# 9. Teams
-
-## 9.1 Creating a Team
-1. Go to **Teams**
-2. Click **New Team**
-3. Invite members
-
-## 9.2 Roles
-- Owner
-- Admin
-- Member
-
-Roles control task/project permissions.
-
----
-# 10. Settings & Help
-
-## 10.1 Settings
-Available on all clients:
-- Profile
-- Linked devices
-- Preferences
-- Tier
-- Billing (if applicable)
-- Help/FAQ
-
-## 10.2 Help & FAQ
-Topics include:
-- How previews work
-- AI docs guide
-- Team management
-- Tier differences
-- Troubleshooting
-
----
-# 11. Upgrading Your Tier
-### Free → Pro → Premium
-Premium enables:
-- GPU previews
-- Priority queue
-- Larger AI jobs
-- Faster build times
-
-Upgrades apply instantly.
-
----
-# 12. Admin Users (If Applicable)
-Admins have an additional dashboard with:
-- Worker metrics
-- Queue scaling
-- Preview + AI job analytics
-- Audit logs
-
----
-# 13. Quick Start Checklist
-- [x] Create account
-- [x] Install desktop
-- [x] Install mobile
-- [x] Create project
-- [x] Link device
-- [x] Send first preview
-- [x] Generate AI docs
-- [x] Create a task
-- [x] Invite teammate
+Once linked, your device will appear in the recipient list for future previews.
 
 ---
 
-## 14. Architecture Map — Understanding Your Project Visually
+## 6. Sending a Preview (What Actually Happens)
 
-HiveSync includes a powerful visual tool called the **Architecture Map**.  
-It shows how your files, components, HTML pages, CSS selectors, functions, routes, and assets connect.
+When you send a preview, HiveSync performs several steps behind the scenes.
 
-This is especially helpful when entering a new codebase or trying to understand an unfamiliar project structure.
+1. Desktop scans your project files
+2. A preview job is queued
+3. Workers generate **layout data and static assets**
+4. The backend validates and signs the preview
+5. Your device renders the preview
 
----
+### Preview Status Messages
 
-### 14.1 What the Architecture Map Shows
+You may see:
 
-The map can include:
+* **Preparing** — scanning project files
+* **Building** — generating sandboxed layout data
+* **Ready** — preview available on device
+* **Failed** — see troubleshooting guide
 
-* JavaScript/TypeScript modules  
-* Python modules  
-* UI components  
-* Routes and API endpoints  
-* HTML pages (static structure only)  
-* CSS rules and selectors  
-* External references (CDN assets, imported CSS/JS)  
-
-Everything appears as nodes connected by relationships produced by the architecture workers.
+No application code is executed at any point in this process.
 
 ---
 
-### 14.2 HTML & CSS Visualization
+## 7. Exploring the Architecture Map
 
-HiveSync now supports static HTML and CSS analysis:
+The Architecture Map is one of HiveSync’s most powerful tools.
 
-* HTML nodes represent pages and elements.  
-* CSS nodes represent selectors, rule groups, and media queries.  
-* Edges show which CSS rules affect which HTML nodes.  
+It visualizes:
 
-This helps quickly answer questions like:
+* Files and modules
+* Components and routes
+* HTML elements and CSS selectors
+* External references (shown as boundary nodes)
 
-* “Why does this style override another?”  
-* “Which elements does this selector actually influence?”  
-* “What happens if I remove this rule?”
+You can use it to:
 
----
+* Understand unfamiliar codebases
+* Trace dependencies
+* See which CSS rules influence which elements
 
-### 14.3 CSS Influence Analysis (CIA)
-
-HiveSync includes a feature called **CIA**:
-
-* **Basic CIA (Free/Pro):**  
-  Shows which selectors apply to which HTML elements and identifies the final winning rule.
-
-* **Deep CIA (Premium):**  
-  Shows full override lineage, specificity comparisons, inheritance, and media-query conditions.
-
-Premium users can also temporarily **mute selectors** to see how the style would behave without that rule (simulation only — it doesn’t modify files).
+Optional reachability indicators may show whether an external URL responds to a safe `HEAD` request.
 
 ---
 
-### 14.4 Map Layers — HTML, CSS, Code, External
+## 8. Generating AI Documentation
 
-At the top of the map viewer you’ll see toggle buttons:
+HiveSync can generate AI-assisted explanations for your code.
+
+Typical workflow:
+
+1. Select code in Desktop or a plugin
+2. Choose **AI Docs**
+3. Select the type of documentation
+4. Review and edit the results
+
+AI features are designed to assist understanding, not replace human review.
 
 ---
 
-### 14.5 External Resource Reachability Indicators
+## 9. Teams and Collaboration
 
+HiveSync supports collaborative workflows through teams.
 
-Some nodes in the Architecture Map represent files or resources located outside your project, such as:
-- CDN-hosted CSS or JS
-- Remote images and fonts
-- API endpoints
-- JSON configuration files
-- External HTML/CSS references
+Roles include:
 
+* Owner
+* Admin
+* Member
+* Guest
 
-HiveSync displays these as **Boundary Nodes**, and the backend may optionally check whether the external URL responds to a lightweight, safe `HEAD` request.
+Teams can:
 
+* Share projects
+* Assign tasks
+* Comment on work
 
-**What you will see:**
-- **Green dot** → HiveSync successfully reached the URL.
-- **Red dot** → The URL could not be reached (timeout, DNS error, or blocked).
-- **Gray dot** → HiveSync did not check this URL.
+All permissions are enforced server-side.
 
+---
 
-**Important:**
-- Your device and desktop app **never** check external URLs.
-- HiveSync never downloads or executes external code.
-- This feature is diagnostic only and does not affect previews.
+## 10. Notifications
 
-# 15. Summary
-This onboarding guide gives new users a complete, simple path from account creation to full HiveSync usage.
+HiveSync notifies you when:
 
-It is ready for inclusion in the docs + help/FAQ system.
+* A preview is ready
+* An AI job completes
+* You are assigned a task
+* Someone mentions you
 
+Notifications appear on Desktop and Mobile.
+
+---
+
+## 11. Subscription Tiers
+
+HiveSync offers Free, Pro, and Premium tiers.
+
+Tiers affect:
+
+* Preview concurrency
+* AI job size and priority
+* Advanced analysis features
+
+Tier enforcement is handled by the backend.
+
+---
+
+## 12. Getting Help
+
+If something doesn’t behave as expected:
+
+* See `troubleshooting_guide.md`
+* Use the in-app Help section
+* Contact support if needed
+
+---
+
+## 13. Quick Start Summary
+
+Most users follow this path:
+
+1. Create an account
+2. Install Desktop
+3. Install Mobile
+4. Create a project
+5. Link a device
+6. Send a preview
+7. Explore the Architecture Map
+8. Generate AI docs
+
+---
+
+*This onboarding guide reflects the final HiveSync architecture and preview model.*

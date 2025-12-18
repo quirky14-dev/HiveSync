@@ -181,7 +181,7 @@ Workers must periodically delete expired or used session_tokens as defined in Ph
 Workers only communicate with backend via:
 
 ```
-POST /workers/callback
+POST /api/v1/workers/callback
 ```
 
 Signed with `WORKER_CALLBACK_SECRET`.
@@ -436,8 +436,17 @@ Completely isolated:
 * Limited capabilities
 
 ---
+# 13. Operational Limits & Abuse Prevention
 
-# 13. Summary
+Operational limits such as rate limits, retry thresholds, and concurrency caps
+are enforced server-side and MUST NOT be client-controlled.
+
+These limits exist to protect system stability and prevent abuse and MUST NOT be bypassable
+by clients, plugins, or CLI tools.
+
+
+---
+# 14. Summary
 
 This updated Security Hardening document now includes:
 

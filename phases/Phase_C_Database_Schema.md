@@ -20,7 +20,7 @@ Replit must read and rely on:
 * `/docs/backend_spec.md`
 * `/docs/architecture_overview.md`
 * `/docs/security_hardening.md`
-* `/docs/admin_dashboard_spec.md`
+* `/docs/admin_dashboard.md`
 * `/docs/architecture_map_spec.md`
 * `/docs/preview_system_spec.md`
 * `/docs/ui_authentication.md`
@@ -126,6 +126,16 @@ Replit must plan the following tables (NO SQL yet):
 * expires_at (TIMESTAMP)
 * used (BOOLEAN, default false)
 * created_at (TIMESTAMP default NOW())
+
+#### `api_tokens`
+* id
+* user_id
+* name
+* token_hash
+* created_at
+* last_used_at
+* revoked_at
+
 
 **Purpose:**
 Supports the secure one-time session-token login mechanism used by desktop, mobile, and plugin clients to authenticate users into the HiveSync website without re-entering credentials.

@@ -14,6 +14,9 @@
 > No alternate color palettes, spacing systems, or component variations may be used unless explicitly documented as an override in the design system.  
 > This requirement applies to desktop, mobile, tablet, web, admin panel, and IDE plugin surfaces.
 
+Sample project UI behavior follows the rules defined in
+`docs/ui_layout_guidelines.md` and does not introduce additional controls.
+
 ## Optional Tool Installation
 
 The Desktop Client MUST provide a way for users to install additional HiveSync tools after initial setup, including:
@@ -57,9 +60,38 @@ The Desktop Client is:
   * Running AI Docs and refactor jobs
   * Managing tasks, teams, and comments
   * Reviewing AI-generated diffs
+  * Running Live-Code sessions
 * The **proxy host for editor plugins** (VS Code, JetBrains, Sublime, Vim).
 
 This MUST be reflected in all later phases.
+
+### E.2.1 Applying Approved Changes to Disk
+
+The Desktop client is the **only HiveSync component permitted to write to the local filesystem**.
+
+Approved HiveSync change sets may span many files. The Desktop client must apply all approved changes in a **single, explicit, user-initiated operation**.
+
+The Desktop client must never:
+- partially apply a change set
+- write changes without user approval
+- modify files in the background
+- commit or push changes to version control systems
+
+All filesystem modifications must be deliberate, transparent, and reversible by the user.
+
+### E.2.2 Live Coding Session Ownership
+
+- The Desktop client is the sole authority for live coding sessions.
+- The Desktop client MUST indicate when a live coding or preview session is active and whether observers are connected.
+- Live coding sessions are ephemeral and are not recorded, replayable, or persisted unless explicitly added in a future phase.
+
+Desktop responsibilities include:
+- Initiating and terminating live coding sessions
+- Managing observer invitations
+- Indicating when a live coding session is active
+- Streaming local editor state to the backend for observers
+
+Live coding sessions are explicitly user-initiated and never automatic.
 
 ---
 
@@ -99,6 +131,18 @@ Electron IPC for:
 * File operations
 * OS notifications
 * Cache handling
+
+### E.3.5 Desktop Interaction Rules
+
+The desktop client acts as the authoritative controller for preview
+sessions, device targeting, and virtual device management.
+
+All preview targeting behavior, including device selection, virtual
+device lifecycle, and refresh semantics, MUST follow the rules defined
+in `docs/ui_layout_guidelines.md`.
+
+The desktop client MUST NOT implement additional targeting logic,
+shortcuts, or device assumptions outside of those guidelines.
 
 ---
 

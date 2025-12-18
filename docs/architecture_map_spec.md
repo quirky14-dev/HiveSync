@@ -6,6 +6,8 @@ The Architecture Map System converts a project's source code into a versioned,
 queryable graph representing its structure, dependencies, and logical flow.
 It is a core Premium feature and a Pro-limited feature.
 
+Preview behavior is defined in `preview_system_spec.md` and is not duplicated here.
+
 This specification governs:
 - supported languages
 - parsing pipeline
@@ -17,6 +19,22 @@ This specification governs:
 - error handling
 - tier restrictions
 - UI integration
+
+> **Reachability Authority Clarification**
+>
+> External resource reachability is an **optional backend-side metadata enhancement**.
+>
+> Rules:
+> - Workers MUST NEVER perform network requests.
+> - Reachability checks (HEAD-only) MAY be performed by the backend after map generation.
+> - Reachability is NOT tier-gated.
+> - Failure or omission MUST return `"reachable": "unknown"`.
+>
+> Backend behavior is defined in `backend_spec.md`.
+> Deployment constraints are defined in `deployment_bible.md`.
+>
+> This specification defines only how reachability metadata is represented
+> and consumed by clients.
 
 **Parsing Dependency:**  
 All structural inputs to the Architecture Map MUST follow the rules defined in `parser_accuracy_stack.md`.  

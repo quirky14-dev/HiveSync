@@ -21,9 +21,8 @@ Replit must read and internalize, without modifying:
 * `/docs/ui_layout_guidelines.md`
 * `/docs/deployment_bible.md`
 * `/docs/security_hardening.md`
-* `/docs/admin_dashboard_spec.md`
+* `/docs/admin_dashboard.md`
 * `/docs/faq_entries.md`
-* `/docs/alerting_and_monitoring.md`
 * `/kickoff/kickoff_rules.md`
 * `/docs/architecture_map_spec.md`
 * `/docs/preview_system_spec.md`

@@ -1,211 +1,174 @@
 # HiveSync Terms of Service
-Last Updated: 2025-01-01  
-Effective Immediately
 
-These Terms of Service (“Terms”) govern your use of the HiveSync application,
-desktop software, mobile apps, cloud services, and any related products
-(collectively, the “Service”). By creating an account or using the Service, you
-agree to these Terms.
+Last Updated: 2025-01-15
 
-If you do not agree, do not use the Service.
+These Terms of Service ("Terms") govern your access to and use of the HiveSync platform, including the desktop application, mobile applications, plugins, CLI tools, web portal, and related services (collectively, the "Service").
+
+By creating an account or using the Service, you agree to be bound by these Terms.
 
 ---
 
-# 1. Use of the Service
+## 1. Eligibility
 
-## 1.1 Eligibility
-You must be at least 13 years old to use HiveSync.  
-If required by your region, the minimum age may be higher.
+You must be at least 13 years old to use HiveSync. By using the Service, you represent and warrant that you meet this requirement.
 
-## 1.2 Account Responsibility
-You are responsible for:
-- Maintaining the security of your account credentials  
-- All activity occurring under your account  
-- Ensuring your use complies with these Terms  
+---
 
-We are not responsible for unauthorized access resulting from your actions.
+## 2. Accounts and Authentication
 
-## 1.3 Acceptable Use
+You are responsible for maintaining the confidentiality of your account credentials and for all activity that occurs under your account.
+
+HiveSync supports authentication via:
+
+* Email and password
+* Google Sign-In
+* Apple Sign-In
+
+You agree to notify HiveSync immediately of any unauthorized use of your account.
+
+---
+
+## 3. Use of the Service
+
+### 3.1 Permitted Use
+
+You may use HiveSync to:
+
+* Manage and organize software projects
+* Preview applications on real devices using sandboxed preview artifacts
+* Generate AI-assisted documentation and analysis
+* Collaborate with team members through tasks and comments
+
+### 3.2 Prohibited Use
+
 You may not:
-- Use the Service for illegal purposes  
-- Attempt to bypass or disable security mechanisms  
-- Reverse engineer or attempt to extract source code from HiveSync  
-- Use automated systems to overload or abuse the Service  
-- Upload malicious code  
-- Interfere with the accounts or projects of others  
 
-Violation may result in suspension or termination.
+* Use the Service for unlawful purposes
+* Attempt to bypass security controls, tier limits, or usage restrictions
+* Reverse engineer or exploit the Service
+* Interfere with system integrity or availability
 
 ---
 
-# 2. Your Content
+## 4. Previews and AI Features
 
-## 2.1 Ownership
-You retain full ownership of:
-- Source code  
-- Project files  
-- Documentation  
-- AI-generated output associated with your projects  
+### 4.1 Preview System
 
-We do not claim ownership over your content.
+HiveSync previews are generated from **sandboxed layout data and static assets only**.
 
-## 2.2 License to Provide the Service
-To operate the Service, you grant us a limited, non-exclusive license to:
-- Store your content  
-- Process your content through workers  
-- Generate architecture maps, diffs, previews, and AI results  
-- Display your content to you and authorized team members  
+HiveSync:
 
-We do **not** use your content to train external machine learning models.
+* Does **not** execute user code during previews
+* Does **not** compile or distribute preview bundles
+* Does **not** download or execute external code
 
----
+Preview availability, performance, and limits depend on your subscription tier.
 
-# 3. Team and Collaboration Features
+### 4.2 AI Features
 
-When you join or create a team:
-- Your email and display information may be visible to other team members  
-- Project access is determined by role (owner, admin, member, guest)  
-- Free-tier users may join one team in guest (read-only) mode  
+AI-powered features are provided for productivity assistance only.
 
-Ownership transfer and deletion rules are defined in team governance
-documentation and are binding under these Terms.
+You acknowledge that:
+
+* AI output may be inaccurate or incomplete
+* You are responsible for reviewing and validating AI-generated content
+* AI results do not constitute professional advice
 
 ---
 
-# 4. Billing and Subscriptions
+## 5. Subscription Plans and Billing
 
-## 4.1 Billing Provider
-All paid plans use **LemonSqueezy** for billing and payment processing.  
-HiveSync does not store or handle credit card data.
+HiveSync offers Free, Pro, and Premium subscription tiers.
 
-## 4.2 Subscription Tiers
-The Service offers:
-- Free tier  
-- Pro tier  
-- Premium tier  
+Billing is handled by a third-party provider (LemonSqueezy). HiveSync does not store payment card information.
 
-Tier benefits are described within the app and on our website.
+Subscription rules:
 
-## 4.3 Automatic Renewal
-Paid subscriptions renew automatically unless canceled.
+* Fees are billed in advance
+* Upgrades take effect immediately
+* Downgrades apply at the next billing cycle unless otherwise stated
 
-## 4.4 Cancellation
-You may cancel at any time through your LemonSqueezy customer portal.  
-Canceling ends future renewals but does not trigger refunds, unless required by law.
-
-## 4.5 Downgrades and Feature Restrictions
-If payment fails or a subscription expires:
-- Pro/Premium features are removed immediately  
-- Projects exceeding limits may become read-only until resolved  
+Failure to pay may result in suspension or termination of access.
 
 ---
 
-# 5. Account Deletion and Dormancy
+## 6. User Content and Ownership
 
-## 5.1 User-Requested Deletion
-You may delete your account at any time.  
-Deletion is permanent and processed by a dedicated worker that removes:
-- Personal data  
-- OAuth links  
-- Device tokens  
-- Preview and map storage unique to you  
+You retain ownership of all source code and project content you upload or sync to HiveSync.
 
-Team-owned projects may be transferred instead of deleted.
+By using the Service, you grant HiveSync a limited license to store, process, and display your content solely for the purpose of operating the Service.
 
-## 5.2 Dormant Account Policy
-Accounts inactive for:
-- **12 months**: warning email  
-- **13 months**: automatic deletion  
-
-Deletion follows the same rules as user-requested deletion.
+HiveSync does not claim ownership of your intellectual property.
 
 ---
 
-# 6. Availability and Service Modifications
+## 7. Teams and Collaboration
 
-## 6.1 No Guarantee of Availability
-We provide the Service on a best-effort basis.  
-We do not guarantee:
-- Continuous uptime  
-- Error-free operation  
-- Worker availability  
-- Future development of any specific feature  
+If you join or create a team:
 
-## 6.2 Modifications
-We may update, change, or remove features at any time.  
-We will attempt to communicate significant changes when possible.
+* Access to projects depends on your assigned role
+* Team owners control membership and permissions
+* Removing a user revokes future access
+
+HiveSync is not responsible for disputes between team members.
 
 ---
 
-# 7. Disclaimer of Warranties
+## 8. Account Termination
 
-The Service is provided **“as is”** and **“as available”** without warranties
-of any kind, whether express or implied, including:
-- Merchantability  
-- Fitness for a particular purpose  
-- Non-infringement  
+You may delete your account at any time via the Service.
 
-Use of the Service is at your own risk.
+HiveSync may suspend or terminate accounts:
 
----
+* For violations of these Terms
+* For security or abuse prevention
+* For extended inactivity in accordance with the Dormant Account Policy
 
-# 8. Limitation of Liability
+Upon deletion:
 
-To the fullest extent allowed by law, HiveSync and its operators are not liable for:
-- Loss of data  
-- Loss of profits  
-- Business interruption  
-- Indirect, incidental, or consequential damages  
-
-Our total liability for any claim is limited to the amount you paid us in the
-preceding 12 months, or $0 for Free-tier users.
+* Personal data is removed
+* User-owned preview artifacts and storage objects are purged
 
 ---
 
-# 9. Indemnification
+## 9. Availability and Modifications
 
-You agree to indemnify and hold harmless HiveSync from claims arising out of:
-- Misuse of the Service  
-- Violation of these Terms  
-- Violation of applicable laws  
-- Content you upload or process using the Service  
+The Service is provided "as is" and "as available".
+
+HiveSync may modify, suspend, or discontinue features at any time. Material changes will be communicated when feasible.
 
 ---
 
-# 10. Governing Law
+## 10. Disclaimer of Warranties
 
-These Terms are governed by the laws of the jurisdiction where HiveSync
-is registered and operated, without regard to conflict-of-law principles.
-
----
-
-# 11. Termination
-
-We may suspend or terminate your account if you:
-- Violate these Terms  
-- Abuse the Service or interfere with other users  
-- Engage in harmful or illegal activity  
-
-You may terminate your use at any time by deleting your account.
+To the maximum extent permitted by law, HiveSync disclaims all warranties, express or implied, including fitness for a particular purpose and non-infringement.
 
 ---
 
-# 12. Changes to These Terms
+## 11. Limitation of Liability
 
-We may update these Terms from time to time.  
-Significant changes will be communicated via email or through the app.  
-Continued use of the Service after changes constitutes acceptance.
+To the maximum extent permitted by law, HiveSync shall not be liable for indirect, incidental, or consequential damages arising from use of the Service.
 
 ---
 
-# 13. Contact Us
+## 12. Governing Law
 
-For questions or concerns:
-
-**HiveSync Contact**  
-dev@hivesync.dev  
+These Terms are governed by the laws of the jurisdiction in which HiveSync operates, without regard to conflict-of-law principles.
 
 ---
 
-# End of terms_of_service.md  
-Authoritative Terms required for app store and SaaS compliance.
+## 13. Changes to These Terms
+
+HiveSync may update these Terms periodically. Continued use of the Service constitutes acceptance of the updated Terms.
+
+---
+
+## 14. Contact Information
+
+For questions about these Terms:
+
+[dev@hivesync.dev](mailto:dev@hivesync.dev)
+
+---
+
+*Authoritative Terms of Service for HiveSync.*

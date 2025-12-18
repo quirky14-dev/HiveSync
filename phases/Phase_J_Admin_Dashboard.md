@@ -15,7 +15,7 @@
 
 Replit must read and rely on:
 
-* `/docs/admin_dashboard_spec.md`
+* `/docs/admin_dashboard.md`
 * `/docs/backend_spec.md`
 * `/docs/security_hardening.md`
 * `/docs/deployment_bible.md`
@@ -358,7 +358,7 @@ The Admin Dashboard MUST include full management capabilities for Sample Project
 
 This feature integrates with:
 - `/docs/sample_projects_spec.md`
-- `/docs/v3 Dir Structure Build & Production.md`
+- `/docs/Dir_Structure_Production.md`
 - Backend sample project domain module (service, repository, router)
 - Desktop's sample discovery system
 

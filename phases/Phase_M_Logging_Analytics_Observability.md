@@ -1,5 +1,20 @@
 # Phase M – Logging, Analytics & Observability Planning
 
+> **Logging & Observability Authority**
+>
+> This phase is the **single authoritative specification** for:
+> - logging formats
+> - redaction rules
+> - metrics
+> - retention
+> - observability behavior
+>
+> Other documents (Security Rules, Deployment Bible, Client Specs)
+> may reference logging requirements but MUST NOT redefine them.
+>
+> In case of conflict, this phase takes precedence.
+
+
 > **Purpose of Phase M:**
 >
 > * Define all logging, metrics, audit trails, tracing, analytics aggregation, and observability behavior across the entire HiveSync ecosystem.

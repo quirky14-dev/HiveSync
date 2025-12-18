@@ -20,6 +20,71 @@ It ensures:
 * deterministic incremental regeneration
 * compatibility with runtime node discovery
 
+
+## Language Capability Registry
+
+HiveSync maintains a canonical language capability registry owned by the backend.
+Clients MUST NOT hardcode language support or parsing depth rules.
+
+### Registry Format
+The registry MUST be represented as JSON and include:
+- `version`
+- `languages` entries keyed by language id
+
+Each language entry MUST define:
+- `display_name`
+- `extensions` (file extensions)
+- `parser_engine` (e.g. tree-sitter, regex-fallback)
+- `capabilities` (boolean feature flags)
+- `max_depth` (recommended recursion/dependency depth)
+- `confidence_profile` (used for scoring defaults)
+- `support_level` (`full`, `partial`, `fallback`, `unsupported`)
+
+Example (illustrative only):
+
+```json
+{
+  "version": "1.0",
+  "languages": {
+    "typescript": {
+      "display_name": "TypeScript",
+      "extensions": [".ts", ".tsx"],
+      "parser_engine": "tree-sitter",
+      "support_level": "full",
+      "max_depth": 12,
+      "confidence_profile": "ts_default",
+      "capabilities": {
+        "imports": true,
+        "exports": true,
+        "classes": true,
+        "types": true,
+        "jsx": true,
+        "call_graph": "partial"
+      }
+    },
+    "python": {
+      "display_name": "Python",
+      "extensions": [".py"],
+      "parser_engine": "tree-sitter",
+      "support_level": "full",
+      "max_depth": 10,
+      "confidence_profile": "py_default",
+      "capabilities": {
+        "imports": true,
+        "classes": true,
+        "types": false
+      }
+    }
+  }
+}
+```
+
+### Authority & Distribution
+
+* Backend MUST expose this registry via a read-only endpoint.
+* Clients MAY cache the registry and MUST refetch when the version changes.
+* Unknown languages MUST fall back to safe, shallow parsing rules.
+
 ---
 
 # **1. Goals & Constraints**

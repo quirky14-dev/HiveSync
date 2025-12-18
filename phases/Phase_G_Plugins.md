@@ -47,6 +47,9 @@ These define plugin responsibilities + available backend APIs.
 
 ## G.2. Roles of the Editor Plugins
 
+Plugins act as command surfaces only and defer all preview device
+selection and targeting to the desktop client.
+
 Editor plugins are:
 
 * Lightweight integrations providing **in-editor AI Docs, inline comments, and quick previews**.
@@ -63,6 +66,42 @@ Editor plugins are:
   * Do NOT provide admin features
 
 They are **extensions** of the Desktop workflow.
+
+Direct backend communication from plugins is permitted for non-preview
+operations only (e.g. AI docs, analysis, metadata exchange).
+Preview-related actions always require Desktop mediation.
+
+If a preview action is attempted without an active Desktop client,
+plugins MUST report a clear, user-facing message indicating that
+Desktop is required for previews.
+
+### Live Coding Session Participation (Plugins)
+
+Editor plugins may participate in live coding sessions in one of two roles:
+
+- Presenter:
+  - Streams local editor state when a Desktop-owned live coding session
+    is active
+  - Does not control session lifecycle or invitations
+
+- Observer:
+  - Renders a read-only stream of source code
+  - Allows text selection and copying only
+  - Does not allow edits, patches, or filesystem writes
+
+Plugins MUST NOT initiate live coding sessions independently.
+
+### Live Coding Session Discovery (Plugins)
+
+Plugins may receive notifications when a live coding session is available.
+
+Notifications:
+- Are informational only
+- Do not grant session control
+- Do not auto-join sessions
+- Require Desktop client for participation
+
+Plugins must not initiate or authorize live coding sessions independently.
 
 ---
 
@@ -150,6 +189,37 @@ Minimal editors (Vim/Sublime) may provide text-based equivalents.
 * Notification count
 * Desktop Proxy Mode active/inactive
 
+### G.5.4 CLI Dependency Detection & Install Link
+
+HiveSync plugins depend on the HiveSync CLI for certain operations (e.g. triggering previews, diagnostics, or headless analysis).
+
+#### Detection
+- Plugins MUST detect whether the `hsync` CLI is available on the host system.
+- Detection may be performed via:
+  - PATH lookup
+  - known install locations
+  - version command (`hsync --version`)
+
+#### Missing CLI Behavior
+If the CLI is not detected:
+- Plugin functionality MUST continue to operate where possible.
+- CLI-dependent actions MUST be disabled gracefully.
+- A clear, non-blocking UI affordance MUST be shown:
+  - **“Install HiveSync CLI”**
+
+#### Install Link
+- Clicking “Install HiveSync CLI” MUST:
+  - open the official HiveSync CLI installation instructions
+  - or redirect to the HiveSync website CLI install page
+- Plugins MUST NOT:
+  - auto-install the CLI
+  - execute shell scripts
+  - request elevated privileges
+
+#### Notes
+- CLI installation is optional but strongly recommended.
+- Failure to install the CLI MUST NOT break core plugin functionality.
+
 ---
 
 ## G.6. AI Docs Flow (Plugins)
@@ -172,45 +242,43 @@ Plugins MUST follow same per-tier limits as Desktop.
 
 ## G.7. Preview Request Flow (Plugins)
 
-1. User triggers "Request Preview".
-2. Plugin collects file content (only changed file, not entire project).
-3. Plugin sends:
+Plugins may request preview actions but do not initiate preview execution
+or device delivery.
 
-   * File path
-   * File content
-   * Platform target
-4. Backend → Worker builds preview
-5. Result is shown:
+1. User triggers "Request Preview" from the editor.
+2. Plugin sends a preview intent to the Desktop client.
+3. Desktop evaluates preview state:
+   - If no active preview session exists, Desktop prompts the user to
+     select target device(s).
+   - If an active preview session exists, Desktop reuses the existing
+     targets.
+4. Desktop performs all preview orchestration, including:
+   - File hashing
+   - Bundling
+   - Backend execution
+   - Device fan-out
+5. Preview output is delivered only to Desktop-selected physical devices.
 
-   * QR code (webview or clipboard)
-   * Token deep link
+Plugins do not receive preview artifacts (QR codes, deep links, or rendered
+output).
 
-Plugins may **NOT** bundle full projects (Desktop handles full preview bundling).
+### G.7.0 Device Context Handling for Plugins
 
-### G.7.0 Device Context Requirements for Plugins
+Editor plugins do not define or control preview device context.
 
-Plugins operate with a simplified device_context model.
+When Desktop Proxy Mode is active:
+- All device context (physical and virtual) is defined exclusively by
+  the Desktop client.
+- Any device-related metadata provided by the plugin MUST be ignored.
 
-When sending preview requests, plugins MUST include:
+When Desktop is not running:
+- Plugins MUST NOT initiate preview execution.
+- Plugins MUST NOT provide device context to the backend.
 
-* `target_device` – the user-selected device type (e.g., "iPhone 14", "iPad Pro", "Android Pixel 7")
-* `platform` – ios / android / web (as applicable)
-* `virtual` – always `true` (plugins never represent a physical device)
-* `capabilities` – plugin MUST include:
-  - camera_available: false
-  - microphone_available: false
-  - accelerometer_available: false
-  - gyroscope_available: false
-  - gps_available: false
-
-Rules:
-
-1. Plugins MUST NOT claim access to real sensors.
-2. Plugins MUST NOT attempt to calculate DPR or safe-area insets.
-3. When Desktop Proxy Mode is active, Desktop will overwrite plugin-provided device_context.
-4. In Direct Mode, plugin-provided device_context becomes authoritative for the preview job.
-
-This ensures plugins remain consistent in the multi-device preview ecosystem.
+Plugins MUST NOT:
+- Claim representation of a physical device
+- Specify virtual devices
+- Infer screen size, DPR, safe areas, or sensors
 
 ### G.7.1 Optional CLI Preview Trigger
 
@@ -218,14 +286,13 @@ Plugins MAY invoke the HiveSync CLI when installed on the user's system.
 
 Invocation format:
 
-`hivesync preview <workspace_dir> --json`
+`hsync preview <workspace_dir> --json`
 
 Rules:
-- If Desktop Client is running, plugin SHOULD use Desktop Proxy Mode instead.
-- If Desktop Client is NOT running, plugin MAY fall back to CLI mode.
-- If CLI is not installed, show a non-blocking warning.
-- CLI output MUST be parsed in JSON mode for stable plugin integration.
-- Plugins MUST NOT store API tokens. Authentication must pass through Desktop Proxy or personal API token env var.
+- Plugins MUST use Desktop Proxy Mode for all preview-related actions.
+- If Desktop Client is NOT running, preview actions MUST be disabled.
+- CLI invocation MUST NOT be used to initiate previews.
+- CLI may be used for diagnostics or analysis only.
 
 ### G.7.2 Event Flow Mode Compatibility (Required)
 
@@ -272,7 +339,8 @@ Plugins are NOT for:
 
 ### G.9.2 Proxy Mode Failure
 
-* If Desktop unreachable mid-session → fallback to Direct Mode
+* If Desktop unreachable mid-session → fallback to Direct Mode for
+  non-preview actions only; preview actions must be disabled
 * Provide warning to user
 
 ---
@@ -425,6 +493,8 @@ Plugins must support:
 * Minimal onboarding help
 
 Plugins do **not** support heavy workflows (admin functions, team invites, multi-file refactor orchestration).
+
+
 
 ---
 

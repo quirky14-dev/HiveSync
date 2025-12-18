@@ -10,6 +10,14 @@
 >
 > Replit MUST NOT generate any code in Phase L.
 
+> **Tier Authority Note**
+>
+> This phase defines the semantic meaning of tiers.
+> Numeric limits and runtime enforcement are implemented
+> exclusively in `backend_spec.md`.
+>
+> Billing state resolution is handled in `billing_and_payments.md`.
+
 ---
 
 ## L.1. Inputs for This Phase
@@ -35,6 +43,15 @@ Replit must read and respect:
 > Phase L describes **relative behavior and semantics** per tier; it must not override backend_spec values.*
 
 This is planning only.
+
+> **Tier Semantics vs Enforcement**
+>
+> This phase defines the **semantic intent** of each pricing tier.
+>
+> Numeric limits, enforcement logic, and rejection behavior
+> are implemented exclusively in `backend_spec.md`.
+>
+> Client applications must treat backend responses as authoritative.
 
 ---
 
@@ -220,26 +237,117 @@ Replit must:
 
 ---
 
-## L.6. Notifications & Event Limits
+## **L.6. Architecture Maps & Event-Driven Map Limits**
 
-Notifications (desktop, mobile, plugins) must follow the semantics defined in Phase I.
+Architecture maps represent a **project-level structural snapshot** derived from static analysis and (where permitted by tier) event flow data.
 
-Tier differences:
+Architecture maps are **not file-level artifacts** and must never be generated per individual file or directory.
 
-* **Free**
-  * Lowest rate for server-pushed notification events (if any rate limiting is enabled in backend_spec).
-  * Background polling intervals (where applicable) may be less frequent.
-* **Pro**
-  * Standard notification rate.
-* **Premium**
-  * Highest notification event allowance (if rate limits exist).
-  * Same notification types; only frequency/throughput differ.
+### L.6.1 Architecture Map Scope (All Tiers)
+
+For all tiers:
+
+* Architecture maps are generated **at the project level**, encompassing:
+
+  * Files
+  * Modules
+  * Dependency edges
+  * Static call/import relationships
+* Architecture maps represent a **snapshot in time**, not a continuously mutating object unless explicitly enabled by tier.
+* Architecture maps may be regenerated only through explicit user action (never automatically).
+
+Replit must ensure:
+
+* No client or worker treats architecture maps as incremental, file-by-file updates unless the tier explicitly allows it.
+* Architecture map generation is always a **discrete job** with tier-aware limits.
+
+---
+
+### L.6.2 Free Tier – Architecture Map Limits
+
+**Free tier users are allowed limited access to architecture mapping for evaluation purposes only.**
+
+Free tier rules:
+
+* **Maximum: 1 architecture map generation per project per 24-hour period**
+* Map represents a **static snapshot** of the project at the time of generation
+* No incremental regeneration after code changes
+* No partial or scoped re-maps (e.g., per folder, per module)
+* No live or continuous updates
+* No event-driven architecture updates
+
+Event flow behavior for Free tier:
+
+* Event ingestion may occur (per backend_spec limits),
+* BUT events **MUST NOT**:
+
+  * Trigger architecture map updates
+  * Modify existing architecture maps
+  * Be merged into previously generated maps
 
 Replit must:
 
-* NOT gate basic notifications by tier (all tiers can see task/team/preview_ready/ai_docs_ready notifications).
-* Only rate-limit **volume/frequency**, not notification types.
-* Use backend_spec definitions for any per-tier notification rate limits.
+* Treat architecture map generation for Free users as a **single-shot evaluation feature**
+* Ensure repeated attempts within the 24-hour window return a structured `LIMIT_REACHED` or `UPGRADE_REQUIRED` response
+* Prevent clients from simulating map evolution by chaining multiple partial maps
+
+---
+
+### L.6.3 Pro Tier – Architecture Map Behavior
+
+Pro tier users receive expanded architecture map capabilities:
+
+* Multiple architecture map generations per day (exact limits defined in `backend_spec.md`)
+* Ability to regenerate maps after code changes
+* Event flow **may** be used to enrich maps depending on backend_spec gating
+* Maps remain **explicitly regenerated**, not continuously live unless otherwise specified
+
+Replit must:
+
+* Ensure Pro tier does not silently inherit Premium-only live update behavior
+* Enforce backend-defined regeneration and event-coupling limits
+
+---
+
+### L.6.4 Premium Tier – Architecture Map Behavior
+
+Premium tier users receive full architecture mapping capabilities:
+
+* Highest regeneration limits
+* Event-driven architecture updates allowed
+* Optional live or near-live map updates (as defined in Phase H and `architecture_map_spec.md`)
+* Cross-device synchronized highlighting and interaction (where applicable)
+
+Replit must:
+
+* Ensure event-driven updates are strictly blocked for lower tiers
+* Enforce queue priority and worker allocation based on tier
+
+---
+
+### L.6.5 Tier Enforcement & Authority
+
+Architecture map limits are enforced as follows:
+
+* **Semantic behavior and scope** are defined in Phase L
+* **Numeric limits and cooldowns** are defined exclusively in `backend_spec.md`
+* Clients must treat backend responses as authoritative
+
+Replit must NOT:
+
+* Infer limits not explicitly defined
+* Allow clients to bypass cooldowns by creating new sessions
+* Allow merging or layering of multiple Free-tier maps into a single evolving representation
+
+---
+
+### L.6.6 Upgrade Triggers
+
+Attempting any of the following on insufficient tier MUST trigger an Upgrade Wall:
+
+* Regenerating an architecture map within the Free-tier cooldown window
+* Requesting event-driven map updates on Free tier
+* Requesting live or continuous architecture mapping on Pro (if gated)
 
 ---
 
@@ -368,6 +476,8 @@ Phase L defines how upgrades/downgrades affect limits:
     * Future preview/AI jobs respect the new lower tier.
     * Existing stored data (attachments, previews) is not immediately deleted by Phase L; any cleanup is governed by backend_spec and Admin tools.
 
+Downgrades MUST NOT delete, invalidate, or retroactively restrict access to previously generated artifacts (previews, architecture maps, AI documentation); only the ability to create new tier-restricted artifacts is affected.
+
 Replit must **NOT**:
 
 * Implement billing or payment processing logic here.
@@ -441,7 +551,31 @@ No code generation happens in Phase L.
 
 ---
 
-## L.17. End of Phase L
+## L.17. Notifications & Event Limits
+
+Notifications (desktop, mobile, plugins) must follow the semantics defined in Phase I.
+
+Tier differences:
+
+* **Free**
+  * Lowest rate for server-pushed notification events (if any rate limiting is enabled in backend_spec).
+  * Background polling intervals (where applicable) may be less frequent.
+* **Pro**
+  * Standard notification rate.
+* **Premium**
+  * Highest notification event allowance (if rate limits exist).
+  * Same notification types; only frequency/throughput differ.
+
+Replit must:
+
+* NOT gate basic notifications by tier (all tiers can see task/team/preview_ready/ai_docs_ready notifications).
+* Only rate-limit **volume/frequency**, not notification types.
+* Use backend_spec definitions for any per-tier notification rate limits.
+
+
+---
+
+## L.18. End of Phase L
 
 At the end of Phase L, Replit must:
 

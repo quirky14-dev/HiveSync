@@ -66,6 +66,25 @@ Provides:
 
 ### **1.4 Workers**
 
+## ⚠️ Cloudflare Worker Authority Override
+
+All Cloudflare Worker behavior defined in earlier documents
+is superseded by `Phase_N_Final_Code_Generation_Instructions.md`.
+
+Cloudflare Workers in production are strictly limited to:
+- Callback relaying
+- Health checks
+
+They MUST NOT:
+- Execute preview jobs
+- Perform AI inference
+- Access R2 directly
+- Parse user code
+- Perform external reachability checks
+
+Any earlier references suggesting expanded Worker responsibility
+are informational only and non-authoritative.
+
 Python processes that perform:
 
 * Preview sandbox execution
@@ -112,7 +131,29 @@ This Cloudflare Worker:
 
 # **2. Environments & Config Files**
 
-### **2.1 backend.env**
+## 2.0 System Limits, Rate Limits, and Thresholds
+
+HiveSync MUST avoid hardcoded operational limits inside application logic.
+Operational limits MUST be configurable via environment variables with safe defaults.
+
+### 2.0.1 Configurable Limits (Non-Exhaustive)
+The following categories of limits MUST be configurable:
+
+- API rate limits (per user, per token, per IP)
+- Worker retry counts and backoff intervals
+- Queue latency thresholds used for alerting
+- Preview timeout limits
+- Maximum artifact and upload sizes
+- Maximum concurrent preview sessions per user or team
+
+### 2.0.2 Rules
+- Defaults MUST be conservative and safe.
+- Limits MUST be enforced server-side.
+- Clients MAY display server-provided limit values but MUST NOT enforce security-critical limits locally.
+- Limits MUST be logged at service startup (without exposing secrets).
+
+
+## **2.1 backend.env**
 
 Contains:
 
@@ -124,7 +165,7 @@ Contains:
 * R2 keys
 * Preview/AI rate limits
 
-### **2.2 worker.env**
+## **2.2 worker.env**
 
 Contains:
 
@@ -137,7 +178,7 @@ Contains:
 * Preview timeout
 * Worker name/type
 
-### **2.3 Required secrets**
+## **2.3 Required secrets**
 
 Must *never* be version-controlled:
 
@@ -436,7 +477,7 @@ Workers handle:
 Workers report completion to:
 
 ```
-POST /api/v1/worker/callback
+POST /api/v1/workers/callback
 ```
 
 with headers:
