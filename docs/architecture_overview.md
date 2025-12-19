@@ -23,6 +23,24 @@ It merges:
 * Flexible Proxy Mode (plugin ↔ desktop)
 * Admin analytics + autoscaling
 
+## Execution & Hosting Clarification
+
+This project does NOT require Replit to:
+- Build Docker images
+- Run Docker containers
+- Act as a production or staging host
+
+Docker, Compose, and container topology are specified as:
+- A local development reference
+- A future production deployment reference
+
+Replit’s role is limited to:
+- Reading specifications
+- Generating code
+- Validating structure and consistency
+
+All runtime execution, container orchestration, and hosting will occur outside of Replit.
+
 ---
 
 # 2. High-Level System Diagram

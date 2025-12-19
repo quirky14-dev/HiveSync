@@ -51,6 +51,227 @@ Confirmations MUST:
 
 ---
 
+## 1.2 Advanced Actions
+
+### Custom Git Command Execution (Advanced)
+
+HiveSync MAY provide an advanced Git command execution field for
+experienced users who wish to invoke Git CLI commands manually.
+
+This feature is intentionally limited in scope and does not constitute
+Git integration or repository management.
+
+---
+
+#### UI Structure
+
+- A fixed, non-editable prefix displaying `git`
+- A single-line editable text field for Git arguments only
+- An adjacent “Execute” button
+
+The user-visible input represents the full command:
+`git <arguments>`
+
+---
+
+#### Availability & Enablement
+
+- This feature is available only on:
+  - Desktop client
+  - HiveSync CLI
+- IDE plugins MAY invoke this feature only by delegating execution to an
+  active desktop session
+- Mobile and tablet clients MUST NOT expose this feature
+
+The input field and Execute button MUST be disabled if a supported Git
+CLI is not detected in the local environment at application startup.
+
+---
+
+#### Execution Semantics
+
+- The fixed `git` prefix is enforced and cannot be removed or modified
+- Users may enter only Git arguments; arbitrary shell commands are not
+  permitted
+- The command is executed verbatim as:
+  `git <user-provided arguments>`
+- Execution occurs from the project root directory
+- HiveSync does not:
+  - Modify or rewrite the command
+  - Parse or validate arguments
+  - Determine affected files
+  - Stage changes
+  - Infer intent
+
+All file scope, staging behavior, and repository effects are defined
+entirely by the user-provided Git arguments.
+
+---
+
+#### Result Handling
+
+- Standard output, standard error, and exit code are captured
+- On successful execution:
+  - A success dialog is displayed
+  - The argument input field is cleared
+- On failed execution:
+  - An error dialog is displayed, including stderr output
+  - The argument input field remains populated for editing and retry
+
+HiveSync MUST NOT automatically retry failed commands.
+
+---
+
+#### Responsibility Notice
+
+HiveSync does not manage version control state, authentication, branch
+selection, remotes, or error recovery.
+
+All responsibility for command behavior and outcomes remains with the
+user.
+
+
+---
+
+### Import Project from GitHub
+
+HiveSync supports importing projects from GitHub using authenticated
+GitHub access. This capability is limited to project import and does not
+provide repository synchronization or push functionality.
+
+---
+
+#### Authentication
+
+- GitHub authentication is handled via the existing OAuth integration
+- Authentication is used solely to access repositories for import
+- HiveSync does not manage GitHub permissions beyond repository access
+
+---
+
+#### Import Semantics
+
+- Importing a repository creates a new HiveSync project populated from
+  the selected GitHub repository
+- Users MAY select a branch or tag at import time
+- The imported project is treated as a local working copy
+- HiveSync does not automatically pull updates after import
+
+Importing from GitHub does not establish a persistent sync relationship.
+
+---
+
+#### Supported Entry Points
+
+HiveSync MAY expose GitHub import via:
+- An “Import Project” action in the toolbar or application menu
+- Advanced Git command execution (e.g. `git clone`)
+
+The import mechanism MUST always be explicitly user-initiated.
+
+---
+
+#### Explicit Non-Goals
+
+HiveSync does not:
+- Automatically sync with GitHub
+- Monitor repository changes
+- Push commits or branches
+- Resolve merge conflicts
+- Maintain a live GitHub-linked file tree
+
+Users are responsible for managing ongoing Git operations using their
+IDE, Git CLI, or other existing workflows.
+
+
+---
+
+### Import Project from GitHub
+
+HiveSync supports importing projects from GitHub using authenticated
+GitHub access. This feature is limited to project import only and does
+not provide repository synchronization or push functionality.
+
+---
+
+#### Entry Point
+
+- Accessible via:
+  - Toolbar or application menu: `File → Import Project → GitHub`
+- Import is always explicitly user-initiated
+
+---
+
+#### Authentication
+
+- GitHub authentication is handled via the existing OAuth integration
+- Authentication is requested only if required
+- GitHub credentials are used solely to access repositories for import
+
+---
+
+#### Import Flow
+
+1. **Provider Selection**
+   - User selects GitHub as the import source
+
+2. **Repository Selection**
+   - User is presented with a searchable list of accessible repositories
+   - Repositories may include user-owned and organization repositories
+   - No repository contents are displayed at this stage
+
+3. **Branch or Tag Selection**
+   - User selects a branch or tag to import
+   - Default selection is the repository’s default branch
+
+4. **Project Details**
+   - Project name is pre-filled from the repository name and may be edited
+   - Optional project description may be provided
+
+5. **Confirmation**
+   - User confirms import via an explicit “Import Project” action
+   - A notice is displayed indicating that the import creates a local copy
+     and does not establish ongoing synchronization with GitHub
+
+---
+
+#### Import Execution
+
+- Importing a repository creates a new HiveSync project populated from
+  the selected repository state
+- The imported project is treated as a local working copy
+- HiveSync does not automatically pull updates after import
+
+---
+
+#### Completion States
+
+- **Success**
+  - The new project opens automatically upon completion
+  - The project appears in the project list or sidebar
+
+- **Failure**
+  - A clear error message is displayed
+  - No partial project is created
+  - User may retry or cancel the import
+
+---
+
+#### Explicit Non-Goals
+
+HiveSync does not:
+- Automatically sync with GitHub
+- Monitor repository changes
+- Push commits or branches
+- Resolve merge conflicts
+- Maintain a persistent GitHub-linked project state
+
+All ongoing version control operations remain the responsibility of the
+user via their IDE, Git CLI, or existing workflows.
+
+
+---
+
 ### 1. Core File & Session Commands
 
 | Action               | Shortcut (Win/Linux) | Shortcut (macOS) | Toolbar | Confirm? |
