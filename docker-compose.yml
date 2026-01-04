@@ -1,0 +1,49 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    env_file:
+      - backend.env
+    ports:
+      - "4000:4000"
+    depends_on:
+      - postgres
+      - redis
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-hivesync}
+      POSTGRES_USER: ${POSTGRES_USER:-hivesync}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-REPLACE_ME}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+  preview_worker:
+    build:
+      context: backend/preview_workers
+    env_file:
+      - worker.env
+    depends_on:
+      - redis
+      - postgres
+      
+  ai_worker:
+    build:
+      context: backend/ai_workers
+    env_file:
+      - worker.env
+    depends_on:
+      - postgres
+      - redis
+
+
+volumes:
+  pgdata:
+
