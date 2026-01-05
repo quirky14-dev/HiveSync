@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import Query
 from pydantic import BaseModel, Field
 from sqlalchemy import select, func
 
@@ -97,8 +98,8 @@ class PreviewOut(BaseModel):
 
 @router.get("/previews", response_model=list[PreviewOut])
 async def list_previews(
-    status: Optional[JobStatus] = None,
-    limit: int = Field(default=50, ge=1, le=500),
+    status: Optional[JobStatus] = Query(None),
+    limit: int = Query(50, ge=1, le=500),
     user: User = Depends(get_current_user),
     db=Depends(get_db),
 ):
@@ -141,8 +142,8 @@ class AIJobOut(BaseModel):
 
 @router.get("/ai-jobs", response_model=list[AIJobOut])
 async def list_ai_jobs(
-    status: Optional[JobStatus] = None,
-    limit: int = Field(default=50, ge=1, le=500),
+    status: Optional[JobStatus] = Query(None),
+    limit: int = Query(50, ge=1, le=500),
     user: User = Depends(get_current_user),
     db=Depends(get_db),
 ):
@@ -212,8 +213,8 @@ class AuditLogOut(BaseModel):
 
 @router.get("/audit-logs", response_model=list[AuditLogOut])
 async def list_audit_logs(
-    since_minutes: int = Field(default=60, ge=1, le=1440),
-    limit: int = Field(default=100, ge=1, le=1000),
+    since_minutes: int = Query(60, ge=1, le=1440),
+    limit: int = Query(100, ge=1, le=1000),
     user: User = Depends(get_current_user),
     db=Depends(get_db),
 ):
@@ -258,7 +259,7 @@ class DeadLetterOut(BaseModel):
 
 @router.get("/dlq", response_model=list[DeadLetterOut])
 async def list_dead_letters(
-    limit: int = Field(default=100, ge=1, le=1000),
+    limit: int = Query(100, ge=1, le=1000),
     user: User = Depends(get_current_user),
     db=Depends(get_db),
 ):

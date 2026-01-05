@@ -10,7 +10,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
 from .db import init_db
-from .routers import api_router, get_redis_client
+from .routers import api_router
+#from .redis import get_redis_client
 
 
 def configure_logging() -> None:

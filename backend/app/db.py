@@ -183,7 +183,7 @@ class Worker(Base):
     worker_id: Mapped[str] = mapped_column(String(128), unique=True, index=True)
     kind: Mapped[str] = mapped_column(String(64), index=True)  # preview/map/ai/etc
     last_heartbeat_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
-    metadata: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    metadata_: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
 
 
 class AuditLog(Base):
@@ -193,7 +193,7 @@ class AuditLog(Base):
     event_type: Mapped[str] = mapped_column(String(80), index=True)
     user_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     project_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True)
-    metadata: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    metadata_: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
@@ -259,3 +259,4 @@ AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=As
 async def init_db() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
